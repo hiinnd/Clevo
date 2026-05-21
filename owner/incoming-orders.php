@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
     if ($action == 'accept_order') {
         $order_id = (int) ($_POST['order_id'] ?? 0);
-        $stmt = $conn->prepare("SELECT b.UserID, b.Order_Number, b.Service_Location
+        $stmt = $conn->prepare("SELECT b.UserID, b.Order_Number, b.Service_Location, b.Payment_Method
             FROM booking b
             JOIN stations s ON b.StationID = s.StationID
             WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
@@ -49,7 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             if ($update->execute()) {
             $customer_id = (int) $order_data['UserID'];
             $order_num = (string) $order_data['Order_Number'];
-            if ($order_data['Service_Location'] === 'station') {
+            if ($order_data['Payment_Method'] === 'plan') {
+                $msg = "تم قبول طلبك #$order_num وسيتم احتسابه من باقتك.";
+            } elseif ($order_data['Service_Location'] === 'station') {
                 $msg = "تم قبول طلبك #$order_num. يمكنك الآن اختيار طريقة الدفع.";
             } elseif ($order_data['Service_Location'] === 'home') {
                 $msg = "تم قبول طلبك #$order_num. سيتم تجهيز الخدمة وتسليمها بدون سائق.";
@@ -136,6 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Rejected' WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
         $update->bind_param("ii", $order_id, $owner_id);
         if ($update->execute()) {
+            if ($update->affected_rows > 0) {
+                clevoRestorePlanWashForBooking($conn, $order_id);
+            }
             $msg = "نعتذر، تم رفض طلبك #$order_num من قبل المحطة. يمكنك حجز محطة أخرى.";
             clevoCreateNotification($conn, $customer_id, 'رفض الطلب', $msg, 'danger');
             // Notify admin about owner's rejection
@@ -180,6 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $customer_id = (int) $order_data['UserID'];
             $points = (int) floor(((float) $order_data['Total_Price']) * 10);
             clevoAddLoyaltyPoints($conn, $customer_id, $points);
+            if ($order_data['Payment_Method'] === 'plan') {
+                clevoCreditOwnerForBooking($conn, $order_id);
+            }
             $order_num = (string) $order_data['Order_Number'];
             clevoCreateNotification($conn, $customer_id, 'تم إنهاء الطلب', "تم إنهاء طلبك #$order_num. يمكنك الآن تقييم الخدمة.", 'success');
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'completed']);
@@ -327,7 +335,17 @@ $csrf_token = generate_csrf_token();
                                     <h6 class="mb-1"><span data-i18n="customer_label">الزبون:</span> <span><?= e($order['customer_name']) ?></span> <span class="small text-primary">#<?= e($order['Order_Number']) ?></span></h6>
                                     <p class="mb-0 small opacity-75"><?= $order['Status'] == 'Accepted' ? 'جاري التنفيذ' . ($order['driver_name'] ? ' بواسطة: ' . e($order['driver_name']) : '') : 'بانتظار قبول الطلب' ?></p>
                                     <p class="mb-0 small fw-bold"><i class="fas fa-soap me-1"></i><?= e($order['service_name']) ?> | <?= e($order['Booking_Date']) ?> <?= date('h:i A', strtotime($order['Booking_Time'])) ?></p>
-                                    <p class="mb-0 small opacity-75"><i class="fas fa-phone me-1"></i><?= e($order['customer_phone']) ?> <?= $order['Payment_Method'] ? '| دفع: ' . e($order['Payment_Method']) : '' ?></p>
+                                    <p class="mb-0 small opacity-75">
+                                        <i class="fas fa-phone me-1"></i><?= e($order['customer_phone']) ?>
+                                        <?php if ($order['Payment_Method']): ?>
+                                            | <span data-i18n="payment_label">دفع:</span>
+                                            <?php if ($order['Payment_Method'] === 'plan'): ?>
+                                                <span class="badge bg-success-subtle text-success border" data-i18n="payment_plan">من الباقة</span>
+                                            <?php else: ?>
+                                                <?= e($order['Payment_Method']) ?>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </p>
                                     <?php if($order['Service_Location'] != 'station'): ?>
                                         <p class="mb-0 small text-danger fw-bold"><i class="fas fa-location-dot me-1"></i><?= htmlspecialchars($order['Address_Details'] ?: 'تم إرسال موقع على الخريطة') ?></p>
                                         <?php if($order['Latitude'] && $order['Longitude']): ?>
@@ -434,10 +452,10 @@ $csrf_token = generate_csrf_token();
     <script>
         const translations = {
             ar: { 
-                nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", header_title_orders: "طلبات الزبائن الواردة", home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", customer_label: "الزبون:", amount_label: "المبلغ:", btn_assign_driver: "قبول وتعيين", btn_accept: "قبول", btn_complete: "إنهاء الطلب", btn_wait_payment: "بانتظار الدفع", btn_reject: "رفض", modal_assign_title: "اختيار سائق للمهمة", btn_cancel: "إلغاء", btn_ok: "موافق", no_orders: "لا يوجد حجوزات حالياً", no_orders_hint: "ستظهر الطلبات الجديدة هنا فور وصولها.", reject_confirm_title: "تأكيد الرفض", reject_confirm_body: "هل أنت متأكد من رفض الطلب؟", loading_text: "جاري المعالجة...", error_title: "تعذر تنفيذ الطلب", error_body: "حاول مرة أخرى بعد قليل.", no_drivers: "لا يوجد سائقين نشطين حالياً", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", nav_notifications: "الإشعارات"
+                nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", header_title_orders: "طلبات الزبائن الواردة", home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", customer_label: "الزبون:", amount_label: "المبلغ:", payment_label: "دفع:", payment_plan: "من الباقة", btn_assign_driver: "قبول وتعيين", btn_accept: "قبول", btn_complete: "إنهاء الطلب", btn_wait_payment: "بانتظار الدفع", btn_reject: "رفض", modal_assign_title: "اختيار سائق للمهمة", btn_cancel: "إلغاء", btn_ok: "موافق", no_orders: "لا يوجد حجوزات حالياً", no_orders_hint: "ستظهر الطلبات الجديدة هنا فور وصولها.", reject_confirm_title: "تأكيد الرفض", reject_confirm_body: "هل أنت متأكد من رفض الطلب؟", loading_text: "جاري المعالجة...", error_title: "تعذر تنفيذ الطلب", error_body: "حاول مرة أخرى بعد قليل.", no_drivers: "لا يوجد سائقين نشطين حالياً", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", nav_notifications: "الإشعارات"
             },
             en: { 
-                nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", header_title_orders: "Customer Requests", home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", customer_label: "Customer:", amount_label: "Amount:", btn_assign_driver: "Accept & Assign", btn_accept: "Accept", btn_complete: "Complete Order", btn_wait_payment: "Waiting for payment", btn_reject: "Reject", modal_assign_title: "Select Driver", btn_cancel: "Cancel", btn_ok: "OK", no_orders: "No bookings right now", no_orders_hint: "New customer requests will appear here.", reject_confirm_title: "Confirm Rejection", reject_confirm_body: "Are you sure you want to reject this order?", loading_text: "Processing...", error_title: "Action failed", error_body: "Please try again shortly.", no_drivers: "No active drivers right now", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", nav_notifications: "Notifications"
+                nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", header_title_orders: "Customer Requests", home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", customer_label: "Customer:", amount_label: "Amount:", payment_label: "Payment:", payment_plan: "From plan", btn_assign_driver: "Accept & Assign", btn_accept: "Accept", btn_complete: "Complete Order", btn_wait_payment: "Waiting for payment", btn_reject: "Reject", modal_assign_title: "Select Driver", btn_cancel: "Cancel", btn_ok: "OK", no_orders: "No bookings right now", no_orders_hint: "New customer requests will appear here.", reject_confirm_title: "Confirm Rejection", reject_confirm_body: "Are you sure you want to reject this order?", loading_text: "Processing...", error_title: "Action failed", error_body: "Please try again shortly.", no_drivers: "No active drivers right now", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", nav_notifications: "Notifications"
             }
         };
 
@@ -574,6 +592,7 @@ $csrf_token = generate_csrf_token();
             }
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

@@ -159,18 +159,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
             <p class="small fw-bold text-primary mb-0 text-center"><i class="fas fa-star me-1 text-warning"></i> <span data-i18n="points_label">Clevo Points</span></p>
         </div>
 
-        <?php if ($success): ?>
-            <div class="alert alert-success mx-2 mt-4 rounded-4 small text-center shadow-sm">
-                <i class="fas fa-check-circle me-1"></i> <span data-i18n="redeem_success_msg">تم تحويل النقاط لرصيد في محفظتك بنجاح!</span>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($error): ?>
-            <div class="alert alert-danger mx-2 mt-4 rounded-4 small text-center shadow-sm">
-                <i class="fas fa-times-circle me-1"></i> <span data-i18n="<?= $error ?>"></span>
-            </div>
-        <?php endif; ?>
-
         <h6 class="mt-4 px-3 fw-black mb-3 text-custom-title" data-i18n="how_to_earn_title">كيف تجمع النقاط؟</h6>
         <div class="px-2">
             <div class="glass info-item shadow-sm">
@@ -227,6 +215,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
         </div>
     </div>
 
+    <div class="modal fade" id="statusModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content p-4 text-center">
+                <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                <h6 class="fw-bold mb-2 text-custom-title text-center" id="statusModalTitle"></h6>
+                <p class="small text-custom-muted text-center mb-0" id="statusModalBody"></p>
+                <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-3 text-white" data-bs-dismiss="modal" data-i18n="btn_ok">موافق</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
@@ -239,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 points_unit: "نقطة", btn_redeem: "استبدال", btn_confirm: "تأكيد", btn_cancel: "إلغاء",
                 redeem_confirm_t: "تأكيد تحويل النقاط لرصيد؟", redeem_success_msg: "تم تحويل النقاط بنجاح!",
                 not_enough_points: "عذراً، رصيدك غير كافٍ للاستبدال.", system_error: "حدث خطأ في النظام، يرجى المحاولة لاحقاً.",
-                btn_invite: "دعوة", share_msg: "سجل في تطبيق Clevo واستخدم كود الدعوة الخاص بي للحصول على مكافآت متبادلة عند حجزك الأول! الكود: "
+                btn_invite: "دعوة", share_msg: "سجل في تطبيق Clevo واستخدم كود الدعوة الخاص بي للحصول على مكافآت متبادلة عند حجزك الأول! الكود: ", copied_title: "تم النسخ", copied_body: "تم نسخ رابط وكود الدعوة الخاص بك بنجاح!", btn_ok: "موافق"
             },
             en: {
                 loyalty_title: "Clevo Points", points_balance: "Your Balance", points_label: "Clevo Points",
@@ -250,13 +249,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 points_unit: "Points", btn_redeem: "Redeem", btn_confirm: "Confirm", btn_cancel: "Cancel",
                 redeem_confirm_t: "Confirm points conversion?", redeem_success_msg: "Points redeemed successfully!",
                 not_enough_points: "Sorry, insufficient points.", system_error: "System error, please try again.",
-                btn_invite: "Invite", share_msg: "Register on Clevo using my referral link and enjoy rewards on your first booking! Code: "
+                btn_invite: "Invite", share_msg: "Register on Clevo using my referral link and enjoy rewards on your first booking! Code: ", copied_title: "Copied", copied_body: "Your referral link and code were copied successfully.", btn_ok: "OK"
             }
         };
 
         function openRedeemModal(pts) {
             document.getElementById('modalPoints').value = pts;
             new bootstrap.Modal(document.getElementById('confirmModal')).show();
+        }
+
+        function showStatusModal(title, body) {
+            document.getElementById('statusModalTitle').innerText = title;
+            document.getElementById('statusModalBody').innerText = body;
+            new bootstrap.Modal(document.getElementById('statusModal')).show();
         }
 
         function shareReferral(code) {
@@ -272,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 }).catch(err => console.log(err));
             } else {
                 navigator.clipboard.writeText(fullMessage).then(() => {
-                    alert(lang === 'ar' ? 'تم نسخ رابط وكود الدعوة الخاص بك بنجاح!' : 'Your referral link and code copied to clipboard!');
+                    showStatusModal(translations[lang].copied_title, translations[lang].copied_body);
                 });
             }
         }
@@ -306,8 +311,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
+
+            <?php if ($success): ?>
+                showStatusModal(translations[lang].redeem_success_msg, '');
+            <?php elseif ($error): ?>
+                showStatusModal(lang === 'ar' ? 'تنبيه' : 'Alert', translations[lang][<?= json_encode($error) ?>] || <?= json_encode($error) ?>);
+            <?php endif; ?>
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

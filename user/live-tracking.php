@@ -201,6 +201,7 @@ if (!$order) {
         setInterval(updateTracking, 10000); 
         updateTracking(); 
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

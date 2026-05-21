@@ -184,6 +184,7 @@ $transactions = $trans_stmt->get_result();
             }, 1500);
         }
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

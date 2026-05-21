@@ -321,6 +321,6 @@ $result = $stmt->get_result();
             applyTranslations(lang);
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>

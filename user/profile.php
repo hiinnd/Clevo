@@ -198,6 +198,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
             });
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>

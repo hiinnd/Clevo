@@ -221,6 +221,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             }, 2000);
         }
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

@@ -44,11 +44,10 @@ $loyalty_data = $loyalty_stmt->get_result()->fetch_assoc();
 $user_points = $loyalty_data['PointsBalance'] ?? 0; // إذا لم يوجد سجل نضع 0
 
 // --- [جلب بيانات المستخدم مع حالة الاشتراك] ---
-$stmt = $conn->prepare("SELECT u.UserName, u.ProfilePic, up.status, up.remaining_washes 
-                        FROM `user` u 
-                        LEFT JOIN `user_plans` up ON u.UserID = up.user_id 
-                        WHERE u.UserID = ? 
-                        ORDER BY up.created_at DESC LIMIT 1");
+$stmt = $conn->prepare("SELECT u.UserName, u.ProfilePic
+                        FROM `user` u
+                        WHERE u.UserID = ?
+                        LIMIT 1");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -60,8 +59,12 @@ if (!$user) {
     exit();
 }
 
-$is_subscribed = (isset($user['status']) && $user['status'] === 'active');
-$washes_left = $user['remaining_washes'] ?? 0;
+$activePlan = clevoGetActiveUserPlan($conn, (int) $userID);
+$is_subscribed = (bool) $activePlan;
+$washes_left = $activePlan['remaining_washes'] ?? 0;
+$plan_total_washes = $activePlan ? max((int) $washes_left, clevoPlanWashCount($activePlan)) : 0;
+$plan_features_ar = $activePlan ? clevoPlanFeatures($activePlan, 'ar') : [];
+$plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 ?>
 
 <!DOCTYPE html>
@@ -280,6 +283,25 @@ $washes_left = $user['remaining_washes'] ?? 0;
             color: #a855f7 !important; /* لون بنفسجي فاتح حسب الصورة */
             line-height: 1;
         }
+        .plan-mini-rail {
+            display: flex;
+            gap: 8px;
+            max-width: 100%;
+            overflow-x: auto;
+            padding: 8px 2px 0;
+            scrollbar-width: none;
+        }
+        .plan-mini-rail::-webkit-scrollbar { display: none; }
+        .plan-mini-chip {
+            flex: 0 0 auto;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(14, 165, 233, 0.12);
+            border: 1px solid rgba(14, 165, 233, 0.18);
+            font-size: .72rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
         /* ------------------------------------------ */
 
         .services-grid {
@@ -412,7 +434,10 @@ $washes_left = $user['remaining_washes'] ?? 0;
             <?php else: ?>
                 <img src="../assets/Images/car.png" class="car-promo-img" alt="Car">
                 <div class="washes-text" data-i18n="washes_left">غسلات متبقية</div>
-                <div class="washes-count"><?= $washes_left ?> / 10</div>
+                <div class="washes-count"><?= (int) $washes_left ?> / <?= (int) $plan_total_washes ?></div>
+                <div class="plan-mini-rail"
+                     data-features-ar="<?= htmlspecialchars(json_encode($plan_features_ar, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>"
+                     data-features-en="<?= htmlspecialchars(json_encode($plan_features_en, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>"></div>
             <?php endif; ?>
         </div>
     </div>
@@ -449,8 +474,10 @@ $washes_left = $user['remaining_washes'] ?? 0;
                         </div>
                     <?php endif; ?>
                 </div>
-                <?php if ($pending_booking['Status'] === 'Accepted'): ?>
+                <?php if ($pending_booking['Status'] === 'Accepted' && empty($pending_booking['Payment_Method'])): ?>
                     <a class="order-next-btn" href="../includes/pending-dues.php"><i class="fas fa-credit-card"></i> الدفع</a>
+                <?php elseif ($pending_booking['Status'] === 'Accepted' && $pending_booking['Payment_Method'] === 'plan'): ?>
+                    <span class="order-next-btn" style="background:#10b981;"><i class="fas fa-gem"></i> <span data-i18n="paid_from_plan">من الباقة</span></span>
                 <?php endif; ?>
             </div>
         </div>
@@ -578,11 +605,11 @@ $washes_left = $user['remaining_washes'] ?? 0;
         const translations = {
             ar: {
                 hello_weather: "مرحباً بك..", loyalty_title: "نقاط الولاء", save_every_wash: "غسيل أوفر", subscribe_now: "اشترك الآن", washes_left: "غسلات متبقية", our_services: "خدماتنا المميزة", serv_book: "حجز", serv_plans: "الباقات", serv_history: "السجلات", serv_wallet: "المحفظة", serv_profile: "ملفي", serv_support: "الدعم", logout_confirm_title: "تأكيد الخروج", logout_confirm_msg: "هل أنت متأكد من رغبتك في تسجيل الخروج؟", btn_yes: "نعم، خروج", btn_no: "إلغاء",
-                loc_title: "تفعيل الموقع", loc_msg: "يرجى تفعيل الوصول للموقع لخدمتك بشكل أفضل.", btn_allow: "سماح بالوصول", btn_later: "لاحقاً", serv_logout: "خروج"
+                loc_title: "تفعيل الموقع", loc_msg: "يرجى تفعيل الوصول للموقع لخدمتك بشكل أفضل.", btn_allow: "سماح بالوصول", btn_later: "لاحقاً", serv_logout: "خروج", paid_from_plan: "من الباقة"
             },
             en: {
                 hello_weather: "Welcome..", loyalty_title: "Loyalty Points", save_every_wash: "Save money", subscribe_now: "Subscribe", washes_left: "Washes Left", our_services: "Our Services", serv_book: "Book", serv_plans: "Plans", serv_history: "History", serv_wallet: "Wallet", serv_profile: "Profile", serv_support: "Support", logout_confirm_title: "Logout Confirmation", logout_confirm_msg: "Are you sure you want to logout?", btn_yes: "Logout", btn_no: "Cancel",
-                loc_title: "Location Permission", loc_msg: "Please enable location to provide better weather and local services.", btn_allow: "Allow Access", btn_later: "Later", serv_logout: "Logout"
+                loc_title: "Location Permission", loc_msg: "Please enable location to provide better weather and local services.", btn_allow: "Allow Access", btn_later: "Later", serv_logout: "Logout", paid_from_plan: "From plan"
             }
         };
 
@@ -593,6 +620,25 @@ $washes_left = $user['remaining_washes'] ?? 0;
             });
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
             document.getElementById('langBtn').innerText = lang === 'ar' ? 'EN' : 'AR';
+            renderPlanMiniRail(lang);
+        }
+
+        function renderPlanMiniRail(lang) {
+            document.querySelectorAll('.plan-mini-rail').forEach(rail => {
+                let features = [];
+                try {
+                    features = JSON.parse(rail.getAttribute('data-features-' + lang) || '[]');
+                } catch (e) {
+                    features = [];
+                }
+                rail.innerHTML = '';
+                features.forEach(feature => {
+                    const chip = document.createElement('span');
+                    chip.className = 'plan-mini-chip';
+                    chip.innerText = feature;
+                    rail.appendChild(chip);
+                });
+            });
         }
 
         function toggleLanguage() {
@@ -626,6 +672,7 @@ $washes_left = $user['remaining_washes'] ?? 0;
             }
         }
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

@@ -3,6 +3,7 @@ session_start();
 include(__DIR__ . "/config.php");
 include(__DIR__ . "/booking-helpers.php");
 include(__DIR__ . "/app-helpers.php");
+include_once(__DIR__ . "/plan-helpers.php");
 // التأكد من تسجيل الدخول
 if (!isset($_SESSION['userID'])) {
     header("Location: ../general/login.php");
@@ -12,12 +13,13 @@ if (!isset($_SESSION['userID'])) {
 $userID = (int) $_SESSION['userID'];
 $bookingID = (int) ($_GET['id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
+clevoEnsurePlanColumns($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_payment') {
     header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
     $method = $_POST['method'] ?? '';
-    if (!in_array($method, ['cash', 'wallet', 'points'], true)) {
+    if (!in_array($method, ['cash', 'wallet', 'points', 'plan'], true)) {
         echo json_encode(['status' => 'error']);
         exit;
     }
@@ -31,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_p
         exit;
     }
 
-    if ($method === 'cash' && !in_array($booking['Service_Location'], ['station', 'home', 'delivery'], true)) {
+    if ($method === 'cash' && $booking['Service_Location'] !== 'station') {
         echo json_encode(['status' => 'not_allowed']);
         exit;
     }
@@ -63,14 +65,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_p
         }
     }
 
-    $update = $conn->prepare("UPDATE booking SET Payment_Method = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
-    $update->bind_param("sii", $method, $bookingID, $userID);
-    $update->execute();
-    if ($update->affected_rows <= 0) {
-        echo json_encode(['status' => 'error']);
-        exit;
+    if ($method === 'plan') {
+        $conn->begin_transaction();
+        try {
+            $planUse = clevoUsePlanForBooking($conn, $userID);
+            if (!$planUse) {
+                throw new RuntimeException('insufficient_plan');
+            }
+            $userPlanID = (int) $planUse['id'];
+            $planWashesUsed = 1;
+            $update = $conn->prepare("UPDATE booking SET Payment_Method = ?, UserPlanID = ?, Plan_Washes_Used = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
+            $update->bind_param("siiii", $method, $userPlanID, $planWashesUsed, $bookingID, $userID);
+            $update->execute();
+            if ($update->affected_rows <= 0) {
+                throw new RuntimeException('update_failed');
+            }
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            echo json_encode(['status' => $e->getMessage() === 'insufficient_plan' ? 'insufficient_plan' : 'error']);
+            exit;
+        }
+    } else {
+        $update = $conn->prepare("UPDATE booking SET Payment_Method = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
+        $update->bind_param("sii", $method, $bookingID, $userID);
+        $update->execute();
+        if ($update->affected_rows <= 0) {
+            echo json_encode(['status' => 'error']);
+            exit;
+        }
+        clevoCreditOwnerForBooking($conn, $bookingID);
     }
-    clevoCreditOwnerForBooking($conn, $bookingID);
     echo json_encode(['status' => 'success']);
     exit;
 }
@@ -98,6 +123,7 @@ $wallet = clevoEnsureWallet($conn, $userID);
 $walletBalance = (float) $wallet['Balance'];
 $pointsBalance = clevoGetLoyaltyPoints($conn, $userID);
 $isStationService = $booking['Service_Location'] === 'station';
+$activePlan = clevoGetActiveUserPlan($conn, $userID);
 $csrf_token = generate_csrf_token();
 ?>
 
@@ -208,14 +234,28 @@ $csrf_token = generate_csrf_token();
         <h6 class="mb-3 fw-bold text-clear" data-i18n="payment_methods_label">طريقة الدفع:</h6>
         
         <div id="methodsList">
-            <?php if (in_array($booking['Service_Location'], ['station', 'home', 'delivery'], true)): ?>
+            <?php if ($isStationService): ?>
             <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'cash')">
                 <div class="rounded-circle bg-secondary-subtle p-3 mx-3">
                     <i class="fas fa-money-bill-wave text-secondary fs-4"></i>
                 </div>
                 <div class="flex-grow-1">
-                    <h6 class="mb-0 fw-bold text-clear">كاش</h6>
-                    <small class="text-muted-clear">متاح فقط لخدمة المحطة</small>
+                    <h6 class="mb-0 fw-bold text-clear" data-i18n="pay_cash">كاش</h6>
+                    <small class="text-muted-clear" data-i18n="cash_desc">متاح لخدمة المحطة</small>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php if ($activePlan): ?>
+            <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'plan')">
+                <div class="rounded-circle bg-info-subtle p-3 mx-3">
+                    <i class="fas fa-car-side text-info fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="mb-0 fw-bold text-clear" data-i18n="pay_plan">من الباقة</h6>
+                    <small class="text-muted-clear">
+                        <span><?= (int) $activePlan['remaining_washes'] ?></span>
+                        <span data-i18n="plan_washes_left">غسلات متبقية</span>
+                    </small>
                 </div>
             </div>
             <?php endif; ?>
@@ -267,7 +307,6 @@ $csrf_token = generate_csrf_token();
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/translations.js"></script>
     <script>
         const lang = localStorage.getItem('app_lang') || 'ar';
         const theme = localStorage.getItem('global_theme') || 'dark';
@@ -277,6 +316,33 @@ $csrf_token = generate_csrf_token();
         const serviceLocation = <?= json_encode($booking['Service_Location']) ?>;
         const csrfToken = <?= json_encode($csrf_token) ?>;
         const msgModal = new bootstrap.Modal(document.getElementById('msgModal'));
+        const paymentTranslations = {
+            ar: {
+                pay_confirm_title: "تأكيد الدفع والخصم", loyalty_points: "نقاط الولاء",
+                final_amount_label: "المبلغ المطلوب دفعه", payment_methods_label: "طريقة الدفع:",
+                pay_cash: "كاش", cash_desc: "متاح لخدمة المحطة", pay_plan: "من الباقة",
+                plan_washes_left: "غسلات متبقية", pay_visa: "بطاقة بنكية / فيزا",
+                pay_wallet: "محفظة Clevo", current_balance: "الرصيد:", btn_confirm_pay: "تأكيد الحجز والدفع",
+                btn_ok: "موافق"
+            },
+            en: {
+                pay_confirm_title: "Confirm Payment", loyalty_points: "Loyalty Points",
+                final_amount_label: "Amount to pay", payment_methods_label: "Payment method:",
+                pay_cash: "Cash", cash_desc: "Available at station", pay_plan: "From plan",
+                plan_washes_left: "washes left", pay_visa: "Bank Card / Visa",
+                pay_wallet: "Clevo Wallet", current_balance: "Balance:", btn_confirm_pay: "Confirm Booking & Payment",
+                btn_ok: "OK"
+            }
+        };
+
+        function applyPaymentTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (paymentTranslations[lang] && paymentTranslations[lang][key]) {
+                    el.innerText = paymentTranslations[lang][key];
+                }
+            });
+        }
 
         window.onload = () => {
             document.documentElement.setAttribute('data-theme', theme);
@@ -284,13 +350,8 @@ $csrf_token = generate_csrf_token();
             document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
 
             if (typeof applyTranslations === 'function') applyTranslations(lang);
+            applyPaymentTranslations();
             if (lang !== 'ar') document.getElementById('backIcon').className = "fas fa-arrow-left";
-            const cashDesc = document.querySelector('#methodsList .method-item small.text-muted-clear');
-            if (cashDesc) {
-                cashDesc.innerText = serviceLocation === 'station'
-                    ? (lang === 'ar' ? 'متاح لخدمة المحطة' : 'Available for at-station service')
-                    : (lang === 'ar' ? 'تأكيد الدفع كاش عند التنفيذ' : 'Cash will be paid on service');
-            }
         };
 
         document.getElementById('usePoints').addEventListener('change', function() {
@@ -350,6 +411,10 @@ $csrf_token = generate_csrf_token();
                         showMessage('error', 'النقاط غير كافية', 'Insufficient Points', 'رصيد نقاط الولاء لا يكفي لإتمام الدفع.', 'Your loyalty points are not enough.');
                         return;
                     }
+                    if (data.status === 'insufficient_plan') {
+                        showMessage('error', 'الباقة غير كافية', 'Plan Unavailable', 'لا توجد غسلات متبقية في باقتك.', 'There are no remaining washes in your plan.');
+                        return;
+                    }
                     if (data.status === 'not_allowed') {
                         showMessage('error', 'طريقة غير متاحة', 'Not Allowed', 'هذه الطريقة غير متاحة لهذا النوع من الخدمة.', 'This payment method is not available for this service.');
                         return;
@@ -370,6 +435,7 @@ $csrf_token = generate_csrf_token();
             }
         }
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

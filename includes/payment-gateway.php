@@ -3,6 +3,7 @@ session_start();
 include(__DIR__ . "/config.php");
 include(__DIR__ . "/booking-helpers.php");
 include(__DIR__ . "/app-helpers.php");
+include_once(__DIR__ . "/plan-helpers.php");
 // التأكد من تسجيل الدخول - تم التعديل ليتوافق مع userID الخاص بصفحة login.php
 if (!isset($_SESSION['userID'])) {
     header("Location: ../general/login.php");
@@ -11,12 +12,19 @@ if (!isset($_SESSION['userID'])) {
 // السعر الافتراضي، وسيتم تحديثه عبر JavaScript من localStorage لضمان تكامل البيانات
 $userID = (int) $_SESSION['userID'];
 $bookingID = (int) ($_GET['id'] ?? 0);
+$planID = (int) ($_GET['plan_id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
+clevoEnsurePlanColumns($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_visa_paid') {
     header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
     if ($bookingID <= 0) {
+        if ($planID > 0) {
+            $subscription = clevoCreateUserPlanSubscription($conn, $userID, $planID);
+            echo json_encode(['status' => $subscription ? 'success' : 'error', 'type' => 'plan']);
+            exit;
+        }
         echo json_encode(['status' => 'success']);
         exit;
     }
@@ -43,6 +51,17 @@ if ($bookingID > 0) {
         exit();
     }
     $final_price = number_format((float) $booking['Total_Price'], 2);
+} elseif ($planID > 0) {
+    $stmt = $conn->prepare("SELECT price, name_ar, name_en FROM plans WHERE id = ? AND is_active = 1 LIMIT 1");
+    $stmt->bind_param("i", $planID);
+    $stmt->execute();
+    $plan = $stmt->get_result()->fetch_assoc();
+    if (!$plan) {
+        header("Location: ../user/customer-plans.php");
+        exit();
+    }
+    $booking = null;
+    $final_price = number_format((float) $plan['price'], 2);
 } else {
     $booking = null;
     $final_price = "0.00";
@@ -214,6 +233,7 @@ $csrf_token = generate_csrf_token();
                 errorMsg: "يرجى تعبئة جميع الخانات بشكل صحيح",
                 successTitle: "تم بنجاح",
                 successMsg: "تمت عملية الدفع بنجاح وجاري إتمام الحجز!",
+                planSuccessMsg: "تم الاشتراك بالباقة بنجاح!",
                 btnOk: "فهمت"
             },
             en: {
@@ -227,6 +247,7 @@ $csrf_token = generate_csrf_token();
                 errorMsg: "Please fill all fields correctly",
                 successTitle: "Success",
                 successMsg: "Payment processed successfully!",
+                planSuccessMsg: "Plan subscription completed successfully!",
                 btnOk: "Got it"
             }
         };
@@ -234,21 +255,24 @@ $csrf_token = generate_csrf_token();
         const lang = localStorage.getItem('app_lang') || 'ar';
         const theme = localStorage.getItem('global_theme') || 'dark';
         const csrfToken = <?= json_encode($csrf_token) ?>;
+        const bookingID = <?= (int) $bookingID ?>;
+        const planID = <?= (int) $planID ?>;
 
         window.onload = () => {
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('lang', lang);
             document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
             
-            // قراءة السعر من localStorage لربط التدفق
-            const storedFinalPrice = localStorage.getItem('finalPrice');
-            if (storedFinalPrice && !isNaN(parseFloat(storedFinalPrice))) {
-                document.getElementById('displayPrice').innerText = parseFloat(storedFinalPrice).toFixed(2) + " JOD";
-            }
-            const pendingBooking = JSON.parse(localStorage.getItem('pending_booking'));
-            if (pendingBooking && pendingBooking.services) {
-                const total = pendingBooking.services.reduce((sum, s) => sum + parseFloat(s.price), 0);
-                document.getElementById('displayPrice').innerText = total.toFixed(2) + " JOD";
+            if (!bookingID && !planID) {
+                const storedFinalPrice = localStorage.getItem('finalPrice');
+                if (storedFinalPrice && !isNaN(parseFloat(storedFinalPrice))) {
+                    document.getElementById('displayPrice').innerText = parseFloat(storedFinalPrice).toFixed(2) + " JOD";
+                }
+                const pendingBooking = JSON.parse(localStorage.getItem('pending_booking'));
+                if (pendingBooking && pendingBooking.services) {
+                    const total = pendingBooking.services.reduce((sum, s) => sum + parseFloat(s.price), 0);
+                    document.getElementById('displayPrice').innerText = total.toFixed(2) + " JOD";
+                }
             }
             
             applyLanguage();
@@ -288,7 +312,7 @@ $csrf_token = generate_csrf_token();
             }
 
             // محاكاة معالجة الدفع ثم الانتقال لصفحة التفاصيل
-            showModal('<i class="fas fa-check-circle text-success fa-3x"></i>', t.successTitle, t.successMsg);
+            showModal('<i class="fas fa-check-circle text-success fa-3x"></i>', t.successTitle, planID ? t.planSuccessMsg : t.successMsg);
             
             fetch(window.location.href, {
                 method: 'POST',
@@ -302,7 +326,7 @@ $csrf_token = generate_csrf_token();
                     return;
                 }
                 setTimeout(() => {
-                    location.href = '../user/booking-history.php';
+                    location.href = planID ? '../user/customer-plans.php?subscribed=1' : '../user/booking-history.php';
                 }, 1200);
             })
             .catch(() => showModal('<i class="fas fa-exclamation-circle text-warning fa-3x"></i>', t.errorTitle, t.errorMsg))
@@ -329,6 +353,7 @@ $csrf_token = generate_csrf_token();
             document.getElementById('mirrorDate').innerText = val || "MM/YY";
         }
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

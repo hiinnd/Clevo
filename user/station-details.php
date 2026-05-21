@@ -11,6 +11,7 @@ if (!isset($_SESSION['userID'])) {
 
 $userID = (int) $_SESSION['userID'];
 cancelExpiredBookings($conn, $userID);
+clevoEnsurePlanColumns($conn);
 
 $stationID = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $query = "SELECT * FROM `stations` WHERE StationID = ?";
@@ -44,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $bookingDate = $_POST['booking_date'] ?? '';
     $bookingTime = $_POST['booking_time'] ?? '';
     $paymentMethod = trim($_POST['payment_method'] ?? '');
+    $usePlan = ($_POST['use_plan'] ?? '') === '1';
     $latitude = ($_POST['latitude'] ?? '') !== '' ? (float) $_POST['latitude'] : null;
     $longitude = ($_POST['longitude'] ?? '') !== '' ? (float) $_POST['longitude'] : null;
     $addressDetails = trim($_POST['address_details'] ?? '');
@@ -96,43 +98,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $servicesNote = "الخدمات: " . implode(' + ', $serviceNames);
     $addressForDb = trim($addressDetails) !== '' ? $addressDetails . "\n" . $servicesNote : $servicesNote;
 
-    $insert = $conn->prepare("INSERT INTO booking
-        (Order_Number, UserID, StationID, ServiceID, Service_Location, Latitude, Longitude, Address_Details, Booking_Date, Booking_Time, Status, Total_Price, Admin_Commission, Payment_Method)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)");
-    $insert->bind_param(
-        "siiisddsssdds",
-        $orderNumber,
-        $userID,
-        $stationID,
-        $serviceID,
-        $serviceLocation,
-        $latitude,
-        $longitude,
-        $addressForDb,
-        $bookingDate,
-        $bookingTime,
-        $totalPrice,
-        $adminCommission,
-        $paymentMethod
-    );
+    $userPlanID = null;
+    $planWashesUsed = 0;
+    $conn->begin_transaction();
+    try {
+        if ($usePlan) {
+            $planUse = clevoUsePlanForBooking($conn, $userID);
+            if (!$planUse) {
+                throw new RuntimeException('plan_unavailable');
+            }
+            $paymentMethod = 'plan';
+            $userPlanID = (int) $planUse['id'];
+            $planWashesUsed = 1;
+        }
 
-    if (!$insert->execute()) {
-        echo json_encode(['status' => 'error', 'message' => 'db_error']);
+        $insert = $conn->prepare("INSERT INTO booking
+            (Order_Number, UserID, StationID, ServiceID, Service_Location, Latitude, Longitude, Address_Details, Booking_Date, Booking_Time, Status, Total_Price, Admin_Commission, Payment_Method, UserPlanID, Plan_Washes_Used)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)");
+        $insert->bind_param(
+            "siiisddsssddsii",
+            $orderNumber,
+            $userID,
+            $stationID,
+            $serviceID,
+            $serviceLocation,
+            $latitude,
+            $longitude,
+            $addressForDb,
+            $bookingDate,
+            $bookingTime,
+            $totalPrice,
+            $adminCommission,
+            $paymentMethod,
+            $userPlanID,
+            $planWashesUsed
+        );
+
+        if (!$insert->execute()) {
+            throw new RuntimeException('db_error');
+        }
+
+        $bookingID = $conn->insert_id;
+        $ownerID = (int) $station['UserID'];
+        if ($ownerID > 0) {
+            $title = "طلب جديد";
+            $planNote = $paymentMethod === 'plan' ? " الدفع من باقة العميل." : "";
+            $body = "وصلك طلب #$orderNumber لخدمات " . implode(' + ', $serviceNames) . " بتاريخ $bookingDate الساعة $bookingTime." . $planNote;
+            $type = "info";
+            $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
+            $notice->bind_param("isss", $ownerID, $title, $body, $type);
+            $notice->execute();
+        }
+
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage() === 'plan_unavailable' ? 'plan_unavailable' : 'db_error']);
         exit;
     }
 
-    $bookingID = $conn->insert_id;
-    $ownerID = (int) $station['UserID'];
-    if ($ownerID > 0) {
-        $title = "طلب جديد";
-        $body = "وصلك طلب #$orderNumber لخدمات " . implode(' + ', $serviceNames) . " بتاريخ $bookingDate الساعة $bookingTime.";
-        $type = "info";
-        $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
-        $notice->bind_param("isss", $ownerID, $title, $body, $type);
-        $notice->execute();
-    }
-
-    echo json_encode(['status' => 'success', 'booking_id' => $bookingID, 'order_number' => $orderNumber]);
+    echo json_encode(['status' => 'success', 'booking_id' => $bookingID, 'order_number' => $orderNumber, 'payment_method' => $paymentMethod]);
     exit;
 }
 
@@ -154,6 +179,18 @@ foreach ($all_services as $serviceRow) {
     $hasStationServices = $hasStationServices || (int)$serviceRow['is_station'] === 1;
     $hasHomeServices = $hasHomeServices || (int)$serviceRow['is_home'] === 1;
     $hasDeliveryServices = $hasDeliveryServices || (int)$serviceRow['is_pickup'] === 1;
+}
+$activePlan = clevoGetActiveUserPlan($conn, $userID);
+$activePlanPayload = null;
+if ($activePlan) {
+    $activePlanPayload = [
+        'id' => (int) $activePlan['id'],
+        'name_ar' => $activePlan['name_ar'] ?? '',
+        'name_en' => $activePlan['name_en'] ?? '',
+        'remaining_washes' => (int) $activePlan['remaining_washes'],
+        'features_ar' => clevoPlanFeatures($activePlan, 'ar'),
+        'features_en' => clevoPlanFeatures($activePlan, 'en'),
+    ];
 }
 $csrf_token = generate_csrf_token();
 ?>
@@ -198,6 +235,12 @@ $csrf_token = generate_csrf_token();
         .modal-content { border-radius: 30px; background-color: var(--glass) !important; color: var(--text) !important; border: 1px solid var(--accent); backdrop-filter: blur(20px); }
         .extra-panel { display: none; background: var(--glass); border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 18px; }
         textarea { background: var(--glass) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: 15px; width: 100%; padding: 12px; font-weight: 700; min-height: 74px; }
+        .plan-booking-panel { background: var(--glass); border: 1px solid var(--border); border-radius: 22px; padding: 16px; margin-bottom: 18px; backdrop-filter: blur(15px); }
+        .plan-booking-car { width: 110px; max-width: 34vw; filter: drop-shadow(0 12px 16px rgba(14, 165, 233, 0.25)); }
+        .plan-feature-rail { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 2px; scrollbar-width: none; }
+        .plan-feature-rail::-webkit-scrollbar { display: none; }
+        .plan-feature-chip { flex: 0 0 auto; border-radius: 999px; padding: 7px 11px; background: rgba(14, 165, 233, 0.12); border: 1px solid var(--border); font-size: .76rem; font-weight: 800; white-space: nowrap; }
+        .plan-switch-row { background: rgba(14, 165, 233, 0.10); border-radius: 16px; padding: 10px 12px; border: 1px solid var(--border); }
     </style>
 </head>
 
@@ -244,6 +287,37 @@ $csrf_token = generate_csrf_token();
             </div>
         </div>
 
+        <div class="plan-booking-panel shadow-sm" id="planBookingPanel">
+            <?php if ($activePlanPayload): ?>
+                <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                    <div class="text-start flex-grow-1">
+                        <span class="badge text-bg-primary rounded-pill mb-2" data-i18n="plan_booking_badge">متاح من الباقة</span>
+                        <h6 class="fw-black mb-1" id="activePlanName"></h6>
+                        <div class="small fw-bold">
+                            <span id="activePlanRemaining"><?= (int) $activePlanPayload['remaining_washes'] ?></span>
+                            <span data-i18n="plan_washes_left">غسلات متبقية</span>
+                        </div>
+                    </div>
+                    <img src="../assets/Images/car.png" alt="Car" class="plan-booking-car">
+                </div>
+                <div class="plan-feature-rail mt-2" id="planFeatureRail"></div>
+                <div class="plan-switch-row d-flex justify-content-between align-items-center mt-3">
+                    <label for="usePlanSwitch" class="small fw-bold mb-0" data-i18n="use_plan_for_booking">استخدم غسلة من باقتي لهذا الطلب</label>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="usePlanSwitch" onchange="updateFooter()">
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="d-flex justify-content-between align-items-center gap-3">
+                    <div class="text-start">
+                        <h6 class="fw-bold mb-1" data-i18n="no_active_plan">لا توجد باقة نشطة</h6>
+                        <p class="small opacity-75 mb-0" data-i18n="subscribe_hint">اشترك بباقة حتى يظهر الحجز من الباقة هنا.</p>
+                    </div>
+                    <a href="customer-plans.php" class="btn btn-primary rounded-pill fw-bold px-3" data-i18n="btn_subscribe">اشترك</a>
+                </div>
+            <?php endif; ?>
+        </div>
+
         <h6 class="fw-bold mt-4 mb-3 small" data-i18n="step3_label">3. الموعد المناسب</h6>
         <div class="row g-2 mb-4 text-start">
             <div class="col-6">
@@ -257,14 +331,14 @@ $csrf_token = generate_csrf_token();
         </div>
 
         <div class="extra-panel shadow-sm" id="locationPanel">
-            <h6 class="fw-bold mb-2 small">4. موقع الخدمة</h6>
-            <div class="alert alert-info py-2 small rounded-4 border-0">
+            <h6 class="fw-bold mb-2 small" data-i18n="location_step_label">4. موقع الخدمة</h6>
+            <div class="alert alert-info py-2 small rounded-4 border-0" data-i18n="payment_note">
                 ملاحظة: الدفع لخدمة المنزل أو الاستلام والتسليم يكون فيزا أو محفظة أو نقاط ولاء فقط.
             </div>
             <button type="button" class="btn btn-outline-primary rounded-pill fw-bold w-100 mb-3" onclick="captureLocation()">
-                <i class="fas fa-location-crosshairs me-1"></i> تحديد موقعي الحالي
+                <i class="fas fa-location-crosshairs me-1"></i> <span data-i18n="capture_location_btn">تحديد موقعي الحالي</span>
             </button>
-            <textarea id="addressDetails" placeholder="اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة"></textarea>
+            <textarea id="addressDetails" data-i18n-placeholder="address_placeholder" placeholder="اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة"></textarea>
             <input type="hidden" id="latVal">
             <input type="hidden" id="lngVal">
         </div>
@@ -292,6 +366,7 @@ $csrf_token = generate_csrf_token();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const allServices = <?= json_encode($all_services); ?>;
+        const activePlan = <?= json_encode($activePlanPayload, JSON_UNESCAPED_UNICODE); ?>;
         const csrfToken = <?= json_encode($csrf_token); ?>;
         let selectedServices = [];
         let currentType = "";
@@ -300,10 +375,10 @@ $csrf_token = generate_csrf_token();
 
         const translations = {
             ar: {
-                st_details_title: "تفاصيل المحطة", step1_label: "1. اختر نوع الخدمة المطلوب", step2_label: "2. الخدمات المتاحة لهذا النوع", step3_label: "3. الموعد المناسب", opt_at_station: "في المحطة", opt_at_home: "في موقعي", opt_delivery: "استلام وتسليم", date_label: "التاريخ", time_label: "الوقت", selected_label: "المختار:", btn_send_request: "إرسال الطلب للمحطة", btn_ok: "موافق", select_type_first: "يرجى اختيار نوع الخدمة أولاً لإظهار الخيارات المتاحة.", not_avail_t: "غير متوفر", not_avail_m: "عذراً، هذا النوع غير مدعوم حالياً في هذه المحطة.", missing_t: "بيانات ناقصة", missing_m: "يرجى إكمال جميع الاختيارات والموعد قبل المتابعة.", no_serv: "لا يوجد خدمات متاحة حالياً لهذا النوع.", success_t: "تم إرسال الطلب", success_m: "بانتظار موافقة صاحب المحطة، سيتم إشعارك فور القبول."
+                st_details_title: "تفاصيل المحطة", step1_label: "1. اختر نوع الخدمة المطلوب", step2_label: "2. الخدمات المتاحة لهذا النوع", step3_label: "3. الموعد المناسب", opt_at_station: "في المحطة", opt_at_home: "في موقعي", opt_delivery: "استلام وتسليم", date_label: "التاريخ", time_label: "الوقت", selected_label: "المختار:", btn_send_request: "إرسال الطلب للمحطة", btn_ok: "موافق", select_type_first: "يرجى اختيار نوع الخدمة أولاً لإظهار الخيارات المتاحة.", not_avail_t: "غير متوفر", not_avail_m: "عذراً، هذا النوع غير مدعوم حالياً في هذه المحطة.", missing_t: "بيانات ناقصة", missing_m: "يرجى إكمال جميع الاختيارات والموعد قبل المتابعة.", no_serv: "لا يوجد خدمات متاحة حالياً لهذا النوع.", success_t: "تم إرسال الطلب", success_m: "بانتظار موافقة صاحب المحطة، سيتم إشعارك فور القبول.", plan_booking_badge: "متاح من الباقة", plan_washes_left: "غسلات متبقية", use_plan_for_booking: "استخدم غسلة من باقتي لهذا الطلب", paid_by_plan: "من الباقة", plan_unavailable_t: "الباقة غير متاحة", plan_unavailable_m: "لا توجد غسلات متبقية في باقتك حالياً.", no_active_plan: "لا توجد باقة نشطة", subscribe_hint: "اشترك بباقة حتى يظهر الحجز من الباقة هنا.", btn_subscribe: "اشترك", location_step_label: "4. موقع الخدمة", payment_note: "ملاحظة: الدفع لخدمة المنزل أو الاستلام والتسليم يكون فيزا أو محفظة أو نقاط ولاء أو باقة فقط.", capture_location_btn: "تحديد موقعي الحالي", address_placeholder: "اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة", location_title_unavailable: "الموقع غير متاح", location_body_unavailable: "اكتب عنوانك يدوياً في خانة وصف الموقع.", location_title_saved: "تم تحديد الموقع", location_body_saved: "سيظهر الموقع لصاحب المحطة قبل الموافقة على الطلب.", location_title_failed: "تعذر تحديد الموقع", location_body_failed: "اكتب عنوانك يدوياً حتى تتمكن المحطة من الوصول إليك.", send_failed_t: "لم يتم إرسال الطلب", send_failed_m: "تأكد من البيانات وحاول مرة أخرى.", location_required_m: "يرجى تحديد موقعك من زر الموقع قبل إرسال طلب المنزل أو الاستلام والتسليم.", connection_error_t: "خطأ اتصال", connection_error_m: "تعذر إرسال الطلب الآن."
             },
             en: {
-                st_details_title: "Station Details", step1_label: "1. Select Service Type", step2_label: "2. Available Services", step3_label: "3. Preferred Appointment", opt_at_station: "At Station", opt_at_home: "At My Location", opt_delivery: "Pick & Drop", date_label: "Date", time_label: "Time", selected_label: "Selected:", btn_send_request: "Send Booking Request", btn_ok: "OK", select_type_first: "Please select service type first to show available options.", not_avail_t: "Unavailable", not_avail_m: "Sorry, this service type is not supported at this station.", missing_t: "Missing Data", missing_m: "Please complete all selections and time before proceeding.", no_serv: "No services available for type currently.", success_t: "Request Sent", success_m: "Waiting for station owner approval. You will be notified once accepted."
+                st_details_title: "Station Details", step1_label: "1. Select Service Type", step2_label: "2. Available Services", step3_label: "3. Preferred Appointment", opt_at_station: "At Station", opt_at_home: "At My Location", opt_delivery: "Pick & Drop", date_label: "Date", time_label: "Time", selected_label: "Selected:", btn_send_request: "Send Booking Request", btn_ok: "OK", select_type_first: "Please select service type first to show available options.", not_avail_t: "Unavailable", not_avail_m: "Sorry, this service type is not supported at this station.", missing_t: "Missing Data", missing_m: "Please complete all selections and time before proceeding.", no_serv: "No services available for type currently.", success_t: "Request Sent", success_m: "Waiting for station owner approval. You will be notified once accepted.", plan_booking_badge: "Available from plan", plan_washes_left: "washes left", use_plan_for_booking: "Use one wash from my plan for this booking", paid_by_plan: "From plan", plan_unavailable_t: "Plan unavailable", plan_unavailable_m: "You do not have remaining plan washes right now.", no_active_plan: "No active plan", subscribe_hint: "Subscribe to a plan to book from it here.", btn_subscribe: "Subscribe", location_step_label: "4. Service location", payment_note: "Note: home and pickup orders can be paid by Visa, wallet, loyalty points, or plan only.", capture_location_btn: "Use current location", address_placeholder: "Write building number, street, or any note that helps the station", location_title_unavailable: "Location unavailable", location_body_unavailable: "Write your address manually in the location notes.", location_title_saved: "Location saved", location_body_saved: "The station owner will see it before accepting the booking.", location_title_failed: "Location failed", location_body_failed: "Write your address manually so the station can reach you.", send_failed_t: "Request not sent", send_failed_m: "Check your data and try again.", location_required_m: "Please capture your location before sending home or pickup orders.", connection_error_t: "Connection error", connection_error_m: "Could not send the request right now."
             }
         };
 
@@ -335,14 +410,29 @@ $csrf_token = generate_csrf_token();
                 container.innerHTML = `<p class="text-center opacity-50 py-3">${translations[lang].no_serv}</p>`;
             } else {
                 filtered.forEach(s => {
-                    container.innerHTML += `
-                        <div class="item-card d-flex justify-content-between align-items-center shadow-sm" onclick="toggleServ(this, '${s.Name}', ${s.Price}, ${s.ServiceID})">
-                            <div class="text-start">
-                                <h6 class="mb-0 fw-bold">${s.Name}</h6>
-                                <small class="opacity-75">${s.Description || ''}</small>
-                            </div>
-                            <div class="fw-bold" style="color: var(--accent);">${parseFloat(s.Price).toFixed(2)} JOD</div>
-                        </div>`;
+                    const card = document.createElement('div');
+                    card.className = 'item-card d-flex justify-content-between align-items-center shadow-sm';
+                    card.onclick = () => toggleServ(card, s.Name, parseFloat(s.Price), parseInt(s.ServiceID, 10));
+
+                    const textWrap = document.createElement('div');
+                    textWrap.className = 'text-start';
+                    const title = document.createElement('h6');
+                    title.className = 'mb-0 fw-bold';
+                    title.innerText = s.Name;
+                    const desc = document.createElement('small');
+                    desc.className = 'opacity-75';
+                    desc.innerText = s.Description || '';
+                    textWrap.appendChild(title);
+                    textWrap.appendChild(desc);
+
+                    const price = document.createElement('div');
+                    price.className = 'fw-bold';
+                    price.style.color = 'var(--accent)';
+                    price.innerText = parseFloat(s.Price).toFixed(2) + ' JOD';
+
+                    card.appendChild(textWrap);
+                    card.appendChild(price);
+                    container.appendChild(card);
                 });
             }
         }
@@ -368,22 +458,25 @@ $csrf_token = generate_csrf_token();
 
         function captureLocation() {
             if (!navigator.geolocation) {
-                showAlert('<i class="fas fa-map-marker-alt text-warning"></i>', 'الموقع غير متاح', 'اكتب عنوانك يدوياً في خانة وصف الموقع.');
+                showAlert('<i class="fas fa-map-marker-alt text-warning"></i>', translations[lang].location_title_unavailable, translations[lang].location_body_unavailable);
                 return;
             }
 
             navigator.geolocation.getCurrentPosition((pos) => {
                 document.getElementById('latVal').value = pos.coords.latitude;
                 document.getElementById('lngVal').value = pos.coords.longitude;
-                showAlert('<i class="fas fa-check-circle text-success"></i>', 'تم تحديد الموقع', 'سيظهر الموقع لصاحب المحطة قبل الموافقة على الطلب.');
+                showAlert('<i class="fas fa-check-circle text-success"></i>', translations[lang].location_title_saved, translations[lang].location_body_saved);
             }, () => {
-                showAlert('<i class="fas fa-map-marker-alt text-warning"></i>', 'تعذر تحديد الموقع', 'اكتب عنوانك يدوياً حتى تتمكن المحطة من الوصول إليك.');
+                showAlert('<i class="fas fa-map-marker-alt text-warning"></i>', translations[lang].location_title_failed, translations[lang].location_body_failed);
             });
         }
 
         function updateFooter() {
             document.getElementById('txtServ').innerText = selectedServices.map(s => s.name).join(' + ') || "---";
-            document.getElementById('txtPrice').innerText = selectedServices.reduce((sum, s) => sum + parseFloat(s.price), 0).toFixed(2) + " JOD";
+            const usePlan = document.getElementById('usePlanSwitch')?.checked;
+            document.getElementById('txtPrice').innerText = usePlan && selectedServices.length
+                ? translations[lang].paid_by_plan
+                : selectedServices.reduce((sum, s) => sum + parseFloat(s.price), 0).toFixed(2) + " JOD";
         }
 
         function book(btn) {
@@ -406,6 +499,7 @@ $csrf_token = generate_csrf_token();
             params.append('booking_date', d);
             params.append('booking_time', t);
             params.append('payment_method', '');
+            params.append('use_plan', document.getElementById('usePlanSwitch')?.checked ? '1' : '0');
             params.append('latitude', document.getElementById('latVal').value);
             params.append('longitude', document.getElementById('lngVal').value);
             params.append('address_details', document.getElementById('addressDetails').value);
@@ -418,8 +512,11 @@ $csrf_token = generate_csrf_token();
             .then(res => res.json())
             .then(data => {
                 if (data.status !== 'success') {
-                    const locationMsg = data.message === 'location_required' ? 'يرجى تحديد موقعك من زر الموقع قبل إرسال طلب المنزل أو الاستلام والتسليم.' : 'تأكد من البيانات وحاول مرة أخرى.';
-                    showAlert('<i class="fas fa-exclamation-circle text-danger"></i>', 'لم يتم إرسال الطلب', locationMsg);
+                    const body = data.message === 'location_required'
+                        ? translations[lang].location_required_m
+                        : (data.message === 'plan_unavailable' ? translations[lang].plan_unavailable_m : translations[lang].send_failed_m);
+                    const title = data.message === 'plan_unavailable' ? translations[lang].plan_unavailable_t : translations[lang].send_failed_t;
+                    showAlert('<i class="fas fa-exclamation-circle text-danger"></i>', title, body);
                     return;
                 }
 
@@ -429,13 +526,32 @@ $csrf_token = generate_csrf_token();
                     location.href = 'success.php' + (orderNum ? ('?order=' + encodeURIComponent(orderNum)) : '');
                 }, { once: true });
             })
-            .catch(() => showAlert('<i class="fas fa-wifi text-danger"></i>', 'خطأ اتصال', 'تعذر إرسال الطلب الآن.'))
+            .catch(() => showAlert('<i class="fas fa-wifi text-danger"></i>', translations[lang].connection_error_t, translations[lang].connection_error_m))
             .finally(() => {
                 if (btn) {
                     btn.disabled = false;
                     btn.innerHTML = originalBtn;
                 }
             });
+        }
+
+        function renderActivePlan() {
+            if (!activePlan) return;
+            const planName = document.getElementById('activePlanName');
+            if (planName) {
+                planName.innerText = lang === 'ar' ? activePlan.name_ar : activePlan.name_en;
+            }
+            const rail = document.getElementById('planFeatureRail');
+            if (rail) {
+                rail.innerHTML = '';
+                const features = lang === 'ar' ? activePlan.features_ar : activePlan.features_en;
+                (features || []).forEach(feature => {
+                    const chip = document.createElement('span');
+                    chip.className = 'plan-feature-chip';
+                    chip.innerHTML = '<i class="fas fa-check me-1"></i>' + feature;
+                    rail.appendChild(chip);
+                });
+            }
         }
 
         window.onload = () => {
@@ -446,8 +562,14 @@ $csrf_token = generate_csrf_token();
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
             });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang] && translations[lang][key]) el.setAttribute('placeholder', translations[lang][key]);
+            });
+            renderActivePlan();
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

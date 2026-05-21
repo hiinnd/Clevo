@@ -178,6 +178,8 @@ $csrf_token = generate_csrf_token();
                             <strong>
                                 <?php if(empty($order['Payment_Method'])): ?>
                                     <span class="lang-node" data-ar="غير محددة" data-en="Not Specified">غير محددة</span>
+                                <?php elseif($order['Payment_Method'] === 'plan'): ?>
+                                    <span class="lang-node" data-ar="من الباقة" data-en="From plan">من الباقة</span>
                                 <?php else: ?>
                                     <?= htmlspecialchars($order['Payment_Method']) ?>
                                 <?php endif; ?>
@@ -211,7 +213,13 @@ $csrf_token = generate_csrf_token();
 
                 <div class="info-row mt-3">
                     <span class="info-label lang-node" data-ar="الإجمالي:" data-en="Total:">الإجمالي:</span>
-                    <strong class="text-success" style="font-size:1.25rem;"><?= number_format((float) $order['Total_Price'], 2) ?> JOD</strong>
+                    <strong class="text-success" style="font-size:1.25rem;">
+                        <?php if (($order['Payment_Method'] ?? '') === 'plan'): ?>
+                            <span class="lang-node" data-ar="مغطى من الباقة" data-en="Covered by plan">مغطى من الباقة</span>
+                        <?php else: ?>
+                            <?= number_format((float) $order['Total_Price'], 2) ?> JOD
+                        <?php endif; ?>
+                    </strong>
                 </div>
             </div>
         </div>
@@ -386,6 +394,7 @@ $csrf_token = generate_csrf_token();
             });
         }
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

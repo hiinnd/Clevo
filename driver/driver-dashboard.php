@@ -6,7 +6,8 @@ include __DIR__ . '/../includes/app-helpers.php';
 clevoEnsureTrackingColumns($conn);
 
 // إصلاح: توحيد مسميات السيشن لتطابق صفحة الـ login (userID و role بحروف صغيرة)
-if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'driver') {
+$sessionRole = strtolower($_SESSION['role'] ?? '');
+if (!isset($_SESSION['userID']) || $sessionRole !== 'driver') {
     header('Location: ../general/login.php'); // تصحيح المسار حسب هيكلية المجلدات
     exit;
 }
@@ -61,6 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             if ($meta) {
                 if ($status === 'Completed' && ($beforeRow['Status'] ?? '') !== 'Completed') {
                     clevoAddLoyaltyPoints($conn, (int) $meta['UserID'], (int) floor(((float) ($beforeRow['Total_Price'] ?? 0)) * 10));
+                    if (($beforeRow['Payment_Method'] ?? '') === 'plan') {
+                        clevoCreditOwnerForBooking($conn, $order_id);
+                    }
+                    $clearCode = $conn->prepare("UPDATE user SET CurrentAccessCode = NULL WHERE UserID = ?");
+                    $clearCode->bind_param("i", $driver_id);
+                    $clearCode->execute();
                 }
                 $title = "تحديث حالة الطلب";
                 $body = "تم تحديث حالة طلبك #" . ($meta['Order_Number'] ?: $order_id) . " إلى: " . $status;
@@ -174,7 +181,8 @@ $task = mysqli_fetch_assoc($result);
             <hr class="opacity-25">
             <div class="info-row"><span class="opacity-75" data-i18n="car_type_label">نوع المركبة:</span><strong><?php echo $task['CarName']; ?></strong></div>
             <div class="info-row"><span class="opacity-75" data-i18n="service_type_label">طريقة الخدمة:</span><strong><?= $task['Service_Location'] ?></strong></div>
-            <div class="info-row"><span class="opacity-75" data-i18n="amount_label">المبلغ المطلوب:</span><strong class="text-success fs-5"><?php echo number_format($task['Total_Price'], 2); ?> JOD</strong></div>
+            <div class="info-row"><span class="opacity-75" data-i18n="payment_label">طريقة الدفع:</span><strong><?= $task['Payment_Method'] === 'plan' ? '<span data-i18n="payment_plan">من الباقة</span>' : htmlspecialchars($task['Payment_Method'] ?: '-') ?></strong></div>
+            <div class="info-row"><span class="opacity-75" data-i18n="amount_label">المبلغ المطلوب:</span><strong class="text-success fs-5"><?php echo $task['Payment_Method'] === 'plan' ? '<span data-i18n="covered_by_plan">مغطى من الباقة</span>' : number_format($task['Total_Price'], 2) . ' JOD'; ?></strong></div>
             
             <div class="row g-2 mt-4 mb-3">
                 <div class="col-6"><a href="tel:<?php echo $task['CustomerPhone']; ?>" class="btn btn-light border w-100 fw-bold py-2 rounded-3"><i class="fas fa-phone-alt text-success ms-1"></i> <span data-i18n="btn_call">اتصال</span></a></div>
@@ -194,11 +202,36 @@ $task = mysqli_fetch_assoc($result);
                 <div class="col-6"><button class="btn btn-outline-success w-100 rounded-pill fw-bold" onclick="updateTaskStatus('<?= $task['BookingID'] ?>', 'Returning')">Returning</button></div>
             </div>
 
-            <button class="btn btn-finish" onclick="finishTask()"><i class="fas fa-check-circle ms-2"></i> <span data-i18n="btn_finish_task">تم إنهاء المهمة بنجاح</span></button>
+            <button class="btn btn-finish" onclick="confirmFinishTask('<?= (int) $task['BookingID'] ?>')"><i class="fas fa-check-circle ms-2"></i> <span data-i18n="btn_finish_task">تم إنهاء المهمة بنجاح</span></button>
         </div>
         <?php else: ?>
         <div class="task-card text-center py-5"><i class="fas fa-tasks fa-3x opacity-25 mb-3"></i><p class="fw-bold opacity-50" data-i18n="no_tasks_msg">لا يوجد مهام حالياً</p></div>
         <?php endif; ?>
+    </div>
+
+    <div class="modal fade" id="confirmFinishModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content text-center p-4" style="background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 28px;">
+                <i class="fas fa-circle-check text-success fa-4x mb-3"></i>
+                <h6 class="fw-bold" data-i18n="finish_confirm_title">تأكيد إنهاء المهمة</h6>
+                <p class="small opacity-75" data-i18n="finish_confirm_body">هل أنت متأكد من إنهاء وتسليم المهمة؟</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success rounded-pill fw-bold" id="confirmFinishBtn" data-i18n="btn_confirm_finish">نعم، إنهاء</button>
+                    <button class="btn btn-light border rounded-pill fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="driverStatusModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content text-center p-4" style="background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 28px;">
+                <div id="driverStatusIcon" class="mb-3 fs-1"></div>
+                <h6 id="driverStatusTitle" class="fw-bold"></h6>
+                <p id="driverStatusBody" class="small opacity-75 mb-0"></p>
+                <button class="btn btn-primary rounded-pill w-100 mt-3" data-bs-dismiss="modal" data-i18n="btn_ok">موافق</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -218,13 +251,24 @@ $task = mysqli_fetch_assoc($result);
             params.append('action', 'update_status');
             params.append('order_id', orderId);
             params.append('status', status);
-            fetch(window.location.href, {
+            return fetch(window.location.href, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: params.toString()
             })
             .then(res => res.json())
-            .then(data => { if(data.status === 'success') location.reload(); });
+            .then(data => {
+                if(data.status === 'success') {
+                    if (status === 'Completed') window.location.href = '../general/logout.php';
+                    else location.reload();
+                    return;
+                }
+                if (data.status === 'payment_required') {
+                    showDriverStatus('warning', translations[langNow()].payment_required_t, translations[langNow()].payment_required_m);
+                    return;
+                }
+                showDriverStatus('warning', translations[langNow()].error_t, translations[langNow()].error_m);
+            });
         }
 
         function sendDriverLocation() {
@@ -242,16 +286,23 @@ $task = mysqli_fetch_assoc($result);
             });
         }
 
-        function finishTask() {
-            if(confirm("هل أنت متأكد من إنهاء المهمة؟")) {
-                fetch(window.location.href, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `action=finish_task`
-                })
-                .then(res => res.json())
-                .then(data => { if(data.status === 'success') window.location.href = '../general/logout.php'; });
-            }
+        let pendingFinishOrderId = 0;
+        function langNow() {
+            return localStorage.getItem('app_lang') || 'ar';
+        }
+
+        function showDriverStatus(type, title, body) {
+            document.getElementById('driverStatusIcon').innerHTML = type === 'success'
+                ? '<i class="fas fa-check-circle text-success"></i>'
+                : '<i class="fas fa-circle-exclamation text-warning"></i>';
+            document.getElementById('driverStatusTitle').innerText = title;
+            document.getElementById('driverStatusBody').innerText = body;
+            new bootstrap.Modal(document.getElementById('driverStatusModal')).show();
+        }
+
+        function confirmFinishTask(orderId) {
+            pendingFinishOrderId = orderId;
+            new bootstrap.Modal(document.getElementById('confirmFinishModal')).show();
         }
 
         const translations = {
@@ -259,15 +310,23 @@ $task = mysqli_fetch_assoc($result);
                 logout_btn: "خروج", hello_driver: "أهلاً بك يا", status_in_progress: "جاري التنفيذ", 
                 btn_call: "اتصال", btn_location: "الخريطة", btn_finish_task: "إنهاء المهمة", 
                 customer_label: "الزبون:", car_type_label: "المركبة:", service_type_label: "الخدمة:", 
-                amount_label: "المبلغ:", home_val: "منزلي", station_val: "في المحطة", delivery_val: "توصيل",
-                no_tasks_msg: "لا يوجد مهام نشطة حالياً", task_details_subtitle: "تفاصيل المهمة الحالية المكلف بها"
+                amount_label: "المبلغ:", payment_label: "طريقة الدفع:", payment_plan: "من الباقة", covered_by_plan: "مغطى من الباقة",
+                home_val: "منزلي", station_val: "في المحطة", delivery_val: "توصيل",
+                no_tasks_msg: "لا يوجد مهام نشطة حالياً", task_details_subtitle: "تفاصيل المهمة الحالية المكلف بها",
+                finish_confirm_title: "تأكيد إنهاء المهمة", finish_confirm_body: "هل أنت متأكد من إنهاء وتسليم المهمة؟",
+                btn_confirm_finish: "نعم، إنهاء", btn_cancel: "إلغاء", btn_ok: "موافق",
+                payment_required_t: "الدفع مطلوب", payment_required_m: "لا يمكن إنهاء المهمة قبل اختيار طريقة الدفع.", error_t: "تعذر التحديث", error_m: "حاول مرة أخرى بعد قليل."
             },
             en: { 
                 logout_btn: "Logout", hello_driver: "Welcome,", status_in_progress: "In Progress", 
                 btn_call: "Call", btn_location: "Map", btn_finish_task: "Finish Task", 
                 customer_label: "Customer:", car_type_label: "Car:", service_type_label: "Service:", 
-                amount_label: "Amount:", home_val: "Home", station_val: "Station", delivery_val: "Delivery",
-                no_tasks_msg: "No active tasks", task_details_subtitle: "Current assigned task details"
+                amount_label: "Amount:", payment_label: "Payment:", payment_plan: "From plan", covered_by_plan: "Covered by plan",
+                home_val: "Home", station_val: "Station", delivery_val: "Delivery",
+                no_tasks_msg: "No active tasks", task_details_subtitle: "Current assigned task details",
+                finish_confirm_title: "Confirm Completion", finish_confirm_body: "Are you sure you want to finish and hand over this task?",
+                btn_confirm_finish: "Yes, Finish", btn_cancel: "Cancel", btn_ok: "OK",
+                payment_required_t: "Payment required", payment_required_m: "This task cannot be completed before payment is selected.", error_t: "Update failed", error_m: "Please try again shortly."
             }
         };
 
@@ -295,6 +354,14 @@ $task = mysqli_fetch_assoc($result);
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
+            const finishBtn = document.getElementById('confirmFinishBtn');
+            if (finishBtn) {
+                finishBtn.onclick = () => {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmFinishModal'));
+                    if (modal) modal.hide();
+                    if (pendingFinishOrderId) updateTaskStatus(pendingFinishOrderId, 'Completed');
+                };
+            }
             sendDriverLocation();
             setInterval(sendDriverLocation, 10000);
         };

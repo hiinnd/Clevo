@@ -214,7 +214,7 @@ while($row = $services_res->fetch_assoc()){
                                         </div>
                                         <div class="d-flex gap-2 me-3">
                                             <button class="btn btn-sm btn-outline-primary rounded-circle" style="width:35px; height:35px;" onclick='editService(<?php echo json_encode($s); ?>)'><i class="fas fa-edit"></i></button>
-                                            <a href="manage-services.php?delete=<?php echo $s['id']; ?>" class="btn btn-sm text-danger d-flex align-items-center justify-content-center" onclick="return confirm('هل أنت متأكد من حذف هذه الخدمة؟')"><i class="fas fa-trash-alt"></i></a>
+                                            <button type="button" class="btn btn-sm text-danger d-flex align-items-center justify-content-center" onclick="confirmDeleteService(<?php echo (int) $s['id']; ?>)"><i class="fas fa-trash-alt"></i></button>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -240,6 +240,20 @@ while($row = $services_res->fetch_assoc()){
         </div>
     </div>
 
+    <div class="modal fade" id="deleteServiceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content text-center p-4 shadow-lg border-0">
+                <i class="fas fa-triangle-exclamation text-warning fa-4x mb-3"></i>
+                <h5 class="fw-bold" data-i18n="delete_service_title">تأكيد حذف الخدمة</h5>
+                <p class="small opacity-75" data-i18n="delete_service_msg">هل أنت متأكد من حذف هذه الخدمة؟</p>
+                <div class="d-grid gap-2 mt-3">
+                    <a href="#" id="deleteServiceLink" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_delete">حذف</a>
+                    <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
@@ -249,7 +263,8 @@ while($row = $services_res->fetch_assoc()){
                 available_options: "خيارات تقديم الخدمة:", type_station: "في المحطة (Station)", type_home: "خدمة منزلية (At Home)", type_pickup: "استلام وتسليم (Pickup)",
                 home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", pickup_service: "استلام وتسليم",
                 btn_save_service: "حفظ الخدمة ونشرها", current_services_list: "قائمة خدماتك النشطة", btn_cancel: "إلغاء", btn_ok: "موافق",
-                logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج"
+                logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج",
+                delete_service_title: "تأكيد حذف الخدمة", delete_service_msg: "هل أنت متأكد من حذف هذه الخدمة؟", btn_delete: "حذف"
             },
             en: {
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
@@ -257,13 +272,18 @@ while($row = $services_res->fetch_assoc()){
                 available_options: "Delivery Options:", type_station: "At Station", type_home: "At Home Service", type_pickup: "Pickup & Delivery",
                 home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", pickup_service: "Pickup & Delivery",
                 btn_save_service: "Publish Service", current_services_list: "Active Services List", btn_cancel: "Cancel", btn_ok: "OK",
-                logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout"
+                logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout",
+                delete_service_title: "Delete Service", delete_service_msg: "Are you sure you want to delete this service?", btn_delete: "Delete"
             }
         };
 
         function toggleLanguage() { localStorage.setItem('app_lang', (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'en' : 'ar'); location.reload(); }
         function toggleGlobalTheme() { localStorage.setItem('global_theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); location.reload(); }
         function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
+        function confirmDeleteService(id) {
+            document.getElementById('deleteServiceLink').href = 'manage-services.php?delete=' + encodeURIComponent(id);
+            new bootstrap.Modal(document.getElementById('deleteServiceModal')).show();
+        }
 
         function editService(s) {
             const lang = localStorage.getItem('app_lang') || 'ar';
@@ -342,6 +362,7 @@ while($row = $services_res->fetch_assoc()){
             if(themeIcon) themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

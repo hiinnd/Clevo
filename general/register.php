@@ -301,12 +301,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
             <p class="small opacity-75" data-i18n="create_acc">أنشئ حسابك للبدء</p>
         </div>
 
-        <?php if ($error): ?>
-            <div class="alert alert-danger rounded-4 small fw-bold text-center">
-                <i class="fas fa-exclamation-circle me-1"></i> <span data-i18n="<?= $error ?>"></span>
-            </div>
-        <?php endif; ?>
-
         <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="register_action" value="1">
             <div class="mb-3">
@@ -389,6 +383,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
         </div>
     </div>
 
+    <div class="modal fade" id="errorModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content text-center p-4">
+                <i class="fas fa-circle-exclamation fa-4x text-danger mb-3"></i>
+                <h5 class="fw-bold" id="errorModalTitle"></h5>
+                <p class="small opacity-75" id="errorModalMsg"></p>
+                <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mt-2" data-bs-dismiss="modal" data-i18n="btn_ok">حسناً</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
@@ -419,7 +424,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                 owner_wait_t: "تحقق من بريدك",
                 owner_wait_m: "تم تسليم بيانات محطتك. اضغط رابط التحقق في الإيميل لتفعيل الحساب، وسيبقى طلب المحطة قيد المراجعة.",
                 btn_login_now: "تسجيل الدخول",
-                pass_hint: "يجب أن تحتوي على 8 رموز، تشمل حرفاً كبيراً، صغيراً، رقماً ورمزاً خاصاً."
+                pass_hint: "يجب أن تحتوي على 8 رموز، تشمل حرفاً كبيراً، صغيراً، رقماً ورمزاً خاصاً.",
+                error_title: "تنبيه", btn_ok: "حسناً"
             },
             en: {
                 register_title: "Register | Clevo",
@@ -448,7 +454,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                 owner_wait_t: "Check Your Email",
                 owner_wait_m: "Your station data was submitted. Verify your email to activate the account while the station request remains under review.",
                 btn_login_now: "Login Now",
-                pass_hint: "Must be 8 characters, include uppercase, lowercase, number and special symbol."
+                pass_hint: "Must be 8 characters, include uppercase, lowercase, number and special symbol.",
+                error_title: "Alert", btn_ok: "OK"
             }
         };
 
@@ -486,6 +493,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                     modalMsg.innerText = translations[lang].reg_done_m;
                 }
                 new bootstrap.Modal(document.getElementById('successModal')).show();
+            <?php elseif ($error): ?>
+                const errorKey = <?= json_encode($error) ?>;
+                document.getElementById('errorModalTitle').innerText = translations[lang].error_title;
+                document.getElementById('errorModalMsg').innerText = translations[lang][errorKey] || errorKey;
+                new bootstrap.Modal(document.getElementById('errorModal')).show();
             <?php endif; ?>
         };
     </script>

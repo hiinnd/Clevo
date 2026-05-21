@@ -35,7 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
 
     $stmt = $conn->prepare("UPDATE booking SET Status = ? WHERE BookingID = ? AND DriverID = ?");
     $stmt->bind_param("sii", $status, $order_id, $driver_id);
-    echo json_encode(['status' => $stmt->execute() ? 'success' : 'error']);
+    $ok = $stmt->execute();
+    if ($ok && $status === 'Completed') {
+        if (($booking['Payment_Method'] ?? '') === 'plan') {
+            clevoCreditOwnerForBooking($conn, $order_id);
+        }
+        $clearCode = $conn->prepare("UPDATE user SET CurrentAccessCode = NULL WHERE UserID = ?");
+        $clearCode->bind_param("i", $driver_id);
+        $clearCode->execute();
+    }
+    echo json_encode(['status' => $ok ? 'success' : 'error']);
     exit;
 }
 

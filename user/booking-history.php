@@ -188,7 +188,13 @@ $csrf_token = generate_csrf_token();
                                     elseif($status == 'Canceled') $badgeClass = 'bg-danger';
                                 ?>
                                 <span class="status-badge <?= $badgeClass ?>"><?= $status ?></span>
-                                <div class="price-tag mt-2"><?= number_format($row['Total_Price'], 2) ?> JOD</div>
+                                <div class="price-tag mt-2">
+                                    <?php if (($row['Payment_Method'] ?? '') === 'plan'): ?>
+                                        <span data-i18n="paid_from_plan">من الباقة</span>
+                                    <?php else: ?>
+                                        <?= number_format($row['Total_Price'], 2) ?> JOD
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -226,7 +232,7 @@ $csrf_token = generate_csrf_token();
                 filter_pending: "قيد الانتظار", filter_ongoing: "قيد التنفيذ", 
                 no_history: "لا يوجد حجوزات حالياً", btn_track: "تتبع الآن",
                 btn_details: "تفاصيل الطلب", btn_rate: "تقييم", btn_complaint: "أرسل شكوى",
-                rate_service: "تقييم الخدمة", rate_placeholder: "اكتب ملاحظتك...", btn_save_rate: "حفظ التقييم"
+                rate_service: "تقييم الخدمة", rate_placeholder: "اكتب ملاحظتك...", btn_save_rate: "حفظ التقييم", paid_from_plan: "من الباقة"
             },
             en: {
                 history_page_title: "Booking History | Clevo",
@@ -234,7 +240,7 @@ $csrf_token = generate_csrf_token();
                 filter_pending: "Pending", filter_ongoing: "Ongoing", 
                 no_history: "No bookings right now", btn_track: "Track Now",
                 btn_details: "Order Details", btn_rate: "Rate", btn_complaint: "Send Complaint",
-                rate_service: "Rate Service", rate_placeholder: "Write your comment...", btn_save_rate: "Save Rating"
+                rate_service: "Rate Service", rate_placeholder: "Write your comment...", btn_save_rate: "Save Rating", paid_from_plan: "From plan"
             }
         };
         const csrfToken = <?= json_encode($csrf_token) ?>;
@@ -306,6 +312,7 @@ $csrf_token = generate_csrf_token();
             }
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
+

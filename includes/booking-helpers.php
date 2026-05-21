@@ -1,4 +1,6 @@
 <?php
+include_once __DIR__ . "/plan-helpers.php";
+
 function clevoEnsureBookingWorkflowColumns(mysqli $conn): void
 {
     static $done = false;
@@ -57,6 +59,7 @@ function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
         $update->execute();
 
         if ($update->affected_rows > 0) {
+            clevoRestorePlanWashForBooking($conn, $bookingID);
             $title = "انتهت مهلة الطلب";
             $body = "لم يتم الرد على طلبك #$orderNumber خلال 10 دقائق. يمكنك حجز محطة أخرى الآن.";
             $type = "danger";
@@ -95,6 +98,7 @@ function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
         $update->execute();
 
         if ($update->affected_rows > 0) {
+            clevoRestorePlanWashForBooking($conn, $bookingID);
             $title = "تم إلغاء الطلب";
             $body = "تم إلغاء طلبك #$orderNumber لأن الدفع لم يكتمل خلال 5 دقائق بعد الموافقة.";
             $type = "danger";

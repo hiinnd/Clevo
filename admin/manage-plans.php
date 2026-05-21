@@ -2,12 +2,15 @@
 session_start(); // التأكد من بدء الجلسة لجلب الاسم
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
+include_once __DIR__ . '/../includes/plan-helpers.php';
 
 // التأكد من أن المستخدم أدمن لضمان الأمان
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit;
 }
+
+clevoEnsurePlanColumns($conn);
 
 // جلب بيانات الأدمن للجلسة والصورة الشخصية
 $admin_name = $_SESSION['userName'] ?? "Admin";
@@ -42,14 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
     $price = floatval($_POST['price']);
     $duration = intval($_POST['duration']);
     $duration_type = $_POST['duration_type'];
+    $wash_count = max(1, intval($_POST['wash_count'] ?? 1));
     $desc_ar = trim($_POST['desc_ar']);
     $desc_en = trim($_POST['desc_en']);
+    $included_services_ar = trim($_POST['included_services_ar'] ?? '');
+    $included_services_en = trim($_POST['included_services_en'] ?? '');
     // استقبال قيمة التفعيل بشكل صحيح
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     
     if (!empty($name_ar)) {
-        $stmt = $conn->prepare("INSERT INTO plans (name_ar, name_en, price, duration, duration_type, description_ar, description_en, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("ssdisssi", $name_ar, $name_en, $price, $duration, $duration_type, $desc_ar, $desc_en, $is_active);
+        $stmt = $conn->prepare("INSERT INTO plans (name_ar, name_en, price, duration, duration_type, wash_count, description_ar, description_en, included_services_ar, included_services_en, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->bind_param("ssdisissssi", $name_ar, $name_en, $price, $duration, $duration_type, $wash_count, $desc_ar, $desc_en, $included_services_ar, $included_services_en, $is_active);
         if($stmt->execute()) { $show_msg_modal = true; $msg_type = "added"; }
     }
 }
@@ -62,13 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
     $price = floatval($_POST['price']);
     $duration = intval($_POST['duration']);
     $duration_type = $_POST['duration_type'];
+    $wash_count = max(1, intval($_POST['wash_count'] ?? 1));
     $desc_ar = trim($_POST['desc_ar']);
     $desc_en = trim($_POST['desc_en']);
+    $included_services_ar = trim($_POST['included_services_ar'] ?? '');
+    $included_services_en = trim($_POST['included_services_en'] ?? '');
     // استقبال قيمة التفعيل بشكل صحيح
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     
-    $stmt = $conn->prepare("UPDATE plans SET name_ar=?, name_en=?, price=?, duration=?, duration_type=?, description_ar=?, description_en=?, is_active=? WHERE id=?");
-    $stmt->bind_param("ssdisssii", $name_ar, $name_en, $price, $duration, $duration_type, $desc_ar, $desc_en, $is_active, $plan_id);
+    $stmt = $conn->prepare("UPDATE plans SET name_ar=?, name_en=?, price=?, duration=?, duration_type=?, wash_count=?, description_ar=?, description_en=?, included_services_ar=?, included_services_en=?, is_active=? WHERE id=?");
+    $stmt->bind_param("ssdisissssii", $name_ar, $name_en, $price, $duration, $duration_type, $wash_count, $desc_ar, $desc_en, $included_services_ar, $included_services_en, $is_active, $plan_id);
     if($stmt->execute()) { $show_msg_modal = true; $msg_type = "updated"; }
 }
 
@@ -173,7 +182,9 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
                                     </div>
                                     <div class="plan-price"><?php echo number_format($plan['price'], 2); ?> <small class="fs-6">JOD</small></div>
                                     <div class="small opacity-75 mb-3"><?php echo $plan['duration']; ?> <span data-i18n="<?php echo $plan['duration_type']; ?>"></span></div>
+                                    <div class="small fw-bold text-primary mb-2"><i class="fas fa-car-side me-1"></i><?php echo (int) clevoPlanWashCount($plan); ?> <span data-i18n="wash_count_label">غسلات</span></div>
                                     <p class="small border-top pt-3 flex-grow-1 plan-desc-display" data-ar="<?php echo htmlspecialchars($plan['description_ar']); ?>" data-en="<?php echo htmlspecialchars($plan['description_en']); ?>"></p>
+                                    <div class="small opacity-75 plan-includes-display" data-ar="<?php echo htmlspecialchars($plan['included_services_ar'] ?? ''); ?>" data-en="<?php echo htmlspecialchars($plan['included_services_en'] ?? ''); ?>"></div>
                                     <div class="d-flex gap-2 mt-3 pt-3 border-top">
                                         <button class="btn btn-outline-primary btn-sm flex-fill rounded-pill" onclick='editPlan(<?php echo json_encode($plan); ?>)'><i class="fas fa-edit"></i> <span data-i18n="btn_edit">تعديل</span></button>
                                         <button class="btn btn-outline-danger btn-sm rounded-circle" style="width:35px; height:35px;" onclick="showDeleteModal(<?php echo $plan['id']; ?>)"><i class="fas fa-trash"></i></button>
@@ -220,6 +231,9 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
                             <label class="form-label small fw-bold">المدة</label>
                             <div class="input-group"><input type="number" name="duration" id="p_duration" class="form-control" value="1"><select name="duration_type" id="p_type" class="form-select"><option value="day">يوم</option><option value="month">شهر</option><option value="year">سنة</option></select></div>
                         </div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold">عدد الغسلات</label><input type="number" min="1" name="wash_count" id="p_wash_count" class="form-control" value="1" required></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold">Included washes/services</label><input type="text" name="included_services_en" id="p_included_en" class="form-control" placeholder="Full wash, Oil change, Polish"></div>
+                        <div class="col-12"><label class="form-label small fw-bold">الخدمات المشمولة بالباقة</label><input type="text" name="included_services_ar" id="p_included_ar" class="form-control" placeholder="غسيل شامل، تغيير زيت، تلميع"></div>
                         <div class="col-12 mt-2">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_active" id="p_is_active" value="1" checked>
@@ -239,8 +253,8 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
-            ar: { plans_title: "الخطط | Clevo", manage_plans_h: "إدارة خطط النظام", btn_add: "إضافة خطة", nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_plans: "الخطط", nav_security: "الأمان", nav_reports: "التقارير", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج", status_active: "نشط", status_inactive: "متوقف", day: "يوم", month: "شهر", year: "سنة", btn_edit: "تعديل", modal_add: "إضافة خطة جديدة", modal_edit: "تعديل الخطة", confirm_del_h: "هل أنت متأكد من الحذف؟", btn_delete: "احذف", btn_cancel: "إلغاء", msg_added: "تمت الإضافة بنجاح", msg_updated: "تم التحديث بنجاح", msg_deleted: "تم الحذف بنجاح", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج" },
-            en: { plans_title: "Plans | Clevo", manage_plans_h: "Plan Management", btn_add: "Add Plan", nav_main: "Dashboard", nav_approvals: "Approvals", nav_plans: "Plans", nav_security: "Security", nav_reports: "Reports", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout", status_active: "Active", status_inactive: "Inactive", day: "Day", month: "Month", year: "Year", btn_edit: "Edit", modal_add: "Add Plan", modal_edit: "Edit Plan", confirm_del_h: "Are you sure?", btn_delete: "Delete", btn_cancel: "Cancel", msg_added: "Added!", msg_updated: "Updated!", msg_deleted: "Deleted!", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout" }
+            ar: { plans_title: "الخطط | Clevo", manage_plans_h: "إدارة خطط النظام", btn_add: "إضافة خطة", nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_plans: "الخطط", nav_security: "الأمان", nav_reports: "التقارير", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج", status_active: "نشط", status_inactive: "متوقف", day: "يوم", month: "شهر", year: "سنة", btn_edit: "تعديل", modal_add: "إضافة خطة جديدة", modal_edit: "تعديل الخطة", confirm_del_h: "هل أنت متأكد من الحذف؟", btn_delete: "احذف", btn_cancel: "إلغاء", msg_added: "تمت الإضافة بنجاح", msg_updated: "تم التحديث بنجاح", msg_deleted: "تم الحذف بنجاح", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", wash_count_label: "غسلات" },
+            en: { plans_title: "Plans | Clevo", manage_plans_h: "Plan Management", btn_add: "Add Plan", nav_main: "Dashboard", nav_approvals: "Approvals", nav_plans: "Plans", nav_security: "Security", nav_reports: "Reports", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout", status_active: "Active", status_inactive: "Inactive", day: "Day", month: "Month", year: "Year", btn_edit: "Edit", modal_add: "Add Plan", modal_edit: "Edit Plan", confirm_del_h: "Are you sure?", btn_delete: "Delete", btn_cancel: "Cancel", msg_added: "Added!", msg_updated: "Updated!", msg_deleted: "Deleted!", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", wash_count_label: "washes" }
         };
 
         function applySettings() {
@@ -255,6 +269,10 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (translations[l][k]) el.innerText = translations[l][k]; });
             document.querySelectorAll('.plan-title-display').forEach(el => el.innerText = el.getAttribute('data-' + l));
             document.querySelectorAll('.plan-desc-display').forEach(el => el.innerText = el.getAttribute('data-' + l));
+            document.querySelectorAll('.plan-includes-display').forEach(el => {
+                const val = el.getAttribute('data-' + l) || '';
+                el.innerText = val ? (l === 'ar' ? 'يشمل: ' : 'Includes: ') + val : '';
+            });
             
             const backIcon = document.getElementById('backIcon');
             if (backIcon) backIcon.className = (l === 'ar' ? 'fas fa-arrow-right' : 'fas fa-arrow-left');
@@ -266,8 +284,8 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
         }
 
         const pModal = new bootstrap.Modal(document.getElementById('planModal'));
-        function showAddModal() { const l = localStorage.getItem('app_lang')||'ar'; document.getElementById('modalTitle').innerText = translations[l].modal_add; document.getElementById('submitBtn').name = "add_plan"; document.querySelector('#planModal form').reset(); pModal.show(); }
-        function editPlan(p) { const l = localStorage.getItem('app_lang')||'ar'; document.getElementById('modalTitle').innerText = translations[l].modal_edit; document.getElementById('submitBtn').name = "update_plan"; document.getElementById('p_id').value = p.id; document.getElementById('p_name_ar').value = p.name_ar; document.getElementById('p_name_en').value = p.name_en; document.getElementById('p_price').value = p.price; document.getElementById('p_duration').value = p.duration; document.getElementById('p_type').value = p.duration_type; document.getElementById('p_desc_ar').value = p.description_ar; document.getElementById('p_desc_en').value = p.description_en; document.getElementById('p_is_active').checked = (p.is_active == 1); pModal.show(); }
+        function showAddModal() { const l = localStorage.getItem('app_lang')||'ar'; document.getElementById('modalTitle').innerText = translations[l].modal_add; document.getElementById('submitBtn').name = "add_plan"; document.querySelector('#planModal form').reset(); document.getElementById('p_wash_count').value = 1; pModal.show(); }
+        function editPlan(p) { const l = localStorage.getItem('app_lang')||'ar'; document.getElementById('modalTitle').innerText = translations[l].modal_edit; document.getElementById('submitBtn').name = "update_plan"; document.getElementById('p_id').value = p.id; document.getElementById('p_name_ar').value = p.name_ar; document.getElementById('p_name_en').value = p.name_en; document.getElementById('p_price').value = p.price; document.getElementById('p_duration').value = p.duration; document.getElementById('p_type').value = p.duration_type; document.getElementById('p_wash_count').value = p.wash_count && parseInt(p.wash_count, 10) > 0 ? p.wash_count : Math.max(1, Math.floor(parseFloat(p.price || 0) / 5)); document.getElementById('p_desc_ar').value = p.description_ar || ''; document.getElementById('p_desc_en').value = p.description_en || ''; document.getElementById('p_included_ar').value = p.included_services_ar || ''; document.getElementById('p_included_en').value = p.included_services_en || ''; document.getElementById('p_is_active').checked = (p.is_active == 1); pModal.show(); }
         function showDeleteModal(id) { document.getElementById('del_id').value = id; new bootstrap.Modal(document.getElementById('deleteModal')).show(); }
         function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
 
@@ -305,7 +323,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             descTimeout = setTimeout(async () => {
                 if(val.trim()) {
                     const trans = await translateText(val);
-                    if(trans) document.getElementById('p_name_en').value = trans;
+                    if(trans) document.getElementById('p_desc_en').value = trans;
                 }
                 loader.innerText = "";
             }, 800);

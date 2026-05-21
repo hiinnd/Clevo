@@ -241,6 +241,6 @@ if ($userID > 0) {
             if(icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         };
     </script>
-    <script src="/Clevo/assets/lamea.js"></script>
+    <script src="../assets/lamea.js"></script>
 </body>
 </html>
