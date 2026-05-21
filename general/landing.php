@@ -1,3 +1,4 @@
+alo
 <?php 
 session_start();
 include __DIR__ . '/../includes/config.php';
@@ -22,6 +23,7 @@ $is_logged_in = isset($_SESSION['userID']);
 $user_name = $is_logged_in ? ($_SESSION['userName'] ?? '') : '';
 // جلب الرول من السيشن (تأكد أنك تخزنه عند تسجيل الدخول باسم 'user_role' أو 'role')
 $user_role = $_SESSION['role'] ?? 'User';
+
 ?> 
 
 <!DOCTYPE html>
