@@ -185,7 +185,7 @@ $csrf_token = generate_csrf_token();
                                     if($status == 'Completed') $badgeClass = 'bg-success';
                                     elseif($status == 'Pending') $badgeClass = 'bg-warning text-dark';
                                     elseif($status == 'In Progress') $badgeClass = 'bg-info text-white';
-                                    elseif($status == 'Canceled') $badgeClass = 'bg-danger';
+                                    elseif(in_array($status, ['Canceled', 'Cancelled', 'Cancelled_Timeout', 'Rejected'], true)) $badgeClass = 'bg-danger';
                                 ?>
                                 <span class="status-badge <?= $badgeClass ?>"><?= $status ?></span>
                                 <div class="price-tag mt-2">

@@ -116,7 +116,7 @@ CREATE TABLE `booking` (
   `Address_Details` text DEFAULT NULL,
   `Booking_Date` date DEFAULT NULL,
   `Booking_Time` time DEFAULT NULL,
-  `Status` enum('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled_Timeout','Completed') DEFAULT 'Pending',
+  `Status` enum('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled','Cancelled_Timeout','Completed') DEFAULT 'Pending',
   `Total_Price` decimal(10,2) DEFAULT NULL,
   `Admin_Commission` decimal(10,2) DEFAULT NULL,
   `Payment_Method` varchar(50) DEFAULT NULL,

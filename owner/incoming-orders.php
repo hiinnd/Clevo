@@ -124,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     // 3. منطق رفض الطلب يدوياً من الأونر
     if ($action == 'reject_order') {
         $order_id = (int) ($_POST['order_id'] ?? 0);
-        $res = $conn->prepare("SELECT b.UserID, b.Order_Number FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ? AND s.UserID = ? LIMIT 1");
+        $res = $conn->prepare("SELECT b.UserID, b.Order_Number FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ? LIMIT 1");
         $res->bind_param("ii", $order_id, $owner_id);
         $res->execute();
         $order_data = $res->get_result()->fetch_assoc();
@@ -135,12 +135,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $customer_id = (int) $order_data['UserID'];
         $order_num = (string) $order_data['Order_Number'];
 
-        $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Rejected' WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
-        $update->bind_param("ii", $order_id, $owner_id);
-        if ($update->execute()) {
-            if ($update->affected_rows > 0) {
-                clevoRestorePlanWashForBooking($conn, $order_id);
+        $conn->begin_transaction();
+        try {
+            $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Rejected' WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
+            $update->bind_param("ii", $order_id, $owner_id);
+            $update->execute();
+            if ($update->affected_rows <= 0) {
+                throw new RuntimeException('reject_failed');
             }
+
+            $refund = clevoRefundBookingPayment($conn, $order_id, 'rejected');
+            if (($refund['message'] ?? '') === 'wallet_refund_failed') {
+                throw new RuntimeException('refund_failed');
+            }
+
             $msg = "نعتذر، تم رفض طلبك #$order_num من قبل المحطة. يمكنك حجز محطة أخرى.";
             clevoCreateNotification($conn, $customer_id, 'رفض الطلب', $msg, 'danger');
             // Notify admin about owner's rejection
@@ -150,8 +158,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             } catch (Throwable $e) {
                 // ignore
             }
+            $conn->commit();
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'rejected']);
-        } else {
+        } catch (Throwable $e) {
+            $conn->rollback();
             echo json_encode(['status' => 'error', 'data' => [], 'message' => 'db_error']);
         }
         exit;

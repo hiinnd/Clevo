@@ -522,8 +522,12 @@ $csrf_token = generate_csrf_token();
 
                 showAlert('<i class="fas fa-clock text-success"></i>', translations[lang].success_t, translations[lang].success_m);
                 document.getElementById('alertModal').addEventListener('hidden.bs.modal', function () {
+                    const bookingId = data.booking_id || '';
                     const orderNum = data.order_number || '';
-                    location.href = 'success.php' + (orderNum ? ('?order=' + encodeURIComponent(orderNum)) : '');
+                    const query = bookingId
+                        ? ('?id=' + encodeURIComponent(bookingId))
+                        : (orderNum ? ('?order=' + encodeURIComponent(orderNum)) : '');
+                    location.href = 'success.php' + query;
                 }, { once: true });
             })
             .catch(() => showAlert('<i class="fas fa-wifi text-danger"></i>', translations[lang].connection_error_t, translations[lang].connection_error_m))

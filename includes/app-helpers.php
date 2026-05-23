@@ -28,7 +28,7 @@ function clevoEnsureTrackingColumns(mysqli $conn): void
         $conn->query("ALTER TABLE booking ADD COLUMN Driver_Lon DECIMAL(11,8) DEFAULT NULL AFTER Driver_Lat");
     }
 
-    $conn->query("ALTER TABLE booking MODIFY Status ENUM('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled_Timeout','Completed') DEFAULT 'Pending'");
+    $conn->query("ALTER TABLE booking MODIFY Status ENUM('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled','Cancelled_Timeout','Completed') DEFAULT 'Pending'");
 }
 
 function clevoStationImageUrl(?string $image): string
