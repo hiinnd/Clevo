@@ -1,36 +1,35 @@
 <?php
-session_start(); // التأكد من بدء الجلسة لجلب الاسم
+session_start(); 
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// 1. التحقق من صلاحية الأدمن لضمان الأمان
 if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
 
-// جلب الاسم والمعرف من الجلسة
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// --- منطق رفع وتحديث الصورة الشخصية ---
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
-    // Validate CSRF token
+    
     if (!isset($_POST['csrf_token']) || !validate_csrf_token($_POST['csrf_token'])) {
         die("CSRF token validation failed.");
     }
     $file = $_FILES['admin_pic_upload'];
     
-    // File validation
+    
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-    $max_size = 2 * 1024 * 1024; // 2MB
+    $max_size = 2 * 1024 * 1024; 
     if (!in_array($file['type'], $allowed_types) || $file['size'] > $max_size || $file['error'] !== UPLOAD_ERR_OK) {
         die("Invalid file upload.");
     }
     
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        // تحديث قاعدة البيانات باسم الصورة الجديد لضمان ظهورها على كل الأجهزة
+        
         $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
         $stmt->bind_param("si", $newName, $admin_id);
         if ($stmt->execute()) {
@@ -40,21 +39,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-// جلب صورة الأدمن الحالية من قاعدة البيانات (هذا يضمن ظهورها على أي جهاز آخر)
+
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// 1. جلب إحصائيات المحطات المعتمدة
+
 $res_stations = $conn->query("SELECT COUNT(*) as total FROM stations WHERE admin_status = 'approved'");
 $total_stations = $res_stations->fetch_assoc()['total'] ?? 0;
 
-// 2. إصلاح: جلب إجمالي الزبائن الفعليين (customer) لضمان دقة الإحصائيات
+
 $res_users = $conn->query("SELECT COUNT(*) as total FROM `user` WHERE Role = 'customer'");
 $total_users = $res_users->fetch_assoc()['total'] ?? 0;
 
-// 3. جلب الطلبات والمحطات قيد الانتظار
+
 $res_pending_bookings = $conn->query("SELECT COUNT(*) as total FROM booking WHERE Status = 'Pending'");
 $pending_bookings_count = $res_pending_bookings->fetch_assoc()['total'] ?? 0;
 
@@ -63,35 +62,35 @@ $pending_stations_count = $res_pending_stations->fetch_assoc()['total'] ?? 0;
 
 $total_pending = $pending_bookings_count + $pending_stations_count;
 
-// 4. جلب أرباح اليوم
+
 $res_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE DATE(created_at) = CURDATE()");
 $total_profit = $res_profit->fetch_assoc()['total'] ?? 0;
 
-// 5. جلب تذاكر الدعم
+
 $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name 
                              FROM support_tickets st 
                              LEFT JOIN `user` u ON st.user_id = u.UserID 
                              WHERE st.id IN (SELECT MAX(id) FROM support_tickets GROUP BY COALESCE(user_id, user_name)) 
                              ORDER BY st.id DESC LIMIT 5");
 
-// 6. جلب عدد الإشعارات غير المقروءة
+
 $res_un_notif = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE is_read = 0");
 $unread_count = $res_un_notif->fetch_assoc()['total'] ?? 0;
 
-// Analytics
-// Most requested service
+
+
 $res_most_service = $conn->query("SELECT s.Name as ServiceName, COUNT(b.ServiceID) as count FROM booking b JOIN services s ON b.ServiceID = s.ServiceID GROUP BY b.ServiceID ORDER BY count DESC LIMIT 1");
 $most_service = ($res_most_service) ? $res_most_service->fetch_assoc() : null;
 
-// Monthly profits
+
 $res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
 $monthly_profit = $res_monthly_profit->fetch_assoc()['total'] ?? 0;
 
-// Average station rating
+
 $res_avg_rating = $conn->query("SELECT AVG(Rating) as avg_rating FROM reviews");
 $avg_rating = $res_avg_rating->fetch_assoc()['avg_rating'] ?? 0;
 
-// Daily bookings
+
 $res_daily_bookings = $conn->query("SELECT COUNT(*) as total FROM booking WHERE DATE(created_at) = CURDATE()");
 $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
 

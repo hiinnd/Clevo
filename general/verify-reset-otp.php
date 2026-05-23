@@ -32,7 +32,7 @@ if (!$user) {
     ]);
     exit;
 }
-// تحقق من الكود
+
 if (trim($otp) != trim($user['reset_otp'])){
     echo json_encode([
         'status' => 'error',
@@ -40,7 +40,7 @@ if (trim($otp) != trim($user['reset_otp'])){
     ]);
     exit;
 }
-// تحقق من الوقت
+
 if (strtotime($user['reset_otp_expiry']) < time()) {
     echo json_encode([
         'status' => 'error',

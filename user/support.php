@@ -2,23 +2,23 @@
 session_start();
 include(__DIR__ . "/../includes/config.php");
 
-// 1. جلب بيانات المستخدم إذا كان مسجل دخول لربط التذكرة بحسابه
+
 $uName = $_SESSION['userName'] ?? "";
 $uID = $_SESSION['userID'] ?? null;
 $uRole = $_SESSION['role'] ?? 'user';
-// تم تصفير القيمة الافتراضية لضمان عدم ظهور أي كلمة سابقة مثل "مشكلة في الطلب" بشكل تلقائي
+
 $prefillSubject = ''; 
 $success = false;
 
-// 2. معالجة إرسال التذكرة (Ticket) والربط مع قاعدة البيانات بناءً على ملف clevo.sql
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_ticket_action'])) {
     $subject = trim($_POST['subject']);
     $message = trim($_POST['message']);
-    // إذا لم يكن مسجلاً، نأخذ الاسم المدخل يدوياً
+    
     $sender_name = $uID ? $uName : (isset($_POST['guest_name']) ? trim($_POST['guest_name']) : "Guest");
     $is_guest = $uID ? 0 : 1;
 
-    // إدخال البيانات في جدول support_tickets
+    
     $stmt = $conn->prepare("INSERT INTO `support_tickets` (user_id, user_name, user_type, subject, message, status, is_guest) VALUES (?, ?, ?, ?, ?, 'New', ?)");
     $stmt->bind_param("issssi", $uID, $sender_name, $uRole, $subject, $message, $is_guest);
     

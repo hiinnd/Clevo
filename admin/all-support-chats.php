@@ -1,18 +1,18 @@
 <?php
-session_start(); // التأكد من بدء الجلسة لجلب الاسم
+session_start(); 
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التأكد من أن المستخدم أدمن
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../general/login.php"); // تصحيح المسار للجنرال
+    header("Location: ../general/login.php"); 
     exit;
 }
 
 $admin_id = $_SESSION['userID'] ?? 0;
 $admin_name = $_SESSION['userName'] ?? "Admin";
 
-// --- منطق رفع وتحديث الصورة الشخصية ---
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -23,12 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-// جلب صورة الأدمن الحالية
+
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// جلب جميع تذاكر الدعم لليوزر والزوار
+
 $res_all_tickets = $conn->query("SELECT * FROM support_tickets ORDER BY id DESC");
 ?>
 
@@ -59,7 +59,7 @@ $res_all_tickets = $conn->query("SELECT * FROM support_tickets ORDER BY id DESC"
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
-        /* Sidebar الأدمن الثابت والمحمي بالكامل */
+      
         .admin-sidebar { background: var(--bg-sidebar); color: white; padding: 20px 15px; position: sticky; top: 0; height: 100vh; z-index: 1000; width: 260px; display: flex; flex-direction: column; overflow: visible; }
         .admin-pic-container { position: relative; display: inline-block; margin-bottom: 10px; cursor: pointer; }
         .admin-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-blue); transition: 0.3s; }
@@ -70,12 +70,12 @@ $res_all_tickets = $conn->query("SELECT * FROM support_tickets ORDER BY id DESC"
         [dir="rtl"] .nav-link i { margin-left: 10px; }
         [dir="ltr"] .nav-link i { margin-right: 10px; }
 
-        /* Main Content & Header */
+        
         .admin-main-content { flex: 1; overflow-x: hidden; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-btn-back { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
         
-        /* Cards */
+        
         .chat-card { background: var(--bg-card); border-radius: 24px; padding: 25px; margin-bottom: 15px; border: 1px solid var(--border-color); transition: 0.3s; color: var(--text-main); }
         [dir="rtl"] .chat-card { border-right: 5px solid var(--primary-blue); }
         [dir="ltr"] .chat-card { border-left: 5px solid var(--primary-blue); }

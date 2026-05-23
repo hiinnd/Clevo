@@ -5,7 +5,7 @@ include __DIR__ . '/../includes/app-helpers.php';
 
 $owner_id = clevo_require_role('owner');
 
-// جلب بيانات الأونر
+
 $stmtUser = $conn->prepare("SELECT ProfilePic, UserName FROM user WHERE UserID = ?");
 $stmtUser->bind_param("i", $owner_id);
 $stmtUser->execute();
@@ -13,7 +13,7 @@ $userRes = $stmtUser->get_result()->fetch_assoc();
 $owner_pic = clevoProfileImageUrl($userRes['ProfilePic'] ?? '', $userRes['UserName'] ?? 'Owner');
 $owner_name = $userRes['UserName'] ?? "Owner";
 
-// منطق التحديث كمقروء
+
 if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     $notif_id = intval($_GET['read']);
     $stmtRead = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?");
@@ -23,7 +23,7 @@ if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     exit;
 }
 
-// جلب الإشعارات - تم الابقاء على الربط الحالي تماماً
+
 $query = "SELECT n.id, n.title, n.body as message, n.type, n.is_read, n.created_at, s.Name AS station_name
     FROM notifications n
     LEFT JOIN stations s ON s.UserID = n.user_id

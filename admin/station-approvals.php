@@ -10,17 +10,17 @@ require '../vendor/autoload.php';
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التحقق من صلاحية الأدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
 
-// جلب بيانات الأدمن للجلسة والصورة
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// --- منطق رفع وتحديث الصورة الشخصية الموحد ---
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -34,12 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-// جلب صورة الأدمن الحالية
+
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// دالة إرسال الإيميل (اختياري)
+
 function sendEmailNotification($toEmail, $userName)
 {
     $subject = "تم قبول حسابك في Clevo";
@@ -48,7 +48,7 @@ function sendEmailNotification($toEmail, $userName)
     @mail($toEmail, $subject, $message, $headers);
 }
 
-// جلب طلبات الأونر المعلقة
+
 $res_pending = $conn->query("
     SELECT u.UserID, u.UserName, u.Email, u.PhoneNumber, COALESCE(s.CommercialRecordPath, u.VerificationFile) AS VerificationFile
     FROM stations s
@@ -57,7 +57,7 @@ $res_pending = $conn->query("
     ORDER BY s.StationID DESC
 ");
 
-// معالجة قرار الأدمن
+
 if (isset($_POST['action']) && isset($_POST['user_id'])) {
     $u_id = intval($_POST['user_id']);
     $action = $_POST['action'];
@@ -66,7 +66,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
         $conn->query("UPDATE user SET AccountStatus = 'active' WHERE UserID = $u_id");
         $conn->query("UPDATE stations SET admin_status = 'approved', Status = 'Active' WHERE UserID = $u_id");
 
-        // جلب بيانات صاحب المحطة
+        
         $stmt = $conn->prepare("SELECT UserName, Email FROM user WHERE UserID = ?");
         $stmt->bind_param("i", $u_id);
         $stmt->execute();

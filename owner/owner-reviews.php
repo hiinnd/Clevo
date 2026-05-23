@@ -1,25 +1,25 @@
 <?php
-// إعدادات الباك اند
+
 session_start();
-include __DIR__ . '/../includes/config.php'; // الربط بملف قاعدة البيانات والمشروع
+include __DIR__ . '/../includes/config.php'; 
 $owner_id = (int) ($_SESSION['userID'] ?? 0);
 
-// معالجة طلب الرد عبر AJAX عند ضغط زر الإرسال
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'submit_reply') {
     $review_id = mysqli_real_escape_string($conn, $_POST['review_id']);
     $reply_text = mysqli_real_escape_string($conn, $_POST['reply_text']);
     
-    // 1. تحديث جدول التقييمات بحقل رد المالك (Owner_Reply)
+    
     $update = $conn->prepare("UPDATE reviews r JOIN booking b ON r.BookingID = b.BookingID JOIN stations s ON b.StationID = s.StationID SET r.Owner_Reply = ? WHERE r.ReviewID = ? AND s.UserID = ?");
     $update->bind_param("sii", $reply_text, $review_id, $owner_id);
     
     if ($update->execute() && $update->affected_rows > 0) {
-        // 2. جلب ID الزبون المرتبط بهذا التقييم لإرسال إشعار له
+        
         $user_query = mysqli_query($conn, "SELECT b.UserID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = '$review_id'");
         $user_data = mysqli_fetch_assoc($user_query);
         $customer_id = $user_data['UserID'];
 
-        // 3. إضافة الإشعار المخصص في جدول التنبيهات
+        
         $sql_notify = "INSERT INTO notifications (user_id, title, body, type) 
                        VALUES ('$customer_id', 'رد جديد من الإدارة', 'قام صاحب المغسلة بالرد على تقييمك الأخير.', 'info')";
         mysqli_query($conn, $sql_notify);

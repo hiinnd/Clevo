@@ -3,17 +3,17 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التأكد من أن المستخدم أدمن
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit;
 }
 
-// جلب بيانات الأدمن للجلسة والصورة الشخصية
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// --- منطق رفع وتحديث الصورة الشخصية (النظام الموحد المعتمد) ---
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -28,7 +28,7 @@ $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id"
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// 1. معالجة تحديد الإشعار كمقروء
+
 if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     $notif_id = intval($_GET['read']);
     $conn->query("UPDATE notifications SET is_read = 1 WHERE id = $notif_id");
@@ -36,14 +36,14 @@ if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     exit;
 }
 
-// 2. معالجة تحديد كل الإشعارات كمقروءة
+
 if (isset($_GET['read_all'])) {
     $conn->query("UPDATE notifications SET is_read = 1");
     header("Location: notifications.php");
     exit;
 }
 
-// 3. جلب كافة الإشعارات (تطوير الاستعلام ليشمل انضمام يوزر، تسجيل محطة، اقتراب انتهاء خطة، ووصول مسج جديد للسبورت)
+
 $filter_query = "SELECT * FROM notifications 
                  WHERE title LIKE '%انضم%' 
                  OR title LIKE '%تسجيل محطة%' 
@@ -57,7 +57,7 @@ $filter_query = "SELECT * FROM notifications
 
 $res_notifications = $conn->query($filter_query);
 
-// جعل عدد الإشعارات غير المقروءة 0 فور فتح الصفحة ليختفي الرقم تماماً كما طلبت
+
 $unread_count = 0;
 ?>
 

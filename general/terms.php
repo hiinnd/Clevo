@@ -1,9 +1,9 @@
 <?php
-// بدء الجلسة لضمان استمرارية حالة المستخدم 
+
 session_start();
 include __DIR__ . '/../includes/config.php';
 
-// (Backend) جلب الشروط من قاعدة البيانات إذا أردت جعلها ديناميكية مستقبلاً
+
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">

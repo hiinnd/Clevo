@@ -1,11 +1,11 @@
 <?php
-// Run this script periodically (cron / Task Scheduler)
-// Example: php /path/to/Clevo/scripts/plan_expiry_notifier.php
+
+
 
 require __DIR__ . '/../includes/config.php';
 require __DIR__ . '/../includes/app-helpers.php';
 
-$daysBefore = 7; // notify users whose plan ends within this many days
+$daysBefore = 7; 
 $notified = 0;
 
 $sql = "SELECT up.user_id, up.end_date, p.name_ar AS plan_name FROM user_plans up JOIN plans p ON p.id = up.plan_id WHERE up.status = 'active' AND DATE(up.end_date) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)";
@@ -23,7 +23,7 @@ while ($row = $res->fetch_assoc()) {
     $title = "قرب انتهاء الباقة";
     $body = "ستنتهي باقتك \"$plan_name\" خلال $daysLeft يوم(أيام). يرجى التجديد لتجنب توقف الخدمة.";
 
-    // avoid duplicate notifications within the same window
+    
     $chk = $conn->prepare("SELECT 1 FROM notifications WHERE user_id = ? AND title = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? DAY) LIMIT 1");
     $chk->bind_param('isi', $user_id, $title, $daysBefore);
     $chk->execute();

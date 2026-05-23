@@ -10,18 +10,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
     $subject = mysqli_real_escape_string($conn, $_POST['subject']);
     $message = mysqli_real_escape_string($conn, $_POST['message']);
     
-    // الحل: إذا لم يكن هناك UserID نرسل NULL بدلاً من 0 لتجنب خطأ الـ Foreign Key
+    
     $uID = isset($_SESSION['userID']) ? $_SESSION['userID'] : "NULL";
     $uRole = $_SESSION['role'] ?? 'guest';
 
-    // نضع $uID بدون علامات اقتباس في الاستعلام لكي يفهم MySQL أنها قيمة NULL برمجية
+    
     $sql = "INSERT INTO support_tickets (user_id, user_name, user_type, subject, message, status, is_guest) 
             VALUES ($uID, '$name', '$uRole', '$subject', '$message', 'New', " . ($uID === "NULL" ? 1 : 0) . ")";
     
     if (mysqli_query($conn, $sql)) {
         $message_sent = true;
         
-        // إرسال إشعار للأدمن في جدول notifications ليعرف بوجود رسالة جديدة
+        
         $notif_title = "رسالة دعم جديدة";
         $notif_body = "لديك رسالة جديدة من: " . $name . " بخصوص: " . $subject;
         mysqli_query($conn, "INSERT INTO notifications (title, body, type, is_read) VALUES ('$notif_title', '$notif_body', 'info', 0)");

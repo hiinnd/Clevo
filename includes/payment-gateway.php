@@ -4,12 +4,12 @@ include(__DIR__ . "/config.php");
 include(__DIR__ . "/booking-helpers.php");
 include(__DIR__ . "/app-helpers.php");
 include_once(__DIR__ . "/plan-helpers.php");
-// التأكد من تسجيل الدخول - تم التعديل ليتوافق مع userID الخاص بصفحة login.php
+
 if (!isset($_SESSION['userID'])) {
     header("Location: ../general/login.php");
     exit();
 }
-// السعر الافتراضي، وسيتم تحديثه عبر JavaScript من localStorage لضمان تكامل البيانات
+
 $userID = (int) $_SESSION['userID'];
 $bookingID = (int) ($_GET['id'] ?? 0);
 $planID = (int) ($_GET['plan_id'] ?? 0);

@@ -1,6 +1,6 @@
 <?php
-// Shared logout confirmation modal (used by admin/owner/user pages)
-// Relative paths in the modal assume the including page is in admin/, owner/ or user/ folders
+
+
 ?>
 <div class="modal fade" id="logoutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">

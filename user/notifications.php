@@ -3,7 +3,7 @@ session_start();
 include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/booking-helpers.php");
 
-// 1. التحقق من تسجيل الدخول
+
 if (!isset($_SESSION['userID'])) {
     header("Location: login.php");
     exit();
@@ -12,7 +12,7 @@ if (!isset($_SESSION['userID'])) {
 $userID = $_SESSION['userID'];
 cancelExpiredBookings($conn, (int) $userID);
 
-// --- [تطوير: فحص الإلغاء التلقائي عند العرض] ---
+
 $timeout_query = "UPDATE `booking` 
                   SET Status = 'Cancelled_Timeout' 
                   WHERE UserID = ? AND Status = 'Pending' 
@@ -21,14 +21,14 @@ $timeout_stmt = $conn->prepare($timeout_query);
 $timeout_stmt->bind_param("i", $userID);
 $timeout_stmt->execute();
 
-// 2. تحديث كافة الإشعارات الخاصة بالمستخدم (أو الإشعارات العامة) لتصبح مقروءة
-// ملاحظة: تم تعديل الشرط ليشمل الإشعارات الموجهة للمستخدم (user_id) أو العامة (NULL)
+
+
 $update_stmt = $conn->prepare("UPDATE `notifications` SET is_read = 1 WHERE (user_id = ? OR user_id IS NULL) AND is_read = 0");
 $update_stmt->bind_param("i", $userID);
 $update_stmt->execute();
 
-// 3. جلب الإشعارات الخاصة بالخدمات والعروض من الأدمن
-// الاستعلام يجلب الإشعارات الموجهة للمستخدم المحدد أو الإشعارات العامة التي يرسلها الأدمن للكل
+
+
 $stmt = $conn->prepare("SELECT * FROM `notifications` WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC");
 $stmt->bind_param("i", $userID);
 $stmt->execute();

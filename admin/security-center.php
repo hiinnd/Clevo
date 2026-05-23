@@ -3,17 +3,17 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التحقق من صلاحية الأدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
 
-// جلب بيانات الأدمن للجلسة والصورة
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// منطق رفع وتحديث الصورة الشخصية
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -28,7 +28,7 @@ $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id"
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// 1. معالجة طلب فك الحظر
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
     $u_id = intval($_POST['user_id']);
     $user_info = $conn->query("SELECT DeviceID FROM user WHERE UserID = $u_id")->fetch_assoc();
@@ -41,11 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
     exit;
 }
 
-// 2. جلب إجمالي المحظورين
+
 $res_banned = $conn->query("SELECT COUNT(*) as total FROM blacklist");
 $total_banned = $res_banned->fetch_assoc()['total'] ?? 0;
 
-// 3. جلب قائمة المحظورين
+
 $blacklist_res = $conn->query("
     SELECT u.UserID, b.DeviceID, u.UserName 
     FROM blacklist b 

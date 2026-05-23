@@ -1,5 +1,5 @@
 <?php
-// إعدادات الباك اند والربط بقاعدة البيانات
+
 session_start();
 include __DIR__ . '/../includes/config.php';
 
@@ -12,7 +12,7 @@ if ($owner_id > 0) {
     $existingStation = $stmt->get_result()->fetch_assoc();
 }
 
-// معالجة البيانات عند الإرسال (POST)
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
     $name = mysqli_real_escape_string($conn, $_POST['stName']);
     $location = mysqli_real_escape_string($conn, $_POST['stLocation']);

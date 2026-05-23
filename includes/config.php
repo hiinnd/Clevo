@@ -2,23 +2,23 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-$host = "localhost";     // السيرفر
-$user = "root";          // اسم المستخدم
-$password = "";          // كلمة المرور (غالباً فاضية على XAMPP)
-$database = "clevo";     // اسم الداتابيس (غيريه حسب اسمك)
+$host = "localhost";     
+$user = "root";          
+$password = "";          
+$database = "clevo";     
 
 $conn = new mysqli($host, $user, $password, $database);
 
-// التحقق من الاتصال
+
 if ($conn->connect_error) {
     die("فشل الاتصال: " . $conn->connect_error);
 }
 $conn->set_charset("utf8mb4");
 
-// JWT Secret Key - يجب تغييرها في الإنتاج
+
 $jwt_secret = getenv('CLEVO_JWT_SECRET') ?: 'CLEVO_SECRET_KEY_CHANGE_IN_PRODUCTION';
 
-// Backward compatibility only: normalize old session names into the approved keys.
+
 if (!isset($_SESSION['userID']) && isset($_SESSION['user_id'])) {
     $_SESSION['userID'] = $_SESSION['user_id'];
 }
@@ -29,7 +29,7 @@ if (!isset($_SESSION['role']) && isset($_SESSION['user_role'])) {
     $_SESSION['role'] = $_SESSION['user_role'];
 }
 
-// CSRF Token generation
+
 function generate_csrf_token() {
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));

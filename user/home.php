@@ -12,14 +12,14 @@ if (!isset($_SESSION['userID'])) {
 $userID = $_SESSION['userID'];
 cancelExpiredBookings($conn, (int) $userID);
 
-// --- [تطوير: إلغاء الطلبات المتأخرة تلقائياً] ---
+
 $cancel_stmt = $conn->prepare("UPDATE `booking` SET Status = 'Cancelled_Timeout' 
                                WHERE UserID = ? AND Status = 'Pending' 
                                AND created_at < (NOW() - INTERVAL 10 MINUTE)");
 $cancel_stmt->bind_param("i", $userID);
 $cancel_stmt->execute();
 
-// --- [إضافة: جلب آخر حجز معلق لعرض العداد] ---
+
 $pending_stmt = $conn->prepare("SELECT b.*, s.Name as station_name, serv.Name as service_name
                                 FROM `booking` b
                                 JOIN stations s ON b.StationID = s.StationID
@@ -30,20 +30,20 @@ $pending_stmt->bind_param("i", $userID);
 $pending_stmt->execute();
 $pending_booking = $pending_stmt->get_result()->fetch_assoc();
 
-// --- [تطوير: فحص وجود إشعارات جديدة] ---
+
 $notif_stmt = $conn->prepare("SELECT COUNT(*) as unread FROM `notifications` WHERE user_id = ? AND is_read = 0");
 $notif_stmt->bind_param("i", $userID);
 $notif_stmt->execute();
 $unread_count = $notif_stmt->get_result()->fetch_assoc()['unread'];
 
-// --- [جديد: جلب رصيد نقاط الولاء الفعلي للمستخدم من قاعدة البيانات] ---
+
 $loyalty_stmt = $conn->prepare("SELECT COALESCE(SUM(PointsBalance), 0) AS PointsBalance FROM `loyalty` WHERE UserID = ?");
 $loyalty_stmt->bind_param("i", $userID);
 $loyalty_stmt->execute();
 $loyalty_data = $loyalty_stmt->get_result()->fetch_assoc();
-$user_points = $loyalty_data['PointsBalance'] ?? 0; // إذا لم يوجد سجل نضع 0
+$user_points = $loyalty_data['PointsBalance'] ?? 0; 
 
-// --- [جلب بيانات المستخدم مع حالة الاشتراك] ---
+
 $stmt = $conn->prepare("SELECT u.UserName, u.ProfilePic
                         FROM `user` u
                         WHERE u.UserID = ?
@@ -52,7 +52,7 @@ $stmt->bind_param("i", $userID);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
-// في حال لم يجد المستخدم في الداتابيز نهائياً
+
 if (!$user) {
     session_destroy();
     header("Location: login.php");

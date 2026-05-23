@@ -3,7 +3,7 @@ session_start();
 include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/app-helpers.php");
 
-// 1. التحقق من تسجيل الدخول
+
 if (!isset($_SESSION['userID'])) {
     header("Location: login.php");
     exit();
@@ -13,12 +13,10 @@ $userID = $_SESSION['userID'];
 $error = "";
 $success = false;
 
-// توليد كود دعوة فريد ومضمون خاص باليوزر الحالي بناءً على الـ ID تبعه
+
 $userReferralCode = "CLEVO-USER-" . $userID;
 
-/** * تحديث تلقائي للنقاط بناءً على الحجوزات المكتملة
- * القاعدة: كل 1 دينار مصروف = 10 نقاط Clevo
- */
+
 $earned_stmt = $conn->prepare("SELECT COALESCE(SUM(Total_Price), 0) * 10 AS earned_points FROM booking WHERE UserID = ? AND Status = 'Completed'");
 $earned_stmt->bind_param("i", $userID);
 $earned_stmt->execute();
@@ -29,14 +27,14 @@ $loyalty_row->bind_param("i", $userID);
 $loyalty_row->execute();
 $loyaltyMeta = $loyalty_row->get_result()->fetch_assoc();
 if ($loyaltyMeta) {
-    // Existing balances may include redeemed/spent points, so do not recalculate over them.
+    
 } else {
     $sync_stmt = $conn->prepare("INSERT INTO loyalty (UserID, PointsBalance) VALUES (?, ?)");
     $sync_stmt->bind_param("ii", $userID, $earnedPoints);
     $sync_stmt->execute();
 }
 
-// 2. جلب رصيد نقاط Clevo من قاعدة البيانات بعد التحديث
+
 $stmt = $conn->prepare("SELECT PointsBalance FROM `loyalty` WHERE UserID = ?");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
@@ -44,25 +42,25 @@ $result = $stmt->get_result();
 $loyalty = $result->fetch_assoc();
 $currentPoints = clevoGetLoyaltyPoints($conn, (int)$userID);
 
-// 3. معالجة عملية استبدال النقاط (كل 100 نقطة Clevo تعطي 1 دينار رصيد)
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
     $requiredPoints = intval($_POST['points_to_deduct']);
-    $rewardValue = $requiredPoints / 100; // المنطق: 100 نقطة = 1 دينار
+    $rewardValue = $requiredPoints / 100; 
 
     if ($currentPoints >= $requiredPoints) {
         $conn->begin_transaction();
         try {
-            // أ. خصم نقاط Clevo
+            
             $upd = $conn->prepare("UPDATE `loyalty` SET PointsBalance = PointsBalance - ? WHERE UserID = ?");
             $upd->bind_param("ii", $requiredPoints, $userID);
             $upd->execute();
 
-            // ب. إضافة الرصيد الناتج للمحفظة
+            
             $upd_w = $conn->prepare("UPDATE `wallet` SET Balance = Balance + ? WHERE UserID = ?");
             $upd_w->bind_param("di", $rewardValue, $userID);
             $upd_w->execute();
 
-            // ج. تسجيل العملية في سجل المحفظة لضمان شفافية الداتا
+            
             $desc_ar = "استبدال " . $requiredPoints . " نقطة مكافآت";
             $desc_en = "Redeemed " . $requiredPoints . " loyalty points";
             $ins_trans = $conn->prepare("INSERT INTO `wallet_transactions` (WalletID, Amount, TransactionType, Description_ar, Description_en) 

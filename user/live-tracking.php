@@ -5,7 +5,7 @@ include __DIR__ . '/../includes/app-helpers.php';
 
 clevoEnsureTrackingColumns($conn);
 
-// الحصول على معرف الحجز من الرابط
+
 $bookingID = (int) ($_GET['id'] ?? 0);
 $viewerID = clevo_current_user_id();
 if ($viewerID <= 0) {
@@ -13,7 +13,7 @@ if ($viewerID <= 0) {
     exit;
 }
 
-// جلب بيانات الحجز الأولية (السائق، الزبون، حالة الطلب)
+
 $stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, d.UserName as driver_name, d.ProfilePic as driver_pic, d.PhoneNumber as driver_phone
           FROM booking b
           JOIN user u ON b.UserID = u.UserID

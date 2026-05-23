@@ -8,15 +8,13 @@ $owner_id = clevo_require_role('owner');
 clevoEnsureTrackingColumns($conn);
 cancelExpiredBookings($conn);
 
-/**
- * التعامل مع طلبات AJAX (تعيين السائق وجلب القائمة)
- */
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
     $action = $_POST['action'];
 
-    // 1. جلب قائمة السائقين التابعين للمحطة
+    
     if ($action == 'fetch_drivers_list') {
         $stmt = $conn->prepare("SELECT u.UserID as id, u.UserName as name, u.PhoneNumber as phone
             FROM user u
@@ -59,12 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 $msg = "تم قبول طلبك #$order_num. جاري تعيين سائق وتتبع الطلب.";
             }
             clevoCreateNotification($conn, $customer_id, 'تم قبول الطلب', $msg, 'success');
-            // Notify admin about owner's action
+            
             try {
                 $admin_msg = "قام صاحب المحطة (ID: $owner_id) بقبول الطلب #$order_num.";
                 clevoCreateNotification($conn, 1, 'قبول طلب من صاحب محطة', $admin_msg, 'info');
             } catch (Throwable $e) {
-                // non-fatal
+                
             }
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'accepted']);
         } else {
@@ -73,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    // 2. معالجة عملية تعيين السائق وتوليد كود دخول فريد لكل خدمة
+    
     if ($action == 'assign_driver') {
         $order_id = (int) ($_POST['order_id'] ?? 0);
         $driver_id = (int) ($_POST['driver_id'] ?? 0);
@@ -121,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    // 3. منطق رفض الطلب يدوياً من الأونر
+    
     if ($action == 'reject_order') {
         $order_id = (int) ($_POST['order_id'] ?? 0);
         $res = $conn->prepare("SELECT b.UserID, b.Order_Number FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ? LIMIT 1");
@@ -151,12 +149,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
             $msg = "نعتذر، تم رفض طلبك #$order_num من قبل المحطة. يمكنك حجز محطة أخرى.";
             clevoCreateNotification($conn, $customer_id, 'رفض الطلب', $msg, 'danger');
-            // Notify admin about owner's rejection
+            
             try {
                 $admin_msg = "قام صاحب المحطة (ID: $owner_id) برفض الطلب #$order_num.";
                 clevoCreateNotification($conn, 1, 'رفض طلب من صاحب محطة', $admin_msg, 'warning');
             } catch (Throwable $e) {
-                // ignore
+                
             }
             $conn->commit();
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'rejected']);
@@ -208,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     }
 }
 
-// جلب الطلبات النشطة (Pending و Accepted فقط) لضمان متابعة الوقت
+
 $orders_stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, u.PhoneNumber as customer_phone, serv.Name as service_name, s.Name as station_name, d.UserName as driver_name, d.CurrentAccessCode as d_code
     FROM booking b
     JOIN user u ON b.UserID = u.UserID
@@ -221,7 +219,7 @@ $orders_stmt->bind_param("i", $owner_id);
 $orders_stmt->execute();
 $orders_query = $orders_stmt->get_result();
 
-// إصلاح عداد الإشعارات المعلق: جلب عدد الطلبات الفعلي قيد الانتظار (Pending) حصرياً لقراءة العداد الديناميكي الصحيح
+
 $pending_count_stmt = $conn->prepare("SELECT COUNT(*) as total_pending FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Status = 'Pending' AND s.UserID = ?");
 $pending_count_stmt->bind_param("i", $owner_id);
 $pending_count_stmt->execute();

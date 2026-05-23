@@ -2,13 +2,13 @@
 session_start();
 include(__DIR__ . "/../includes/config.php");
 
-// دالة JWT ثابتة لضمان أمان الجلسة
+
 function generate_jwt($user_id, $role)
 {
     return clevo_generate_jwt((int) $user_id, (string) $role);
 }
 
-// التوجيه التلقائي بناءً على الرول
+
 if (isset($_SESSION['userID']) && !empty($_SESSION['userID'])) {
     if ($_SESSION['role'] === 'Admin') {
         header("Location: ../admin/admin-dashboard.php");
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (empty($error)) {
-                    // جلب بيانات المستخدم كاملة بما فيها UserName
+                    
                     $stmt = $conn->prepare("SELECT UserID, UserName, Password, Role, AccountStatus, CurrentAccessCode FROM `user` WHERE PhoneNumber = ? OR Email = ?");
                     $stmt->bind_param("ss", $login_input, $login_input);
                     $stmt->execute();
@@ -65,19 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         $is_password_correct = false;
 
-                        // 1. فحص خاص للأدمن (دعم النص المجرد حالياً لتجنب قفل حسابك، ويفضل لاحقاً تشفيره)
+                        
                         if ($user['Role'] === 'Admin') {
                             if ($password === $user['Password']) {
                                 $is_password_correct = true;
                             }
                         } else {
-                            // 2. استخدام نظام التشفير الآمن لبقية المستخدمين (password_verify)
+                            
                             if (password_verify($password, $user['Password'])) {
                                 $is_password_correct = true;
                             }
                         }
 
-                        // 3. التحقق الإضافي للسائق عبر كود الدخول (Access Code)
+                        
                         $is_driver_code = ($user['Role'] === 'driver' && !empty($user['CurrentAccessCode']) && $password === $user['CurrentAccessCode']);
 
                         if (!$is_driver_code && !$is_password_correct) {
@@ -87,10 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } elseif ($user['AccountStatus'] === 'rejected' || $user['Role'] === 'Banned') {
                             $error = "user_banned";
                         } else {
-                            // توليد التوكن للتطبيق والموقع
+                            
                             $token = clevo_generate_jwt((int) $user['UserID'], (string) $user['Role']);
 
-                            // تخزين التوكن في الكوكيز لسهولة استدعائه من المتصفح أو التطبيق
+                            
                             setcookie("access_token", $token, [
                                 'expires' => time() + (3600 * 24),
                                 'path' => '/',
@@ -99,14 +99,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'samesite' => 'Lax'
                             ]);
 
-                            // إعداد جلسة العمل (Session) التقليدية للويب
+                            
                             session_regenerate_id(true);
                             $_SESSION['userID']   = $user['UserID'];
                             $_SESSION['userName'] = $user['UserName'];
                             $_SESSION['role']     = $user['Role'];
-                            $_SESSION['jwt_token'] = $token; // حفظ التوكن في السشن أيضاً
+                            $_SESSION['jwt_token'] = $token; 
 
-                            // التوجيه بناءً على الرول
+                            
                             if ($user['Role'] === 'Admin') {
                                 header("Location: ../admin/admin-dashboard.php");
                             } elseif ($user['Role'] === 'owner') {

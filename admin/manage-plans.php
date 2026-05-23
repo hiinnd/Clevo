@@ -1,10 +1,10 @@
 <?php
-session_start(); // التأكد من بدء الجلسة لجلب الاسم
+session_start(); 
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 include_once __DIR__ . '/../includes/plan-helpers.php';
 
-// التأكد من أن المستخدم أدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit;
@@ -12,11 +12,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
 
 clevoEnsurePlanColumns($conn);
 
-// جلب بيانات الأدمن للجلسة والصورة الشخصية
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// منطق رفع وتحديث الصورة الشخصية المعتمد
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -34,11 +34,11 @@ $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id"
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// متغيرات التحكم في المودالات البرمجية
+
 $show_msg_modal = false;
 $msg_type = "";
 
-// 1. إضافة خطة جديدة
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
     $name_ar = trim($_POST['name_ar']);
     $name_en = trim($_POST['name_en']);
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
     $desc_en = trim($_POST['desc_en']);
     $included_services_ar = trim($_POST['included_services_ar'] ?? '');
     $included_services_en = trim($_POST['included_services_en'] ?? '');
-    // استقبال قيمة التفعيل بشكل صحيح
+    
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     
     if (!empty($name_ar)) {
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
     }
 }
 
-// 2. تحديث خطة
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
     $plan_id = intval($_POST['plan_id']);
     $name_ar = trim($_POST['name_ar']);
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
     $desc_en = trim($_POST['desc_en']);
     $included_services_ar = trim($_POST['included_services_ar'] ?? '');
     $included_services_en = trim($_POST['included_services_en'] ?? '');
-    // استقبال قيمة التفعيل بشكل صحيح
+    
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     
     $stmt = $conn->prepare("UPDATE plans SET name_ar=?, name_en=?, price=?, duration=?, duration_type=?, wash_count=?, description_ar=?, description_en=?, included_services_ar=?, included_services_en=?, is_active=? WHERE id=?");
@@ -81,13 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
     if($stmt->execute()) { $show_msg_modal = true; $msg_type = "updated"; }
 }
 
-// 3. حذف خطة
+
 if (isset($_POST['confirm_delete_id'])) {
     $delete_id = intval($_POST['confirm_delete_id']);
     if($conn->query("DELETE FROM plans WHERE id = $delete_id")) { $show_msg_modal = true; $msg_type = "deleted"; }
 }
 
-// 4. جلب الخطط
+
 $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
 ?>
 
@@ -130,7 +130,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
         .nav-link { color: #ffffff !important; padding: 12px 15px; border-radius: 12px; margin-bottom: 5px; display: flex; align-items: center; text-decoration: none; font-weight: 600; transition: 0.3s; font-size: 0.9rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent-blue); color: white !important; }
         
-        /* Main Content & Header Setup */
+        
         .admin-main-content { flex: 1; overflow-x: hidden; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .back-btn-circle { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; transition: 0.3s; }
@@ -263,7 +263,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             document.documentElement.setAttribute('data-theme', t);
             document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
             
-            // إصلاح قلب اتجاه ملف الـ CSS الخاص بـ Bootstrap ليدعم الترجمة التبادلية الكاملة للغات
+            
             document.getElementById('bootstrap-css').href = l === 'ar' ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
 
             document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (translations[l][k]) el.innerText = translations[l][k]; });

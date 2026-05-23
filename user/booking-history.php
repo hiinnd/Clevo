@@ -3,7 +3,7 @@ session_start();
 include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/booking-helpers.php");
 
-// 1. التحقق من تسجيل الدخول
+
 if (!isset($_SESSION['userID'])) {
     header("Location: login.php");
     exit();
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quick
     exit;
 }
 
-// 2. جلب سجل الحجوزات من القاعدة مع تفاصيل المحطة والخدمة
+
 $query = "SELECT b.*, s.Name as station_name, serv.Name as service_name, b.Service_Location, b.DriverID
           FROM `booking` b
           JOIN `stations` s ON b.StationID = s.StationID

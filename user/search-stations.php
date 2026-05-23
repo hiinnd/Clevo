@@ -8,7 +8,7 @@ if (!isset($_SESSION['userID'])) {
     exit();
 }
 
-// التصحيح المعتمد: فحص حالة التفعيل 'Active' وحالة موافقة الأدمن 'approved' معاً
+
 $query = "SELECT s.*, (SELECT MIN(Price) FROM services WHERE services.StationID = s.StationID) as min_price 
           FROM stations s 
           WHERE s.admin_status = 'approved'";
@@ -135,7 +135,7 @@ $result = $stmt->get_result();
         <div class="row g-3 px-2" id="stationsContainer">
             <?php 
             if (mysqli_num_rows($result) > 0) {
-                // مصفوفة لتخزين العناصر والعودة لفرزها عند الضغط على زر "الكل" مجدداً كترتيب افتراضي للباك آند
+                
                 $default_index = 0;
                 while($row = mysqli_fetch_assoc($result)) 
                 {

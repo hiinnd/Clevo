@@ -3,7 +3,7 @@ session_start();
 include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/app-helpers.php");
 
-// 1. التحقق من تسجيل الدخول
+
 if (!isset($_SESSION['userID'])) {
     header("Location: login.php");
     exit();
@@ -11,27 +11,27 @@ if (!isset($_SESSION['userID'])) {
 
 $userID = $_SESSION['userID'];
 
-// 2. جلب بيانات المستخدم من القاعدة (تم إضافة CarName للجدول الأساسي)
+
 $stmt = $conn->prepare("SELECT UserName, PhoneNumber, Email, ProfilePic, CarName FROM `user` WHERE UserID = ?");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
 $userData = $stmt->get_result()->fetch_assoc();
 
-// 3. معالجة التعديلات (POST) - تحديث شامل لكل شيء
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || isset($_POST['save_profile_image']))) {
     $newName = trim($_POST['full_name']);
     $newPhone = trim($_POST['phone']);
     $newEmail = trim($_POST['email']);
-    $newCar = trim($_POST['car_name']); // جلب اسم السيارة الوحيدة
+    $newCar = trim($_POST['car_name']); 
 
-    // تحديث البيانات الأساسية والسيارة في جدول user مباشرة
+    
     $upd = $conn->prepare("UPDATE `user` SET UserName = ?, PhoneNumber = ?, Email = ?, CarName = ? WHERE UserID = ?");
     $upd->bind_param("ssssi", $newName, $newPhone, $newEmail, $newCar, $userID);
     
     if ($upd->execute()) {
         $_SESSION['userName'] = $newName;
         
-        // معالجة تغيير الصورة الشخصية
+        
         if (isset($_FILES['profile_img']) && $_FILES['profile_img']['error'] === 0) {
             $target_dir = "../uploads/profiles/";
             if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);

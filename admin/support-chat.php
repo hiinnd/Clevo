@@ -1,19 +1,19 @@
 <?php
-session_start(); // التأكد من بدء الجلسة لجلب الاسم
+session_start(); 
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التأكد من أن المستخدم أدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit;
 }
 
-// جلب بيانات الأدمن للجلسة والصورة الشخصية
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// منطق رفع وتحديث الصورة الشخصية المعتمد
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -31,7 +31,7 @@ $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id"
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// 1. استقبال رقم التذكرة من الرابط (URL)
+
 if (!isset($_GET['ticket_id'])) {
     header("Location: all-support-chats.php");
     exit;
@@ -39,19 +39,19 @@ if (!isset($_GET['ticket_id'])) {
 
 $t_id = intval($_GET['ticket_id']);
 
-// 2. معالجة إرسال رد الأدمن
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
     $reply_msg = trim($_POST['reply_msg']);
     if (!empty($reply_msg)) {
-        // تحديث جدول support_tickets (دمج الرد وتغيير الحالة)
+        
         $stmt = $conn->prepare("UPDATE support_tickets SET message = CONCAT(message, '\n\n--- Admin Reply ---\n', ?), status = 'Replied' WHERE id = ?");
         $stmt->bind_param("si", $reply_msg, $t_id);
         
         if($stmt->execute()) {
-            // جلب بيانات التذكرة الحالية لفحص نوع المستخدم قبل إرسال الإشعار
+            
             $check_ticket = $conn->query("SELECT user_id, is_guest, subject FROM support_tickets WHERE id = $t_id")->fetch_assoc();
             
-            // إضافة إشعار لليوزر إذا كان مسجلاً (is_guest = 0)
+            
             if ($check_ticket && $check_ticket['is_guest'] == 0 && !empty($check_ticket['user_id'])) {
                 $u_id = $check_ticket['user_id'];
                 $notif_title = "رد جديد من الدعم الفني";
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
     }
 }
 
-// 3. جلب بيانات التذكرة من الجدول الصحيح (support_tickets) للـ Display
+
 $ticket_res = $conn->query("SELECT * FROM support_tickets WHERE id = $t_id");
 $ticket = $ticket_res->fetch_assoc();
 

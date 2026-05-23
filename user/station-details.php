@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     exit;
 }
 
-// جلب الخدمات المضافة فعلياً لهذه المحطة من قاعدة البيانات
+
 $serv_query = "SELECT * FROM `services` WHERE StationID = ?";
 $stmt_s = $conn->prepare($serv_query);
 $stmt_s->bind_param("i", $stationID);

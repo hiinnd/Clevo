@@ -5,21 +5,21 @@ include __DIR__ . '/../includes/app-helpers.php';
 
 clevoEnsureTrackingColumns($conn);
 
-// إصلاح: توحيد مسميات السيشن لتطابق صفحة الـ login (userID و role بحروف صغيرة)
+
 $sessionRole = strtolower($_SESSION['role'] ?? '');
 if (!isset($_SESSION['userID']) || $sessionRole !== 'driver') {
-    header('Location: ../general/login.php'); // تصحيح المسار حسب هيكلية المجلدات
+    header('Location: ../general/login.php'); 
     exit;
 }
 
-// تعريف المتغير الصحيح للاستخدام في الاستعلامات
+
 $driver_id = $_SESSION['userID'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
     $action = $_POST['action'];
 
-    // 1. تحديث الموقع الجغرافي (GPS)
+    
     if ($action == 'update_location') {
         $lat = mysqli_real_escape_string($conn, $_POST['lat']);
         $lng = mysqli_real_escape_string($conn, $_POST['lng']);
@@ -86,13 +86,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    // 2. إرسال تنبيه "وصلت للموقع" للعميل
+    
     if ($action == 'arrived_to_location') {
         $order_id = mysqli_real_escape_string($conn, $_POST['order_id']);
         $customer_id = mysqli_real_escape_string($conn, $_POST['customer_id']);
         $order_num = mysqli_real_escape_string($conn, $_POST['order_num']);
 
-        // تحديث حالة الطلب وإدخال إشعار للعميل في جدول notifications
+        
         $update_status = mysqli_query($conn, "UPDATE booking SET Status = 'Arrived' WHERE BookingID = '$order_id'");
         $msg = "الكابتن وصل لموقعك الآن للطلب #$order_num";
         $insert_notif = mysqli_query($conn, "INSERT INTO notifications (user_id, title, body, type) VALUES ('$customer_id', 'وصول السائق', '$msg', 'success')");
@@ -105,15 +105,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         mysqli_query($conn, "UPDATE booking SET Status = 'Completed' WHERE DriverID = '$driver_id' AND Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning') AND (Service_Location = 'station' OR Payment_Method IS NOT NULL AND Payment_Method <> '')");
         $update = mysqli_query($conn, "UPDATE user SET CurrentAccessCode = NULL WHERE UserID = '$driver_id'");
         if ($update) { 
-            // لا تدمر السيشن بالكامل هنا إذا كنت تريد بقاء السائق مسجلاً للدخول، 
-            // لكن حسب طلبك الأصلي لإلغاء الكود:
+            
+            
             echo json_encode(['status' => 'success']); 
         }
         exit;
     }
 }
 
-// جلب المهمة الحالية باستخدام $driver_id المعرف بالأعلى
+
 $query = "SELECT b.*, u.UserName as CustomerName, u.CarName, u.PhoneNumber as CustomerPhone 
           FROM booking b 
           JOIN user u ON b.UserID = u.UserID 

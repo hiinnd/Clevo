@@ -30,7 +30,7 @@ if (empty($email)) {
     exit;
 }
 
-// البحث عن المستخدم
+
 $stmt = $conn->prepare("
 SELECT UserID, UserName, Email
 FROM user
@@ -55,12 +55,12 @@ if ($result->num_rows === 0) {
 
 $user = $result->fetch_assoc();
 
-// توليد OTP
+
 $otp = rand(100000, 999999);
 
 $expiry = date("Y-m-d H:i:s", strtotime("+5 minutes"));
 
-// تخزين OTP
+
 $update = $conn->prepare("
 UPDATE user
 SET reset_otp = ?, reset_otp_expiry = ?
@@ -71,10 +71,10 @@ $update->bind_param("ssi", $otp, $expiry, $user['UserID']);
 
 $update->execute();
 
-// تخزين اليوزر مؤقتاً
+
 $_SESSION['reset_user_id'] = $user['UserID'];
 
-// إرسال الإيميل
+
 $sent = sendResetOTP(
     $user['Email'],
     $user['UserName'],

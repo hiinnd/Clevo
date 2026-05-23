@@ -2,7 +2,7 @@
 session_start();
 include __DIR__ . '/../includes/config.php';
 
-// جلب المحطات والخدمات المرتبطة بها من قاعدة البيانات
+
 $stations_query = mysqli_query($conn, "
     SELECT 
         stations.StationID,
@@ -20,7 +20,7 @@ while ($row = mysqli_fetch_assoc($stations_query)) {
 
 $is_logged_in = isset($_SESSION['userID']);
 $user_name = $is_logged_in ? ($_SESSION['userName'] ?? '') : '';
-// جلب الرول من السيشن (تأكد أنك تخزنه عند تسجيل الدخول باسم 'user_role' أو 'role')
+
 $user_role = $_SESSION['role'] ?? 'User';
 
 ?> 
@@ -537,7 +537,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                                 <ul class="dropdown-menu dropdown-menu-dark rounded-3 shadow border-0 mt-2 text-end">
                                     <li>
                                         <?php
-                                        // فحص شامل وثلاثي الأبعاد للرتب المتاحة وتوجيه اللوج إن لصفحته المخصصة بالنص
+                                        
                                         $current_role = isset($_SESSION['role']) ? trim($_SESSION['role']) : 'User';
 
                                         if (strcasecmp($current_role, 'Admin') === 0) {

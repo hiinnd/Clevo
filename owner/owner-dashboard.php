@@ -1,12 +1,12 @@
 <?php
-// إعدادات الباك اند ولاتغير ولاتحذف ولاتعدل اي اشي تاني ابدا 
+
 session_start();
 include __DIR__ . '/../includes/config.php';
 
-// التحقق من تسجيل الدخول
+
 $owner_id = (int) ($_SESSION['userID'] ?? 0);
 
-// التحقق من صلاحية المستخدم (اختياري)
+
 if ($owner_id === 0) {
     header('Location: ../general/login.php');
     exit;
@@ -22,24 +22,24 @@ if (isset($_GET['change_status'])) {
     exit;
 }
 
-// 1. جلب إحصائيات طلبات اليوم
+
 $today = date('Y-m-d');
 $today_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Booking_Date = '$today' AND s.UserID = '$owner_id'");
 $today_count = mysqli_fetch_assoc($today_res)['total'];
 
-// 2. الطلبات النشطة حالياً
+
 $active_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning') AND s.UserID = '$owner_id'");
 $active_count = mysqli_fetch_assoc($active_res)['total'];
 
-// 3. أرباح اليوم
+
 $earnings_res = mysqli_query($conn, "SELECT SUM(b.Total_Price) as total FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Booking_Date = '$today' AND b.Status = 'Completed' AND s.UserID = '$owner_id'");
 $today_earnings = mysqli_fetch_assoc($earnings_res)['total'] ?? 0;
 
-// 4. جلب عدد الإشعارات غير المقروءة (للدائرة الحمراء)
+
 $notif_count_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM notifications WHERE user_id = '$owner_id' AND is_read = 0");
 $unread_count = mysqli_fetch_assoc($notif_count_res)['total'] ?? 0;
 
-// 5. جلب آخر 5 طلبات
+
 $recent_orders = mysqli_query($conn, "SELECT b.*, u.UserName FROM booking b JOIN user u ON b.UserID = u.UserID JOIN stations s ON b.StationID = s.StationID WHERE s.UserID = '$owner_id' ORDER BY b.created_at DESC LIMIT 5");
 $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FROM reviews r JOIN booking b ON r.BookingID = b.BookingID JOIN stations s ON b.StationID = s.StationID JOIN user u ON b.UserID = u.UserID WHERE s.UserID = '$owner_id' ORDER BY r.ReviewID DESC LIMIT 2");
 ?>

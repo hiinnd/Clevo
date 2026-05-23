@@ -2,7 +2,7 @@
 session_start();
 include(__DIR__ . "/../includes/config.php");
 
-// 1. التحقق من تسجيل الدخول
+
 if (!isset($_SESSION['userID'])) {
     header("Location: login.php");
     exit();
@@ -10,7 +10,7 @@ if (!isset($_SESSION['userID'])) {
 
 $userID = $_SESSION['userID'];
 
-// 2. جلب رصيد المحفظة من الداتا بيس بناءً على UserID
+
 $stmt = $conn->prepare("SELECT Balance, WalletID FROM `wallet` WHERE UserID = ?");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
@@ -18,7 +18,7 @@ $wallet = $stmt->get_result()->fetch_assoc();
 $currentBalance = $wallet ? number_format($wallet['Balance'], 2) : "0.00";
 $walletID = $wallet['WalletID'] ?? 0;
 
-// 3. جلب سجل العمليات الحقيقي من جدول wallet_transactions
+
 $trans_stmt = $conn->prepare("SELECT * FROM `wallet_transactions` WHERE WalletID = ? ORDER BY CreatedAt DESC LIMIT 10");
 $trans_stmt->bind_param("i", $walletID);
 $trans_stmt->execute();

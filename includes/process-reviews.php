@@ -2,7 +2,7 @@
 session_start();
 include '../config.php';
 
-// منطق الباك إند (نفس المنطق الخاص بك مع التأكد من إرسال JSON للـ Modal)
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'submit_reply') {
     $review_id = mysqli_real_escape_string($conn, $_POST['review_id']);
     $reply_text = mysqli_real_escape_string($conn, $_POST['reply_text']);

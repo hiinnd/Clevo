@@ -1,14 +1,14 @@
 <?php
-// منع الدخول المباشر للملف لزيادة الأمان
+
 if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'Admin') {
     exit();
 }
 
-// جلب بيانات الإدارة الحالية
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// منطق رفع الصورة عند إرسال الفورم من أي صفحة متواجد فيها السايد بار
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     if (!isset($_POST['csrf_token']) || !validate_csrf_token($_POST['csrf_token'])) {
         die("CSRF token validation failed.");
@@ -25,20 +25,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
         $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
         $stmt->bind_param("si", $newName, $admin_id);
         if ($stmt->execute()) {
-            // إعادة توجيه لنفس الصفحة الحالية لتحديث الصورة فوراً
+            
             header("Location: " . $_SERVER['PHP_SELF'] . "?upload=success");
             exit();
         }
     }
 }
 
-// جلب رابط الصورة الحالية
+
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// جلب اسم الصفحة الحالية لجعل الزر الخاص بها نشطاً (Active) تلقائياً
+
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 

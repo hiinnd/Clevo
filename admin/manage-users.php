@@ -3,17 +3,17 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التحقق من صلاحية الأدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
 
-// جلب بيانات الأدمن للجلسة والصورة
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// منطق رفع وتحديث الصورة الشخصية
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -28,10 +28,10 @@ $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id"
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// 1. جلب قائمة المستخدمين (فقط من يحمل رتبة customer أو User لضمان ظهور الزبائن)
+
 $res_users = $conn->query("SELECT * FROM `user` WHERE Role IN ('customer', 'User') ORDER BY UserID DESC");
 
-// 2. معالجة العمليات (تغيير حالة الحساب)
+
 if (isset($_GET['toggle_status'])) {
     $u_id = intval($_GET['toggle_status']);
     $current_status = $_GET['current'];

@@ -1,20 +1,18 @@
 <?php
-// إعدادات الباك اند
 session_start();
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التحقق من صلاحية الأدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
 
-// جلب الاسم والمعرف من الجلسة
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// --- منطق رفع وتحديث الصورة الشخصية ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -28,24 +26,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-// جلب صورة الأدمن الحالية
+
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-// 1. حساب إجمالي المبيعات (GMV)
+
 $res_gmv = $conn->query("SELECT SUM(Total_Price) as total FROM booking");
 $total_gmv = $res_gmv->fetch_assoc()['total'] ?? 0;
 
-// 2. حساب صافي أرباح الأدمن (10%)
+
 $res_net = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking");
 $net_profit = $res_net->fetch_assoc()['total'] ?? 0;
 
-// 3. عدد الطلبات المكتملة
+
 $res_count = $conn->query("SELECT COUNT(*) as total FROM booking WHERE Status = 'Completed'");
 $completed_orders = $res_count->fetch_assoc()['total'] ?? 0;
 
-// 4. جلب أعلى المحطات دخلاً
+
 $top_stations_query = "
     SELECT s.Name, SUM(b.Total_Price) as revenue 
     FROM stations s 
@@ -55,7 +53,7 @@ $top_stations_query = "
     LIMIT 3";
 $top_stations = $conn->query($top_stations_query);
 
-// 5. سجل العمليات الأخير
+
 $history_query = "
     SELECT b.Booking_Date, u.UserName, b.Total_Price, b.Admin_Commission, b.Status 
     FROM booking b 
@@ -64,7 +62,7 @@ $history_query = "
     LIMIT 10";
 $history_res = $conn->query($history_query);
 
-// 6. بيانات تحليل المبيعات الأسبوعي
+
 $weekly_res = $conn->query("SELECT DAYNAME(created_at) as day, SUM(Total_Price) as total FROM booking GROUP BY DAYNAME(created_at)");
 $weekly_data = [];
 while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
@@ -96,12 +94,12 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
             --bg-card: #1e293b; --text-main: #ffffff !important; --text-muted: #cbd5e1; 
             --badge-bg: #334155; --border-card: #334155; --border-color: #334155;
             --accent-blue: #60a5fa; --primary-blue: #60a5fa; --box-bg: #1e293b;
-            --table-row-bg: #1e293b; /* تم التثبيت الموحد لتتناغم الواجهة الخلفية للجدول بالكامل باللون الداكن */
+            --table-row-bg: #1e293b; 
         }
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
-        /* Sidebar الأدمن الثابت والمحمي بالكامل */
+       
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .admin-sidebar { background: var(--bg-sidebar); color: white; padding: 20px 15px; position: sticky; top: 0; height: 100vh; z-index: 1000; width: 260px; display: flex; flex-direction: column; overflow: visible; }
         .admin-pic-container { position: relative; display: inline-block; margin-bottom: 10px; cursor: pointer; }
@@ -113,7 +111,7 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         [dir="rtl"] .nav-link i { margin-left: 10px; }
         [dir="ltr"] .nav-link i { margin-right: 10px; }
 
-        /* Main Content & Header */
+        
         .admin-main-content { flex: 1; overflow-x: hidden; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-btn-back { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
@@ -122,7 +120,7 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         
         .chart-box, .table-container { background-color: var(--box-bg) !important; border-radius: 24px; padding: 25px; margin-top: 20px; border: 1px solid var(--border-color); }
         
-        /* كسر خصائص ألوان البوتستراب الافتراضية للجداول وإجبارها على قراءة درجات ألوان السيستم المحددة */
+        
         .custom-table { background-color: transparent !important; color: var(--text-main) !important; }
         .custom-table th { color: var(--text-muted) !important; background-color: transparent !important; border-bottom: 1px solid var(--border-color) !important; }
         .custom-table td { color: var(--text-main) !important; background-color: transparent !important; border-bottom: 1px solid var(--border-color) !important; }

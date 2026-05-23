@@ -1,10 +1,10 @@
 <?php
-// إعدادات الباك اند 
+
 session_start();
 include __DIR__ . '/../includes/config.php'; 
 
-// جلب رصيد المحفظة الفعلي للمالك من قاعدة البيانات
-$userID = $_SESSION['userID'] ?? 0; // توحيد مسمى المعرف ليتوافق مع نظام تسجيل الدخول
+
+$userID = $_SESSION['userID'] ?? 0; 
 $balance = 0.00;
 $transactions = [];
 $monthly_profit = 0.00;

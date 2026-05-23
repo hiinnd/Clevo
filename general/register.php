@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                 $db_committed = false;
                 $conn->begin_transaction();
                 try {
-                    // --- التعديل هنا: تشفير كلمة المرور قبل الحفظ ---
+                    
                     $hashed_pass = password_hash($pass, PASSWORD_DEFAULT);
                     $status = 'pending';
                     $token = bin2hex(random_bytes(32));

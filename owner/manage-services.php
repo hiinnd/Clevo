@@ -1,9 +1,9 @@
 <?php
-// إعدادات الباك اند
+
 session_start();
 include __DIR__ . '/../includes/config.php';
 
-// تأمين الصفحة للأونر فقط وجلب معرف المحطة
+
 if(!isset($_SESSION['userID']) || $_SESSION['role'] !== 'owner'){
     header("Location: ../login.php");
     exit();
@@ -14,7 +14,7 @@ $station_query = $conn->query("SELECT StationID FROM stations WHERE UserID = $ow
 $station_data = $station_query->fetch_assoc();
 $station_id = $station_data['StationID'] ?? 0;
 
-// معالجة الحذف
+
 if(isset($_GET['delete'])){
     $id = intval($_GET['delete']);
     $conn->query("DELETE FROM services WHERE ServiceID = $id AND StationID = $station_id");
@@ -22,7 +22,7 @@ if(isset($_GET['delete'])){
     exit();
 }
 
-// معالجة الإضافة والتعديل
+
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $price = floatval($_POST['price']);
@@ -32,7 +32,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     $is_home = isset($_POST['type_home']) ? 1 : 0;
     $is_pickup = isset($_POST['type_pickup']) ? 1 : 0;
 
-    // تم إرجاع الاستعلام لأصله القديم لحل مشكلة الفيتال إيرور Unknown column 'Name_En' تماماً دون لمس الداتابيز
+    
     if($edit_id > 0){
         $sql = "UPDATE services SET Name='$name', Price='$price', is_station='$is_station', is_home='$is_home', is_pickup='$is_pickup' 
                 WHERE ServiceID=$edit_id AND StationID=$station_id";
@@ -47,7 +47,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     }
 }
 
-// جلب الخدمات الحالية
+
 $services_res = $conn->query("SELECT * FROM services WHERE StationID = $station_id ORDER BY ServiceID DESC");
 $db_services = [];
 while($row = $services_res->fetch_assoc()){

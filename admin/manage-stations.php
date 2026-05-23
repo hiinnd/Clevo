@@ -3,17 +3,17 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 include __DIR__ . '/../includes/app-helpers.php';
 
-// التحقق من صلاحية الأدمن لضمان الأمان
+
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
 
-// جلب بيانات الأدمن للجلسة والصورة
+
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-// منطق رفع وتحديث الصورة الشخصية
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -31,7 +31,7 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 $show_msg_modal = false;
 $msg_type = "";
 
-// 1. معالجة حذف المحطة
+
 if (isset($_POST['confirm_delete_id'])) {
     $delete_id = intval($_POST['confirm_delete_id']);
     if($conn->query("DELETE FROM stations WHERE StationID = $delete_id")) { 
@@ -40,7 +40,7 @@ if (isset($_POST['confirm_delete_id'])) {
     }
 }
 
-// 2. معالجة حظر المحطة
+
 if (isset($_POST['confirm_block_id'])) {
     $block_id = intval($_POST['confirm_block_id']);
     if($conn->query("UPDATE stations SET Status = 'Closed' WHERE StationID = $block_id")) { 
@@ -49,7 +49,7 @@ if (isset($_POST['confirm_block_id'])) {
     }
 }
 
-// 3. جلب قائمة المحطات
+
 $res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations s LEFT JOIN `user` u ON s.UserID = u.UserID ORDER BY s.StationID DESC");
 ?>
 

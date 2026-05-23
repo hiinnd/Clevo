@@ -4,7 +4,7 @@ include(__DIR__ . "/config.php");
 include(__DIR__ . "/booking-helpers.php");
 include(__DIR__ . "/app-helpers.php");
 include_once(__DIR__ . "/plan-helpers.php");
-// التأكد من تسجيل الدخول
+
 if (!isset($_SESSION['userID'])) {
     header("Location: ../general/login.php");
     exit();

@@ -1,9 +1,9 @@
 <?php
-// إعدادات الباك اند
+
 session_start();
 include __DIR__ . '/../includes/config.php';
 
-// تأمين الصفحة للأونر فقط وجلب معرف المحطة ليتوافق مع نظام اللوج إن
+
 if(!isset($_SESSION['userID']) || $_SESSION['role'] !== 'owner'){
     header("Location: ../login.php");
     exit();
@@ -11,12 +11,12 @@ if(!isset($_SESSION['userID']) || $_SESSION['role'] !== 'owner'){
 
 $owner_id = $_SESSION['userID'] ?? 0;
 
-// الحصول على ID المحطة التابعة لهذا المالك
+
 $station_query = mysqli_query($conn, "SELECT StationID FROM stations WHERE UserID = '$owner_id'");
 $station_data = mysqli_fetch_assoc($station_query);
 $my_station_id = $station_data['StationID'] ?? 0;
 
-/** * التعامل مع طلبات AJAX */
+
 if (isset($_POST['action'])) {
     header('Content-Type: application/json');
     $action = $_POST['action'];
