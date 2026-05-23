@@ -34,7 +34,7 @@ function sendResetOTP($toEmail, $userName, $otp)
         <div style='background:linear-gradient(135deg,#007bff,#2563eb);padding:45px 20px;text-align:center;'>
 
             <div style='width:90px;height:90px;background:#ffffff;border-radius:50%;margin:auto;line-height:90px;font-size:40px;color:#2563eb;font-weight:bold;'>
-                🔐
+                <img src='https://i.imgur.com/8QfXj5s.png' alt='Clevo Logo' style='width:50px;height:50px;vertical-align:middle;'>
             </div>
 
             <h1 style='color:#ffffff;margin-top:25px;font-size:32px;font-weight:800;'>
