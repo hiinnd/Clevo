@@ -41,7 +41,7 @@ $loyalty_stmt = $conn->prepare("SELECT COALESCE(SUM(PointsBalance), 0) AS Points
 $loyalty_stmt->bind_param("i", $userID);
 $loyalty_stmt->execute();
 $loyalty_data = $loyalty_stmt->get_result()->fetch_assoc();
-$user_points = $loyalty_data['PointsBalance'] ?? 0; 
+$user_points = $loyalty_data['PointsBalance'] ?? 0;
 
 
 $stmt = $conn->prepare("SELECT u.UserName, u.ProfilePic
@@ -211,6 +211,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             z-index: 1;
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: 0.5s;
+            background: url('../assets/Images/Rainy.jpg') center/cover no-repeat;
+
         }
 
         .top-widgets {
@@ -266,23 +268,28 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             justify-content: center;
             align-items: center;
         }
+
         .car-promo-img {
             width: 130px;
             margin-bottom: -10px;
-            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2));
         }
+
         .washes-text {
             font-weight: 900;
             font-size: 1.1rem;
             color: var(--text);
             margin-bottom: 2px;
         }
+
         .washes-count {
             font-size: 2.2rem;
             font-weight: 900;
-            color: #a855f7 !important; /* لون بنفسجي فاتح حسب الصورة */
+            color: #a855f7 !important;
+            /* لون بنفسجي فاتح حسب الصورة */
             line-height: 1;
         }
+
         .plan-mini-rail {
             display: flex;
             gap: 8px;
@@ -291,7 +298,11 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             padding: 8px 2px 0;
             scrollbar-width: none;
         }
-        .plan-mini-rail::-webkit-scrollbar { display: none; }
+
+        .plan-mini-rail::-webkit-scrollbar {
+            display: none;
+        }
+
         .plan-mini-chip {
             flex: 0 0 auto;
             padding: 6px 10px;
@@ -302,6 +313,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             font-weight: 800;
             white-space: nowrap;
         }
+
         /* ------------------------------------------ */
 
         .services-grid {
@@ -343,14 +355,17 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             border-radius: 30px !important;
             border: none !important;
         }
+
         .logout-modal-title {
             color: var(--modal-text) !important;
             font-weight: 700;
         }
+
         .logout-modal-body {
             color: var(--modal-text) !important;
             opacity: 0.85;
         }
+
         .logout-confirm-btn {
             background: #dc3545 !important;
             color: #ffffff !important;
@@ -363,6 +378,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             text-decoration: none;
             text-align: center;
         }
+
         .logout-cancel-btn {
             background: var(--cancel-btn-bg) !important;
             color: var(--cancel-btn-text) !important;
@@ -377,14 +393,58 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             margin: 0 20px 20px;
             padding: 16px;
             background: var(--glass);
-            border: 1px solid rgba(255,255,255,.16);
+            border: 1px solid rgba(255, 255, 255, .16);
             border-radius: 20px;
             backdrop-filter: blur(15px);
         }
-        .status-pill { border-radius: 50px; padding: 5px 12px; font-size: .75rem; font-weight: 900; }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-accepted { background: #dcfce7; color: #166534; }
-        .order-next-btn { border: 0; border-radius: 50px; padding: 10px 14px; background: var(--accent); color: white; font-weight: 900; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+
+        .status-pill {
+            border-radius: 50px;
+            padding: 5px 12px;
+            font-size: .75rem;
+            font-weight: 900;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-accepted {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .order-next-btn {
+            border: 0;
+            border-radius: 50px;
+            padding: 10px 14px;
+            background: var(--accent);
+            color: white;
+            font-weight: 900;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .weather-main,
+        .weather-tip {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-section .text-end {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
     </style>
 </head>
 
@@ -404,7 +464,11 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             <div class="user-section">
                 <div class="text-end">
-                    <span class="small opacity-75" data-i18n="hello_weather">مرحبا</span>
+                    <span id="welcomeText"
+                        class="small opacity-75"
+                        data-i18n="hello_weather">
+                        مرحبا بك..
+                    </span>
                     <h5 class="fw-bold m-0"><?= htmlspecialchars($user['UserName']) ?></h5>
                 </div>
 
@@ -423,7 +487,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             <div class="points-circle"><?= number_format($user_points) ?></div>
             <span class="small fw-bold" data-i18n="loyalty_title">نقاط الولاء</span>
         </a>
-        
+
         <div class="service-item subscription-widget shadow-sm text-center">
             <?php if (!$is_subscribed): ?>
                 <h6 class="fw-bold mb-2 d-flex align-items-center gap-2">
@@ -436,8 +500,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                 <div class="washes-text" data-i18n="washes_left">غسلات متبقية</div>
                 <div class="washes-count"><?= (int) $washes_left ?> / <?= (int) $plan_total_washes ?></div>
                 <div class="plan-mini-rail"
-                     data-features-ar="<?= htmlspecialchars(json_encode($plan_features_ar, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>"
-                     data-features-en="<?= htmlspecialchars(json_encode($plan_features_en, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>"></div>
+                    data-features-ar="<?= htmlspecialchars(json_encode($plan_features_ar, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>"
+                    data-features-en="<?= htmlspecialchars(json_encode($plan_features_en, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>"></div>
             <?php endif; ?>
         </div>
     </div>
@@ -535,14 +599,16 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             const durationMinutes = parseInt(timerEl.getAttribute('data-duration') || '10', 10);
             const bookingTime = new Date(startTimeStr).getTime();
             const expiryTime = bookingTime + (durationMinutes * 60 * 1000);
-            
+
             const interval = setInterval(() => {
                 const now = new Date().getTime();
                 const diff = expiryTime - now;
                 if (diff <= 0) {
                     clearInterval(interval);
                     document.getElementById('timerText').innerText = "Expired";
-                    setTimeout(() => { location.reload(); }, 1500);
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
                     return;
                 }
                 const minutes = Math.floor(diff / (1000 * 60));
@@ -552,38 +618,167 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         }
 
         function updateWeatherUI(temp, condition, city) {
-            const isAr = (localStorage.getItem('app_lang') || 'ar') === 'ar';
-            document.getElementById('tempVal').innerText = `${Math.round(temp)}°C`;
-            document.getElementById('weatherText').innerText = isAr ? `الجو في ${city}` : `Weather in ${city}`;
+
+            const isAr =
+                (localStorage.getItem('app_lang') || 'ar') === 'ar';
+
+            document.getElementById('tempVal').innerText =
+                `${Math.round(temp)}°C`;
+
+            let message = '';
+            let tip = '';
+
+            if (isAr) {
+
+                if (condition === 'rain' || condition === 'drizzle') {
+
+                    message = `الجو ماطر في ${city}`;
+                    tip = 'يفضل تأجيل غسيل السيارة اليوم';
+
+                } else if (condition === 'clouds') {
+
+                    message = `أجواء غائمة في ${city}`;
+                    tip = 'يمكنك الغسيل لكن تأكد من الطقس';
+
+                } else if (condition === 'clear') {
+
+                    message = `الجو مشمس في ${city}`;
+                    tip = 'الطقس ممتاز لغسيل سيارتك';
+
+                } else if (temp <= 10) {
+
+                    message = `الجو بارد في ${city}`;
+                    tip = 'يفضل تأجيل الغسيل بسبب البرد';
+
+                } else {
+
+                    message = `الطقس معتدل في ${city}`;
+                    tip = 'وقت مناسب لغسيل السيارة';
+                }
+
+            } else {
+
+                if (condition === 'rain' || condition === 'drizzle') {
+
+                    message = `Rainy weather in ${city}`;
+                    tip = 'Better to postpone washing your car';
+
+                } else if (condition === 'clouds') {
+
+                    message = `Cloudy weather in ${city}`;
+                    tip = 'You can wash your car, but check the weather';
+
+                } else if (condition === 'clear') {
+
+                    message = `Sunny weather in ${city}`;
+                    tip = 'Perfect weather for a car wash';
+
+                } else if (temp <= 10) {
+
+                    message = `Cold weather in ${city}`;
+                    tip = 'Better to delay washing your car';
+
+                } else {
+
+                    message = `Mild weather in ${city}`;
+                    tip = 'Great time for a car wash';
+                }
+            }
+
+            document.getElementById('weatherText').innerHTML = `
+    <div class="weather-info">
+        <span class="weather-main">${message}</span>
+        <span class="weather-dot">✦</span>
+        <span class="weather-tip">${tip}</span>
+    </div>
+`;
+
+            const icon =
+                document.getElementById('weatherIcon');
+
+            switch (condition) {
+
+                case 'clear':
+                    icon.className = 'fas fa-sun fa-2x';
+                    break;
+
+                case 'clouds':
+                    icon.className = 'fas fa-cloud fa-2x';
+                    break;
+
+                case 'rain':
+                case 'drizzle':
+                    icon.className = 'fas fa-cloud-rain fa-2x';
+                    break;
+
+                case 'thunderstorm':
+                    icon.className = 'fas fa-bolt fa-2x';
+                    break;
+
+                case 'snow':
+                    icon.className = 'fas fa-snowflake fa-2x';
+                    break;
+
+                default:
+                    icon.className = 'fas fa-cloud-sun fa-2x';
+            }
+
+            icon.style.color = '#0f172a';
         }
 
         function fetchWeather() {
-            const currentLang = localStorage.getItem('app_lang') || 'ar';
+
+            const currentLang =
+                localStorage.getItem('app_lang') || 'ar';
+
             if (navigator.geolocation) {
+
                 navigator.geolocation.getCurrentPosition((position) => {
+
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
+
                     fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=${currentLang}`)
+
                         .then(r => r.json())
-                        .then(data => updateWeatherUI(data.main.temp, data.weather[0].main.toLowerCase(), data.name))
-                        .catch(() => fallbackWeather());
-                }, () => fallbackWeather());
-            } else {
-                fallbackWeather();
+
+                        .then(data => {
+
+                            let city = data.name;
+                             
+                            if (
+                                localStorage.getItem('app_lang') === 'ar' &&
+                                city.toLowerCase() === 'amman'
+                            ) {
+                                city = 'عمان';
+                            }
+
+                            updateWeatherUI(
+                                data.main.temp,
+                                data.weather[0].main.toLowerCase(),
+                                city
+                            );
+
+                        });
+
+                });
+
             }
+
         }
+
 
         function handleLocationPermission() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((position) => {
                     sessionStorage.setItem('modal_shown', 'true');
                     const modal = bootstrap.Modal.getInstance(document.getElementById('locationModal'));
-                    if(modal) modal.hide();
+                    if (modal) modal.hide();
                     fetchWeather();
                 }, () => {
                     sessionStorage.setItem('modal_shown', 'true');
                     const modal = bootstrap.Modal.getInstance(document.getElementById('locationModal'));
-                    if(modal) modal.hide();
+                    if (modal) modal.hide();
                 });
             }
         }
@@ -595,8 +790,39 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                 .then(r => r.json())
                 .then(data => {
                     let cityName = data.name;
-                    if (cityName.toLowerCase() === 'amman') {
-                        cityName = isAr ? "عمان" : "Amman";
+
+                    const cityTranslations = {
+
+                        amman: {
+                            ar: 'عمان',
+                            en: 'Amman'
+                        },
+
+                        irbid: {
+                            ar: 'إربد',
+                            en: 'Irbid'
+                        },
+
+                        zarqa: {
+                            ar: 'الزرقاء',
+                            en: 'Zarqa'
+                        },
+
+                        aqaba: {
+                            ar: 'العقبة',
+                            en: 'Aqaba'
+                        }
+
+                    };
+
+                    const cityKey =
+                        cityName.toLowerCase();
+
+                    if (cityTranslations[cityKey]) {
+
+                        cityName = isAr ?
+                            cityTranslations[cityKey].ar :
+                            cityTranslations[cityKey].en;
                     }
                     updateWeatherUI(data.main.temp, data.weather[0].main.toLowerCase(), cityName);
                 });
@@ -604,12 +830,52 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
         const translations = {
             ar: {
-                hello_weather: "مرحباً بك..", loyalty_title: "نقاط الولاء", save_every_wash: "غسيل أوفر", subscribe_now: "اشترك الآن", washes_left: "غسلات متبقية", our_services: "خدماتنا المميزة", serv_book: "حجز", serv_plans: "الباقات", serv_history: "السجلات", serv_wallet: "المحفظة", serv_profile: "ملفي", serv_support: "الدعم", logout_confirm_title: "تأكيد الخروج", logout_confirm_msg: "هل أنت متأكد من رغبتك في تسجيل الخروج؟", btn_yes: "نعم، خروج", btn_no: "إلغاء",
-                loc_title: "تفعيل الموقع", loc_msg: "يرجى تفعيل الوصول للموقع لخدمتك بشكل أفضل.", btn_allow: "سماح بالوصول", btn_later: "لاحقاً", serv_logout: "خروج", paid_from_plan: "من الباقة"
+                hello_weather: "مرحباً بك..",
+                loyalty_title: "نقاط الولاء",
+                save_every_wash: "غسيل أوفر",
+                subscribe_now: "اشترك الآن",
+                washes_left: "غسلات متبقية",
+                our_services: "خدماتنا المميزة",
+                serv_book: "حجز",
+                serv_plans: "الباقات",
+                serv_history: "السجلات",
+                serv_wallet: "المحفظة",
+                serv_profile: "ملفي",
+                serv_support: "الدعم",
+                logout_confirm_title: "تأكيد الخروج",
+                logout_confirm_msg: "هل أنت متأكد من رغبتك في تسجيل الخروج؟",
+                btn_yes: "نعم، خروج",
+                btn_no: "إلغاء",
+                loc_title: "تفعيل الموقع",
+                loc_msg: "يرجى تفعيل الوصول للموقع لخدمتك بشكل أفضل.",
+                btn_allow: "سماح بالوصول",
+                btn_later: "لاحقاً",
+                serv_logout: "خروج",
+                paid_from_plan: "من الباقة"
             },
             en: {
-                hello_weather: "Welcome..", loyalty_title: "Loyalty Points", save_every_wash: "Save money", subscribe_now: "Subscribe", washes_left: "Washes Left", our_services: "Our Services", serv_book: "Book", serv_plans: "Plans", serv_history: "History", serv_wallet: "Wallet", serv_profile: "Profile", serv_support: "Support", logout_confirm_title: "Logout Confirmation", logout_confirm_msg: "Are you sure you want to logout?", btn_yes: "Logout", btn_no: "Cancel",
-                loc_title: "Location Permission", loc_msg: "Please enable location to provide better weather and local services.", btn_allow: "Allow Access", btn_later: "Later", serv_logout: "Logout", paid_from_plan: "From plan"
+                hello_weather: "Welcome..",
+                loyalty_title: "Loyalty Points",
+                save_every_wash: "Save money",
+                subscribe_now: "Subscribe",
+                washes_left: "Washes Left",
+                our_services: "Our Services",
+                serv_book: "Book",
+                serv_plans: "Plans",
+                serv_history: "History",
+                serv_wallet: "Wallet",
+                serv_profile: "Profile",
+                serv_support: "Support",
+                logout_confirm_title: "Logout Confirmation",
+                logout_confirm_msg: "Are you sure you want to logout?",
+                btn_yes: "Logout",
+                btn_no: "Cancel",
+                loc_title: "Location Permission",
+                loc_msg: "Please enable location to provide better weather and local services.",
+                btn_allow: "Allow Access",
+                btn_later: "Later",
+                serv_logout: "Logout",
+                paid_from_plan: "From plan"
             }
         };
 
@@ -660,8 +926,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             const theme = localStorage.getItem('global_theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
             const themeIcon = document.getElementById('themeIcon');
-            if(themeIcon) themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            
+            if (themeIcon) themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+
             applyTranslations(lang);
             fetchWeather();
             runBookingTimer();
@@ -670,9 +936,28 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                 showM('locationModal');
                 sessionStorage.setItem('modal_shown', 'true');
             }
+            setTimeout(() => {
+
+                const welcome =
+                    document.getElementById('welcomeText');
+
+                if (welcome) {
+
+                    welcome.style.transition = '0.5s';
+
+                    welcome.style.opacity = '0';
+
+                    setTimeout(() => {
+
+                        welcome.style.display = 'none';
+
+                    }, 500);
+                }
+
+            }, 2500);
         }
     </script>
     <script src="../assets/lamea.js"></script>
 </body>
-</html>
 
+</html>

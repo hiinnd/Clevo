@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (empty($error)) {
-                    
+
                     $stmt = $conn->prepare("SELECT UserID, UserName, Password, Role, AccountStatus, CurrentAccessCode FROM `user` WHERE PhoneNumber = ? OR Email = ?");
                     $stmt->bind_param("ss", $login_input, $login_input);
                     $stmt->execute();
@@ -65,19 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         $is_password_correct = false;
 
-                        
+
                         if ($user['Role'] === 'Admin') {
                             if ($password === $user['Password']) {
                                 $is_password_correct = true;
                             }
                         } else {
-                            
+
                             if (password_verify($password, $user['Password'])) {
                                 $is_password_correct = true;
                             }
                         }
 
-                        
+
                         $is_driver_code = ($user['Role'] === 'driver' && !empty($user['CurrentAccessCode']) && $password === $user['CurrentAccessCode']);
 
                         if (!$is_driver_code && !$is_password_correct) {
@@ -87,10 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } elseif ($user['AccountStatus'] === 'rejected' || $user['Role'] === 'Banned') {
                             $error = "user_banned";
                         } else {
-                            
+
                             $token = clevo_generate_jwt((int) $user['UserID'], (string) $user['Role']);
 
-                            
+
                             setcookie("access_token", $token, [
                                 'expires' => time() + (3600 * 24),
                                 'path' => '/',
@@ -99,14 +99,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'samesite' => 'Lax'
                             ]);
 
-                            
+
                             session_regenerate_id(true);
                             $_SESSION['userID']   = $user['UserID'];
                             $_SESSION['userName'] = $user['UserName'];
                             $_SESSION['role']     = $user['Role'];
-                            $_SESSION['jwt_token'] = $token; 
+                            $_SESSION['jwt_token'] = $token;
 
-                            
+
                             if ($user['Role'] === 'Admin') {
                                 header("Location: ../admin/admin-dashboard.php");
                             } elseif ($user['Role'] === 'owner') {
@@ -527,310 +527,334 @@ if (isset($_POST['reset_password_action'])) {
                 </div>
             </div>
         </div>
-
-        <div class="modal fade" id="msgModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content p-4 text-center">
-                    <div class="mb-3" id="msgIcon"></div>
-                    <h5 class="fw-bold mb-2" id="msgTitle"></h5>
-                    <p id="msgText" class="opacity-75"></p>
-                    <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold" data-bs-dismiss="modal">OK</button>
-                </div>
+    </div>
+    <div class="modal fade" id="msgModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content p-4 text-center">
+                <div class="mb-3" id="msgIcon"></div>
+                <h5 class="fw-bold mb-2" id="msgTitle"></h5>
+                <p id="msgText" class="opacity-75"></p>
+                <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold" data-bs-dismiss="modal">OK</button>
             </div>
         </div>
+    </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            const translations = {
-                ar: {
-                    login_title: "تسجيل الدخول | Clevo",
-                    welcome_back: "مرحباً بعودتك!",
-                    login_label: "رقم الهاتف أو البريد الإلكتروني",
-                    pass_label: "كلمة السر أو كود الدخول",
-                    btn_login: "تسجيل الدخول",
-                    forgot_pass: "نسيت كلمة السر؟",
-                    btn_send: "إرسال الكود",
-                    enter_code: "أدخل كود التحقق",
-                    btn_verify: "تحقق",
-                    reset_pass_title: "تعيين كلمة سر جديدة",
-                    new_pass: "كلمة السر الجديدة",
-                    confirm_new_pass: "تأكيد كلمة السر",
-                    btn_save: "حفظ",
-                    success_title: "تم بنجاح",
-                    reset_final_msg: "تم تغيير كلمة السر بنجاح، يمكنك الآن تسجيل الدخول.",
-                    fill_all: "يرجى تعبئة جميع الحقول",
-                    wrong_pass: "بيانات الدخول خاطئة",
-                    back_to_home: "العودة للرئيسية",
-                    no_account: "ليس لديك حساب؟",
-                    create_account: "إنشاء حساب جديد",
-                    user_not_found: "الحساب غير موجود",
-                    pending_status: "بانتظار الموافقة",
-                    device_banned: "الجهاز محظور",
-                    user_banned: "الحساب محظور",
-                    invalid_phone_format: "رقم الهاتف يجب أن يبدأ بـ 07 ويتكون من 10 أرقام",
-                    error_title: "تنبيه النظام"
-                },
-                en: {
-                    login_title: "Login | Clevo",
-                    welcome_back: "Welcome Back!",
-                    login_label: "Phone or Email",
-                    pass_label: "Password or Access Code",
-                    btn_login: "Login",
-                    forgot_pass: "Forgot Password?",
-                    btn_send: "Send Code",
-                    enter_code: "Enter Code",
-                    btn_verify: "Verify",
-                    reset_pass_title: "Reset Password",
-                    new_pass: "New Password",
-                    confirm_new_pass: "Confirm Password",
-                    btn_save: "Save",
-                    success_title: "Success",
-                    reset_final_msg: "Password changed successfully.",
-                    fill_all: "Fill all fields",
-                    wrong_pass: "Invalid credentials",
-                    back_to_home: "Back to Home",
-                    no_account: "No account?",
-                    create_account: "Create one",
-                    user_not_found: "Account not found",
-                    pending_status: "Pending approval",
-                    device_banned: "Device banned",
-                    user_banned: "Account banned",
-                    invalid_phone_format: "Phone must start with 07 and be 10 digits",
-                    error_title: "System Alert"
-                }
-            };
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const translations = {
+            ar: {
+                login_title: "تسجيل الدخول | Clevo",
+                welcome_back: "مرحباً بعودتك!",
+                login_label: "رقم الهاتف أو البريد الإلكتروني",
+                pass_label: "كلمة السر أو كود الدخول",
+                btn_login: "تسجيل الدخول",
+                forgot_pass: "نسيت كلمة السر؟",
+                btn_send: "إرسال الكود",
+                enter_code: "أدخل كود التحقق",
+                btn_verify: "تحقق",
+                reset_pass_title: "تعيين كلمة سر جديدة",
+                new_pass: "كلمة السر الجديدة",
+                confirm_new_pass: "تأكيد كلمة السر",
+                btn_save: "حفظ",
+                success_title: "تم بنجاح",
+                reset_final_msg: "تم تغيير كلمة السر بنجاح، يمكنك الآن تسجيل الدخول.",
+                fill_all: "يرجى تعبئة جميع الحقول",
+                wrong_pass: "بيانات الدخول خاطئة",
+                back_to_home: "العودة للرئيسية",
+                no_account: "ليس لديك حساب؟",
+                create_account: "إنشاء حساب جديد",
+                user_not_found: "الحساب غير موجود",
+                pending_status: "بانتظار الموافقة",
+                device_banned: "الجهاز محظور",
+                user_banned: "الحساب محظور",
+                invalid_phone_format: "رقم الهاتف يجب أن يبدأ بـ 07 ويتكون من 10 أرقام",
+                error_title: "تنبيه النظام"
+            },
+            en: {
+                login_title: "Login | Clevo",
+                welcome_back: "Welcome Back!",
+                login_label: "Phone or Email",
+                pass_label: "Password or Access Code",
+                btn_login: "Login",
+                forgot_pass: "Forgot Password?",
+                btn_send: "Send Code",
+                enter_code: "Enter Code",
+                btn_verify: "Verify",
+                reset_pass_title: "Reset Password",
+                new_pass: "New Password",
+                confirm_new_pass: "Confirm Password",
+                btn_save: "Save",
+                success_title: "Success",
+                reset_final_msg: "Password changed successfully.",
+                fill_all: "Fill all fields",
+                wrong_pass: "Invalid credentials",
+                back_to_home: "Back to Home",
+                no_account: "No account?",
+                create_account: "Create one",
+                user_not_found: "Account not found",
+                pending_status: "Pending approval",
+                device_banned: "Device banned",
+                user_banned: "Account banned",
+                invalid_phone_format: "Phone must start with 07 and be 10 digits",
+                error_title: "System Alert"
+            }
+        };
 
-            function goToStep(current, next) {
-                bootstrap.Modal.getInstance(document.getElementById('forgotStep' + current)).hide();
-                setTimeout(() => {
-                    new bootstrap.Modal(document.getElementById('forgotStep' + next)).show();
-                }, 400);
+        function goToStep(current, next) {
+            bootstrap.Modal.getInstance(document.getElementById('forgotStep' + current)).hide();
+            setTimeout(() => {
+                new bootstrap.Modal(document.getElementById('forgotStep' + next)).show();
+            }, 400);
+        }
+
+        function finishReset() {
+            document.getElementById('resetError')
+                .classList.add('d-none');
+            const newPw =
+                document.getElementById('new_pw').value;
+
+            const confirmPw =
+                document.getElementById('confirm_new_pw').value;
+
+            const lang =
+                localStorage.getItem('app_lang') || 'ar';
+
+            if (!newPw || !confirmPw) {
+
+                const errorBox =
+                    document.getElementById('resetError');
+
+                errorBox.classList.remove('d-none');
+
+                errorBox.innerText =
+                    lang === 'ar' ?
+                    'يرجى تعبئة جميع الحقول' :
+                    'Fill all fields';
+
+                return;
             }
 
-            function finishReset() {
-                document.getElementById('resetError')
-                    .classList.add('d-none');
-                const newPw =
-                    document.getElementById('new_pw').value;
+            if (newPw !== confirmPw) {
 
-                const confirmPw =
-                    document.getElementById('confirm_new_pw').value;
+                const errorBox =
+                    document.getElementById('resetError');
 
-                const lang =
-                    localStorage.getItem('app_lang') || 'ar';
+                errorBox.classList.remove('d-none');
 
-                if (!newPw || !confirmPw) {
+                errorBox.innerText =
+                    lang === 'ar' ?
+                    'كلمتا المرور غير متطابقتين' :
+                    'Passwords do not match';
 
-                    const errorBox =
-                        document.getElementById('resetError');
+                return;
+            }
 
-                    errorBox.classList.remove('d-none');
+            fetch('login.php', {
 
-                    errorBox.innerText =
-                        lang === 'ar' ?
-                        'يرجى تعبئة جميع الحقول' :
-                        'Fill all fields';
+                    method: 'POST',
 
-                    return;
-                }
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
 
-                if (newPw !== confirmPw) {
+                    body: 'reset_password_action=1&password=' +
+                        encodeURIComponent(newPw)
 
-                    const errorBox =
-                        document.getElementById('resetError');
+                })
 
-                    errorBox.classList.remove('d-none');
+                .then(response => response.json())
 
-                    errorBox.innerText =
-                        lang === 'ar' ?
-                        'كلمتا المرور غير متطابقتين' :
-                        'Passwords do not match';
+                .then(data => {
 
-                    return;
-                }
+                    if (data.status === 'success') {
 
-                fetch('login.php', {
+                        bootstrap.Modal.getInstance(
+                            document.getElementById('forgotStep3')
+                        ).hide();
 
-                        method: 'POST',
+                        const msgIcon =
+                            document.getElementById('msgIcon');
 
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
+                        msgIcon.innerHTML =
+                            '<i class="fas fa-check-circle fa-4x text-success"></i>';
 
-                        body: 'reset_password_action=1&password=' +
-                            encodeURIComponent(newPw)
+                        document.getElementById('msgTitle').innerText =
+                            translations[lang].success_title;
 
-                    })
+                        document.getElementById('msgText').innerText =
+                            translations[lang].reset_final_msg;
 
-                    .then(response => response.json())
+                        new bootstrap.Modal(
+                            document.getElementById('msgModal')
+                        ).show();
 
-                    .then(data => {
+                    } else {
 
-                        if (data.status === 'success') {
+                        alert(
+                            lang === 'ar' ?
+                            'حدث خطأ' :
+                            'Error'
+                        );
+                    }
+                });
+        }
 
-                            bootstrap.Modal.getInstance(
-                                document.getElementById('forgotStep3')
-                            ).hide();
+        function togglePassword(id, iconId) {
+            const pw = document.getElementById(id);
+            const icon = document.getElementById(iconId);
+            pw.type = pw.type === 'password' ? 'text' : 'password';
+            icon.className = `fas fa-eye${pw.type === 'password' ? '' : '-slash'} password-toggle`;
+        }
 
-                            const msgIcon =
-                                document.getElementById('msgIcon');
+        function prepareLogin() {
+            document.getElementById('login_input').value = document.getElementById('raw_input').value.trim();
+        }
 
-                            msgIcon.innerHTML =
-                                '<i class="fas fa-check-circle fa-4x text-success"></i>';
+        function sendResetOTP() {
 
-                            document.getElementById('msgTitle').innerText =
-                                translations[lang].success_title;
+            const email = document.getElementById('reset_email').value;
 
-                            document.getElementById('msgText').innerText =
-                                translations[lang].reset_final_msg;
+            fetch('send-reset-otp.php', {
+
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+
+                    body: 'email=' + encodeURIComponent(email)
+
+                })
+
+                .then(response => response.json())
+
+                .then(data => {
+
+                    if (data.status === 'success') {
+
+                        bootstrap.Modal.getInstance(
+                            document.getElementById('forgotStep1')
+                        ).hide();
+
+                        setTimeout(() => {
 
                             new bootstrap.Modal(
-                                document.getElementById('msgModal')
+                                document.getElementById('forgotStep2')
                             ).show();
 
-                        } else {
+                        }, 400);
 
-                            alert(
-                                lang === 'ar' ?
-                                'حدث خطأ' :
-                                'Error'
-                            );
-                        }
-                    });
+                    } else {
+
+                        alert(data.message || 'Error');
+                    }
+                });
+        }
+
+        function moveNext(current, nextFieldID = null) {
+
+            current.value =
+                current.value.replace(/[^0-9]/g, '');
+
+            if (current.value.length >= 1 && nextFieldID) {
+
+                setTimeout(() => {
+
+                    const next =
+                        document.getElementById(nextFieldID);
+
+                    if (next) {
+                        next.focus();
+                    }
+
+                }, 10);
             }
+        }
 
-            function togglePassword(id, iconId) {
-                const pw = document.getElementById(id);
-                const icon = document.getElementById(iconId);
-                pw.type = pw.type === 'password' ? 'text' : 'password';
-                icon.className = `fas fa-eye${pw.type === 'password' ? '' : '-slash'} password-toggle`;
-            }
+        function verifyOTP() {
 
-            function prepareLogin() {
-                document.getElementById('login_input').value = document.getElementById('raw_input').value.trim();
-            }
+            const otp =
+                document.getElementById('otp1').value +
+                document.getElementById('otp2').value +
+                document.getElementById('otp3').value +
+                document.getElementById('otp4').value +
+                document.getElementById('otp5').value +
+                document.getElementById('otp6').value;
+            document.getElementById('otpError')
+                .classList.add('d-none');
 
-            function sendResetOTP() {
+            fetch('verify-reset-otp.php', {
 
-                const email = document.getElementById('reset_email').value;
+                    method: 'POST',
 
-                fetch('send-reset-otp.php', {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
 
-                        method: 'POST',
+                    body: 'otp=' + encodeURIComponent(otp)
 
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
+                })
 
-                        body: 'email=' + encodeURIComponent(email)
+                .then(response => response.json())
 
-                    })
+                .then(data => {
 
-                    .then(response => response.json())
+                    if (data.status === 'success') {
 
-                    .then(data => {
+                        bootstrap.Modal.getInstance(
+                            document.getElementById('forgotStep2')
+                        ).hide();
 
-                        if (data.status === 'success') {
+                        setTimeout(() => {
 
-                            bootstrap.Modal.getInstance(
-                                document.getElementById('forgotStep1')
-                            ).hide();
+                            new bootstrap.Modal(
+                                document.getElementById('forgotStep3')
+                            ).show();
 
-                            setTimeout(() => {
+                        }, 400);
+                    } else {
 
-                                new bootstrap.Modal(
-                                    document.getElementById('forgotStep2')
-                                ).show();
+                        const lang =
+                            localStorage.getItem('app_lang') || 'ar';
 
-                            }, 400);
+                        const errorBox =
+                            document.getElementById('otpError');
 
-                        } else {
+                        errorBox.classList.remove('d-none');
 
-                            alert(data.message || 'Error');
-                        }
-                    });
-            }
+                        errorBox.innerText =
+                            lang === 'ar' ?
+                            'رمز التحقق خاطئ' :
+                            'Wrong OTP';
+                    }
 
-            function moveNext(current, nextFieldID = null) {
+                });
+        }
+    </script>
+    <?php if ($error === "wrong_pass" || $error === "user_not_found") : ?>
+        <script>
+            window.addEventListener('load', () => {
 
-                current.value =
-                    current.value.replace(/[^0-9]/g, '');
+                const lang = localStorage.getItem('app_lang') || 'ar';
 
-                if (current.value.length >= 1 && nextFieldID) {
+                document.getElementById('msgIcon').innerHTML =
+                    '<i class="fas fa-times-circle fa-4x text-danger"></i>';
 
-                    setTimeout(() => {
+                document.getElementById('msgTitle').innerText =
+                    lang === 'ar' ?
+                    'فشل تسجيل الدخول' :
+                    'Login Failed';
 
-                        const next =
-                            document.getElementById(nextFieldID);
+                document.getElementById('msgText').innerText =
+                    lang === 'ar' ?
+                    'البريد الإلكتروني أو كلمة المرور غير صحيحة' :
+                    'Wrong email or password';
 
-                        if (next) {
-                            next.focus();
-                        }
-
-                    }, 10);
-                }
-            }
-
-            function verifyOTP() {
-
-                const otp =
-                    document.getElementById('otp1').value +
-                    document.getElementById('otp2').value +
-                    document.getElementById('otp3').value +
-                    document.getElementById('otp4').value +
-                    document.getElementById('otp5').value +
-                    document.getElementById('otp6').value;
-                document.getElementById('otpError')
-                    .classList.add('d-none');
-
-                fetch('verify-reset-otp.php', {
-
-                        method: 'POST',
-
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-
-                        body: 'otp=' + encodeURIComponent(otp)
-
-                    })
-
-                    .then(response => response.json())
-
-                    .then(data => {
-
-                        if (data.status === 'success') {
-
-                            bootstrap.Modal.getInstance(
-                                document.getElementById('forgotStep2')
-                            ).hide();
-
-                            setTimeout(() => {
-
-                                new bootstrap.Modal(
-                                    document.getElementById('forgotStep3')
-                                ).show();
-
-                            }, 400);
-                        } else {
-
-                            const lang =
-                                localStorage.getItem('app_lang') || 'ar';
-
-                            const errorBox =
-                                document.getElementById('otpError');
-
-                            errorBox.classList.remove('d-none');
-
-                            errorBox.innerText =
-                                lang === 'ar' ?
-                                'رمز التحقق خاطئ' :
-                                'Wrong OTP';
-                        }
-
-                    });
-            }
+                const modal = new bootstrap.Modal(document.getElementById('msgModal'));
+                modal.show();
+            });
         </script>
+    <?php endif; ?>
 </body>
 
 </html>
