@@ -63,7 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                     $stmt->execute();
                     $new_id = $conn->insert_id;
 
-                    $link = "http://localhost/Clevo/Emails/verify.php?token=$token";
+                    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $host_name = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                    $app_path = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/Clevo/general/register.php')), '/\\');
+                    $link = $scheme . "://" . $host_name . $app_path . "/Emails/verify.php?token=" . urlencode($token);
                     $wallet_stmt = $conn->prepare("INSERT INTO `wallet` (UserID, Balance) VALUES (?, 0.00)");
                     $wallet_stmt->bind_param("i", $new_id);
                     $wallet_stmt->execute();

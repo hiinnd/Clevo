@@ -2,32 +2,28 @@
 
 include(__DIR__ . "/../includes/config.php");
 
-if (isset($_GET['token']) && !empty(trim($_GET['token']))) {
+$token = trim((string) ($_GET['token'] ?? ''));
 
-    $token = trim($_GET['token']);
-
-    $update = $conn->prepare(
-        "UPDATE `user` SET AccountStatus = 'active', VerificationToken = NULL WHERE VerificationToken = ? AND AccountStatus <> 'rejected'"
-    );
-
-    $update->bind_param("s", $token);
-
-    $update->execute();
-
-    if ($update->affected_rows > 0) {
-
-        header("Location: verify_success.php");
-        exit();
-
-    } else {
-
-        echo "Verification failed or this account is already verified.";
-
-    }
-
-} else {
-
+if ($token === '') {
     echo "No token found.";
-
+    exit();
 }
+
+$stmt = $conn->prepare("SELECT UserID, AccountStatus FROM `user` WHERE VerificationToken = ? LIMIT 1");
+$stmt->bind_param("s", $token);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+
+if (!$user || $user['AccountStatus'] === 'rejected') {
+    echo "Verification failed or this account is already verified.";
+    exit();
+}
+
+$user_id = (int) $user['UserID'];
+$update = $conn->prepare("UPDATE `user` SET AccountStatus = 'active', VerificationToken = NULL WHERE UserID = ?");
+$update->bind_param("i", $user_id);
+$update->execute();
+
+header("Location: verify_success.php");
+exit();
 ?>
