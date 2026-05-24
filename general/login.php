@@ -172,7 +172,7 @@ if (isset($_POST['reset_password_action'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 
 <head>
     <meta charset="UTF-8">
@@ -337,6 +337,40 @@ if (isset($_POST['reset_password_action'])) {
 </head>
 
 <body>
+    <script>
+        const savedLang =
+            localStorage.getItem('app_lang') || 'en';
+
+        document.documentElement.lang = savedLang;
+
+        document.documentElement.dir =
+            savedLang === 'ar' ? 'rtl' : 'ltr';
+        window.onload = () => {
+
+            const lang =
+                localStorage.getItem('app_lang') || 'en';
+
+            document.documentElement.lang = lang;
+
+            document.documentElement.dir =
+                lang === 'ar' ? 'rtl' : 'ltr';
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+
+                const key =
+                    el.getAttribute('data-i18n');
+
+                if (
+                    translations[lang] &&
+                    translations[lang][key]
+                ) {
+
+                    el.innerText =
+                        translations[lang][key];
+                }
+            });
+        };
+    </script>
     <script>
         document.documentElement.setAttribute('data-theme', localStorage.getItem('global_theme') || 'light');
     </script>
