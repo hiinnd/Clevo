@@ -76,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     foreach ($selectedDbServices as $serviceRow) {
         $isSupported = $isSupported
             && (($serviceLocation === 'station' && (int) $serviceRow['is_station'] === 1)
-            || ($serviceLocation === 'home' && (int) $serviceRow['is_home'] === 1)
-            || ($serviceLocation === 'delivery' && (int) $serviceRow['is_pickup'] === 1));
+                || ($serviceLocation === 'home' && (int) $serviceRow['is_home'] === 1)
+                || ($serviceLocation === 'delivery' && (int) $serviceRow['is_pickup'] === 1));
     }
 
     if (!$isSupported) {
@@ -168,7 +168,7 @@ $stmt_s->bind_param("i", $stationID);
 $stmt_s->execute();
 $services_res = $stmt_s->get_result();
 $all_services = [];
-while($row = $services_res->fetch_assoc()) {
+while ($row = $services_res->fetch_assoc()) {
     $all_services[] = $row;
 }
 
@@ -197,6 +197,7 @@ $csrf_token = generate_csrf_token();
 
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -205,42 +206,204 @@ $csrf_token = generate_csrf_token();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
+        :root {
             --main-bg: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
             --glass: rgba(255, 255, 255, 0.8);
-            --text: #0369a1; --accent: #0ea5e9; --border: rgba(0, 0, 0, 0.1);
+            --text: #0369a1;
+            --accent: #0ea5e9;
+            --border: rgba(0, 0, 0, 0.1);
         }
-        [data-theme="dark"] { 
-            --main-bg: #020617; 
-            --glass: rgba(30, 41, 59, 0.9);
-            --text: #f8fafc; --accent: #38bdf8; --border: rgba(255, 255, 255, 0.2);
-        }
-        body { font-family: 'Cairo', sans-serif; background: var(--main-bg); color: var(--text); min-height: 100vh; padding-bottom: 180px; margin: 0; transition: 0.3s ease; }
-        
-        .station-hero { height: 220px; background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.7)), url('<?= htmlspecialchars(clevoStationImageUrl($station['Image'])) ?>'); background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 25px; border-radius: 0 0 40px 40px; position: relative; }
-        
-        .back-circle-btn { background: var(--glass); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); backdrop-filter: blur(10px); text-decoration: none; position: absolute; top: 20px; z-index: 10; border: 1px solid var(--border); }
-        [dir="rtl"] .back-circle-btn { right: 20px; }
-        [dir="ltr"] .back-circle-btn { left: 20px; }
-        [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        .item-card { background: var(--glass); border-radius: 20px; padding: 18px; margin-bottom: 15px; border: 1px solid var(--border); backdrop-filter: blur(15px); transition: 0.3s; cursor: pointer; color: var(--text) !important; }
-        .item-card small { color: var(--text); opacity: 0.8; font-weight: 600; }
-        .selected { border: 2px solid var(--accent) !important; background: rgba(56, 189, 248, 0.15) !important; box-shadow: 0 5px 15px rgba(56, 189, 248, 0.2); }
-        
-        .order-footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--glass); padding: 25px; z-index: 1000; backdrop-filter: blur(25px); border-radius: 35px 35px 0 0; border-top: 1px solid var(--border); box-shadow: 0 -10px 30px rgba(0,0,0,0.1); }
-        .btn-book { background: var(--accent); border: none; color: white !important; padding: 16px; border-radius: 50px; width: 100%; font-weight: 900; font-size: 1.1rem; }
-        
-        input { background: var(--glass) !important; border: 1px solid var(--border) !important; color: var(--text) !important; padding: 12px; border-radius: 15px; width: 100%; font-weight: 700; }
-        .modal-content { border-radius: 30px; background-color: var(--glass) !important; color: var(--text) !important; border: 1px solid var(--accent); backdrop-filter: blur(20px); }
-        .extra-panel { display: none; background: var(--glass); border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 18px; }
-        textarea { background: var(--glass) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: 15px; width: 100%; padding: 12px; font-weight: 700; min-height: 74px; }
-        .plan-booking-panel { background: var(--glass); border: 1px solid var(--border); border-radius: 22px; padding: 16px; margin-bottom: 18px; backdrop-filter: blur(15px); }
-        .plan-booking-car { width: 110px; max-width: 34vw; filter: drop-shadow(0 12px 16px rgba(14, 165, 233, 0.25)); }
-        .plan-feature-rail { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 2px; scrollbar-width: none; }
-        .plan-feature-rail::-webkit-scrollbar { display: none; }
-        .plan-feature-chip { flex: 0 0 auto; border-radius: 999px; padding: 7px 11px; background: rgba(14, 165, 233, 0.12); border: 1px solid var(--border); font-size: .76rem; font-weight: 800; white-space: nowrap; }
-        .plan-switch-row { background: rgba(14, 165, 233, 0.10); border-radius: 16px; padding: 10px 12px; border: 1px solid var(--border); }
+        [data-theme="dark"] {
+            --main-bg: #020617;
+            --glass: rgba(30, 41, 59, 0.9);
+            --text: #f8fafc;
+            --accent: #38bdf8;
+            --border: rgba(255, 255, 255, 0.2);
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--main-bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 180px;
+            margin: 0;
+            transition: 0.3s ease;
+        }
+
+        .station-hero {
+            height: 220px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7)), url('<?= htmlspecialchars(clevoStationImageUrl($station['Image'])) ?>');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: flex-end;
+            padding: 25px;
+            border-radius: 0 0 40px 40px;
+            position: relative;
+        }
+
+        .back-circle-btn {
+            background: var(--glass);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            backdrop-filter: blur(10px);
+            text-decoration: none;
+            position: absolute;
+            top: 20px;
+            z-index: 10;
+            border: 1px solid var(--border);
+        }
+
+        [dir="rtl"] .back-circle-btn {
+            right: 20px;
+        }
+
+        [dir="ltr"] .back-circle-btn {
+            left: 20px;
+        }
+
+        [dir="ltr"] #backIcon {
+            transform: rotate(180deg);
+        }
+
+        .item-card {
+            background: var(--glass);
+            border-radius: 20px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(15px);
+            transition: 0.3s;
+            cursor: pointer;
+            color: var(--text) !important;
+        }
+
+        .item-card small {
+            color: var(--text);
+            opacity: 0.8;
+            font-weight: 600;
+        }
+
+        .selected {
+            border: 2px solid var(--accent) !important;
+            background: rgba(56, 189, 248, 0.15) !important;
+            box-shadow: 0 5px 15px rgba(56, 189, 248, 0.2);
+        }
+
+        .order-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--glass);
+            padding: 25px;
+            z-index: 1000;
+            backdrop-filter: blur(25px);
+            border-radius: 35px 35px 0 0;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-book {
+            background: var(--accent);
+            border: none;
+            color: white !important;
+            padding: 16px;
+            border-radius: 50px;
+            width: 100%;
+            font-weight: 900;
+            font-size: 1.1rem;
+        }
+
+        input {
+            background: var(--glass) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text) !important;
+            padding: 12px;
+            border-radius: 15px;
+            width: 100%;
+            font-weight: 700;
+        }
+
+        .modal-content {
+            border-radius: 30px;
+            background-color: var(--glass) !important;
+            color: var(--text) !important;
+            border: 1px solid var(--accent);
+            backdrop-filter: blur(20px);
+        }
+
+        .extra-panel {
+            display: none;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 18px;
+        }
+
+        textarea {
+            background: var(--glass) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text) !important;
+            border-radius: 15px;
+            width: 100%;
+            padding: 12px;
+            font-weight: 700;
+            min-height: 74px;
+        }
+
+        .plan-booking-panel {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 16px;
+            margin-bottom: 18px;
+            backdrop-filter: blur(15px);
+        }
+
+        .plan-booking-car {
+            width: 110px;
+            max-width: 34vw;
+            filter: drop-shadow(0 12px 16px rgba(14, 165, 233, 0.25));
+        }
+
+        .plan-feature-rail {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 4px 0 2px;
+            scrollbar-width: none;
+        }
+
+        .plan-feature-rail::-webkit-scrollbar {
+            display: none;
+        }
+
+        .plan-feature-chip {
+            flex: 0 0 auto;
+            border-radius: 999px;
+            padding: 7px 11px;
+            background: rgba(14, 165, 233, 0.12);
+            border: 1px solid var(--border);
+            font-size: .76rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .plan-switch-row {
+            background: rgba(14, 165, 233, 0.10);
+            border-radius: 16px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+        }
     </style>
 </head>
 
@@ -375,10 +538,96 @@ $csrf_token = generate_csrf_token();
 
         const translations = {
             ar: {
-                st_details_title: "تفاصيل المحطة", step1_label: "1. اختر نوع الخدمة المطلوب", step2_label: "2. الخدمات المتاحة لهذا النوع", step3_label: "3. الموعد المناسب", opt_at_station: "في المحطة", opt_at_home: "في موقعي", opt_delivery: "استلام وتسليم", date_label: "التاريخ", time_label: "الوقت", selected_label: "المختار:", btn_send_request: "إرسال الطلب للمحطة", btn_ok: "موافق", select_type_first: "يرجى اختيار نوع الخدمة أولاً لإظهار الخيارات المتاحة.", not_avail_t: "غير متوفر", not_avail_m: "عذراً، هذا النوع غير مدعوم حالياً في هذه المحطة.", missing_t: "بيانات ناقصة", missing_m: "يرجى إكمال جميع الاختيارات والموعد قبل المتابعة.", no_serv: "لا يوجد خدمات متاحة حالياً لهذا النوع.", success_t: "تم إرسال الطلب", success_m: "بانتظار موافقة صاحب المحطة، سيتم إشعارك فور القبول.", plan_booking_badge: "متاح من الباقة", plan_washes_left: "غسلات متبقية", use_plan_for_booking: "استخدم غسلة من باقتي لهذا الطلب", paid_by_plan: "من الباقة", plan_unavailable_t: "الباقة غير متاحة", plan_unavailable_m: "لا توجد غسلات متبقية في باقتك حالياً.", no_active_plan: "لا توجد باقة نشطة", subscribe_hint: "اشترك بباقة حتى يظهر الحجز من الباقة هنا.", btn_subscribe: "اشترك", location_step_label: "4. موقع الخدمة", payment_note: "ملاحظة: الدفع لخدمة المنزل أو الاستلام والتسليم يكون فيزا أو محفظة أو نقاط ولاء أو باقة فقط.", capture_location_btn: "تحديد موقعي الحالي", address_placeholder: "اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة", location_title_unavailable: "الموقع غير متاح", location_body_unavailable: "اكتب عنوانك يدوياً في خانة وصف الموقع.", location_title_saved: "تم تحديد الموقع", location_body_saved: "سيظهر الموقع لصاحب المحطة قبل الموافقة على الطلب.", location_title_failed: "تعذر تحديد الموقع", location_body_failed: "اكتب عنوانك يدوياً حتى تتمكن المحطة من الوصول إليك.", send_failed_t: "لم يتم إرسال الطلب", send_failed_m: "تأكد من البيانات وحاول مرة أخرى.", location_required_m: "يرجى تحديد موقعك من زر الموقع قبل إرسال طلب المنزل أو الاستلام والتسليم.", connection_error_t: "خطأ اتصال", connection_error_m: "تعذر إرسال الطلب الآن."
+                st_details_title: "تفاصيل المحطة",
+                step1_label: "1. اختر نوع الخدمة المطلوب",
+                step2_label: "2. الخدمات المتاحة لهذا النوع",
+                step3_label: "3. الموعد المناسب",
+                opt_at_station: "في المحطة",
+                opt_at_home: "في موقعي",
+                opt_delivery: "استلام وتسليم",
+                date_label: "التاريخ",
+                time_label: "الوقت",
+                selected_label: "المختار:",
+                btn_send_request: "إرسال الطلب للمحطة",
+                btn_ok: "موافق",
+                select_type_first: "يرجى اختيار نوع الخدمة أولاً لإظهار الخيارات المتاحة.",
+                not_avail_t: "غير متوفر",
+                not_avail_m: "عذراً، هذا النوع غير مدعوم حالياً في هذه المحطة.",
+                missing_t: "بيانات ناقصة",
+                missing_m: "يرجى إكمال جميع الاختيارات والموعد قبل المتابعة.",
+                no_serv: "لا يوجد خدمات متاحة حالياً لهذا النوع.",
+                success_t: "تم إرسال الطلب",
+                success_m: "بانتظار موافقة صاحب المحطة، سيتم إشعارك فور القبول.",
+                plan_booking_badge: "متاح من الباقة",
+                plan_washes_left: "غسلات متبقية",
+                use_plan_for_booking: "استخدم غسلة من باقتي لهذا الطلب",
+                paid_by_plan: "من الباقة",
+                plan_unavailable_t: "الباقة غير متاحة",
+                plan_unavailable_m: "لا توجد غسلات متبقية في باقتك حالياً.",
+                no_active_plan: "لا توجد باقة نشطة",
+                subscribe_hint: "اشترك بباقة حتى يظهر الحجز من الباقة هنا.",
+                btn_subscribe: "اشترك",
+                location_step_label: "4. موقع الخدمة",
+                payment_note: "ملاحظة: الدفع لخدمة المنزل أو الاستلام والتسليم يكون فيزا أو محفظة أو نقاط ولاء أو باقة فقط.",
+                capture_location_btn: "تحديد موقعي الحالي",
+                address_placeholder: "اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة",
+                location_title_unavailable: "الموقع غير متاح",
+                location_body_unavailable: "اكتب عنوانك يدوياً في خانة وصف الموقع.",
+                location_title_saved: "تم تحديد الموقع",
+                location_body_saved: "سيظهر الموقع لصاحب المحطة قبل الموافقة على الطلب.",
+                location_title_failed: "تعذر تحديد الموقع",
+                location_body_failed: "اكتب عنوانك يدوياً حتى تتمكن المحطة من الوصول إليك.",
+                send_failed_t: "لم يتم إرسال الطلب",
+                send_failed_m: "تأكد من البيانات وحاول مرة أخرى.",
+                location_required_m: "يرجى تحديد موقعك من زر الموقع قبل إرسال طلب المنزل أو الاستلام والتسليم.",
+                connection_error_t: "خطأ اتصال",
+                connection_error_m: "تعذر إرسال الطلب الآن."
             },
             en: {
-                st_details_title: "Station Details", step1_label: "1. Select Service Type", step2_label: "2. Available Services", step3_label: "3. Preferred Appointment", opt_at_station: "At Station", opt_at_home: "At My Location", opt_delivery: "Pick & Drop", date_label: "Date", time_label: "Time", selected_label: "Selected:", btn_send_request: "Send Booking Request", btn_ok: "OK", select_type_first: "Please select service type first to show available options.", not_avail_t: "Unavailable", not_avail_m: "Sorry, this service type is not supported at this station.", missing_t: "Missing Data", missing_m: "Please complete all selections and time before proceeding.", no_serv: "No services available for type currently.", success_t: "Request Sent", success_m: "Waiting for station owner approval. You will be notified once accepted.", plan_booking_badge: "Available from plan", plan_washes_left: "washes left", use_plan_for_booking: "Use one wash from my plan for this booking", paid_by_plan: "From plan", plan_unavailable_t: "Plan unavailable", plan_unavailable_m: "You do not have remaining plan washes right now.", no_active_plan: "No active plan", subscribe_hint: "Subscribe to a plan to book from it here.", btn_subscribe: "Subscribe", location_step_label: "4. Service location", payment_note: "Note: home and pickup orders can be paid by Visa, wallet, loyalty points, or plan only.", capture_location_btn: "Use current location", address_placeholder: "Write building number, street, or any note that helps the station", location_title_unavailable: "Location unavailable", location_body_unavailable: "Write your address manually in the location notes.", location_title_saved: "Location saved", location_body_saved: "The station owner will see it before accepting the booking.", location_title_failed: "Location failed", location_body_failed: "Write your address manually so the station can reach you.", send_failed_t: "Request not sent", send_failed_m: "Check your data and try again.", location_required_m: "Please capture your location before sending home or pickup orders.", connection_error_t: "Connection error", connection_error_m: "Could not send the request right now."
+                st_details_title: "Station Details",
+                step1_label: "1. Select Service Type",
+                step2_label: "2. Available Services",
+                step3_label: "3. Preferred Appointment",
+                opt_at_station: "At Station",
+                opt_at_home: "At My Location",
+                opt_delivery: "Pick & Drop",
+                date_label: "Date",
+                time_label: "Time",
+                selected_label: "Selected:",
+                btn_send_request: "Send Booking Request",
+                btn_ok: "OK",
+                select_type_first: "Please select service type first to show available options.",
+                not_avail_t: "Unavailable",
+                not_avail_m: "Sorry, this service type is not supported at this station.",
+                missing_t: "Missing Data",
+                missing_m: "Please complete all selections and time before proceeding.",
+                no_serv: "No services available for type currently.",
+                success_t: "Request Sent",
+                success_m: "Waiting for station owner approval. You will be notified once accepted.",
+                plan_booking_badge: "Available from plan",
+                plan_washes_left: "washes left",
+                use_plan_for_booking: "Use one wash from my plan for this booking",
+                paid_by_plan: "From plan",
+                plan_unavailable_t: "Plan unavailable",
+                plan_unavailable_m: "You do not have remaining plan washes right now.",
+                no_active_plan: "No active plan",
+                subscribe_hint: "Subscribe to a plan to book from it here.",
+                btn_subscribe: "Subscribe",
+                location_step_label: "4. Service location",
+                payment_note: "Note: home and pickup orders can be paid by Visa, wallet, loyalty points, or plan only.",
+                capture_location_btn: "Use current location",
+                address_placeholder: "Write building number, street, or any note that helps the station",
+                location_title_unavailable: "Location unavailable",
+                location_body_unavailable: "Write your address manually in the location notes.",
+                location_title_saved: "Location saved",
+                location_body_saved: "The station owner will see it before accepting the booking.",
+                location_title_failed: "Location failed",
+                location_body_failed: "Write your address manually so the station can reach you.",
+                send_failed_t: "Request not sent",
+                send_failed_m: "Check your data and try again.",
+                location_required_m: "Please capture your location before sending home or pickup orders.",
+                connection_error_t: "Connection error",
+                connection_error_m: "Could not send the request right now."
             }
         };
 
@@ -387,18 +636,22 @@ $csrf_token = generate_csrf_token();
                 document.getElementById('mIcon').innerHTML = '<i class="fas fa-exclamation-circle text-warning"></i>';
                 document.getElementById('modalTitle').innerText = translations[lang].not_avail_t;
                 document.getElementById('modalBody').innerText = translations[lang].not_avail_m;
-                msgModal.show(); return;
+                msgModal.show();
+                return;
             }
             currentType = type;
             document.getElementById('locationPanel').style.display = type === 'station' ? 'none' : 'block';
             if (type !== 'station') {
-                setTimeout(() => document.getElementById('locationPanel').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                setTimeout(() => document.getElementById('locationPanel').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                }), 100);
             }
             document.querySelectorAll('.l-opt').forEach(el => el.classList.remove('selected'));
             document.getElementById('l-' + type).classList.add('selected');
             const container = document.getElementById('services-list');
             container.innerHTML = "";
-            selectedServices = []; 
+            selectedServices = [];
             updateFooter();
             const filtered = allServices.filter(s => {
                 if (type === 'station') return s.is_station == 1;
@@ -439,12 +692,16 @@ $csrf_token = generate_csrf_token();
 
         function toggleServ(el, n, p, id) {
             const index = selectedServices.findIndex(s => s.id === id);
-            if (index > -1) { 
-                selectedServices.splice(index, 1); 
-                el.classList.remove('selected'); 
-            } else { 
-                selectedServices.push({ id: id, name: n, price: p }); 
-                el.classList.add('selected'); 
+            if (index > -1) {
+                selectedServices.splice(index, 1);
+                el.classList.remove('selected');
+            } else {
+                selectedServices.push({
+                    id: id,
+                    name: n,
+                    price: p
+                });
+                el.classList.add('selected');
             }
             updateFooter();
         }
@@ -474,15 +731,17 @@ $csrf_token = generate_csrf_token();
         function updateFooter() {
             document.getElementById('txtServ').innerText = selectedServices.map(s => s.name).join(' + ') || "---";
             const usePlan = document.getElementById('usePlanSwitch')?.checked;
-            document.getElementById('txtPrice').innerText = usePlan && selectedServices.length
-                ? translations[lang].paid_by_plan
-                : selectedServices.reduce((sum, s) => sum + parseFloat(s.price), 0).toFixed(2) + " JOD";
+            document.getElementById('txtPrice').innerText = usePlan && selectedServices.length ?
+                translations[lang].paid_by_plan :
+                selectedServices.reduce((sum, s) => sum + parseFloat(s.price), 0).toFixed(2) + " JOD";
         }
 
         function book(btn) {
-            const d = document.getElementById('bDate').value, t = document.getElementById('bTime').value;
+            const d = document.getElementById('bDate').value,
+                t = document.getElementById('bTime').value;
             if (!currentType || selectedServices.length === 0 || !d || !t) {
-                showAlert('<i class="fas fa-info-circle text-primary"></i>', translations[lang].missing_t, translations[lang].missing_m); return;
+                showAlert('<i class="fas fa-info-circle text-primary"></i>', translations[lang].missing_t, translations[lang].missing_m);
+                return;
             }
             const originalBtn = btn ? btn.innerHTML : '';
             if (btn) {
@@ -505,38 +764,42 @@ $csrf_token = generate_csrf_token();
             params.append('address_details', document.getElementById('addressDetails').value);
 
             fetch(window.location.href, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: params.toString()
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status !== 'success') {
-                    const body = data.message === 'location_required'
-                        ? translations[lang].location_required_m
-                        : (data.message === 'plan_unavailable' ? translations[lang].plan_unavailable_m : translations[lang].send_failed_m);
-                    const title = data.message === 'plan_unavailable' ? translations[lang].plan_unavailable_t : translations[lang].send_failed_t;
-                    showAlert('<i class="fas fa-exclamation-circle text-danger"></i>', title, body);
-                    return;
-                }
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString()
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        const body = data.message === 'location_required' ?
+                            translations[lang].location_required_m :
+                            (data.message === 'plan_unavailable' ? translations[lang].plan_unavailable_m : translations[lang].send_failed_m);
+                        const title = data.message === 'plan_unavailable' ? translations[lang].plan_unavailable_t : translations[lang].send_failed_t;
+                        showAlert('<i class="fas fa-exclamation-circle text-danger"></i>', title, body);
+                        return;
+                    }
 
-                showAlert('<i class="fas fa-clock text-success"></i>', translations[lang].success_t, translations[lang].success_m);
-                document.getElementById('alertModal').addEventListener('hidden.bs.modal', function () {
-                    const bookingId = data.booking_id || '';
-                    const orderNum = data.order_number || '';
-                    const query = bookingId
-                        ? ('?id=' + encodeURIComponent(bookingId))
-                        : (orderNum ? ('?order=' + encodeURIComponent(orderNum)) : '');
-                    location.href = 'success.php' + query;
-                }, { once: true });
-            })
-            .catch(() => showAlert('<i class="fas fa-wifi text-danger"></i>', translations[lang].connection_error_t, translations[lang].connection_error_m))
-            .finally(() => {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = originalBtn;
-                }
-            });
+                    showAlert('<i class="fas fa-clock text-success"></i>', translations[lang].success_t, translations[lang].success_m);
+                    document.getElementById('alertModal').addEventListener('hidden.bs.modal', function() {
+                        const bookingId = data.booking_id || '';
+                        const orderNum = data.order_number || '';
+                        const query = bookingId ?
+                            ('?id=' + encodeURIComponent(bookingId)) :
+                            (orderNum ? ('?order=' + encodeURIComponent(orderNum)) : '');
+                        location.href = 'success.php' + query;
+                    }, {
+                        once: true
+                    });
+                })
+                .catch(() => showAlert('<i class="fas fa-wifi text-danger"></i>', translations[lang].connection_error_t, translations[lang].connection_error_m))
+                .finally(() => {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtn;
+                    }
+                });
         }
 
         function renderActivePlan() {
@@ -559,6 +822,8 @@ $csrf_token = generate_csrf_token();
         }
 
         window.onload = () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('bDate').setAttribute('min', today);
             const theme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -569,11 +834,12 @@ $csrf_token = generate_csrf_token();
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
                 const key = el.getAttribute('data-i18n-placeholder');
                 if (translations[lang] && translations[lang][key]) el.setAttribute('placeholder', translations[lang][key]);
+
             });
             renderActivePlan();
         };
     </script>
     <script src="../assets/lamea.js"></script>
 </body>
-</html>
 
+</html>

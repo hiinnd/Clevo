@@ -98,6 +98,7 @@ $userName = $_SESSION['userName'] ?? 'User';
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -108,40 +109,234 @@ $userName = $_SESSION['userName'] ?? 'User';
     <link rel="stylesheet" href="../assets/style.css">
 
     <style>
-        :root { --bg-body: #f8f9fa; --bg-card: #ffffff; --text-main: #000000; --text-muted: #1a1a1a; --badge-bg: #f1f3f5; --border-color: #dee2e6; --check-bg: #d1e7dd; --check-color: #198754; --danger: #dc2626; --accent: #007bff; }
-        [data-theme="dark"] { --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #ffffff; --text-muted: #f1f5f9; --badge-bg: #2d3748; --border-color: #475569; --check-bg: rgba(25, 135, 84, 0.3); --check-color: #2ecc71; --danger: #ef4444; --accent: #38bdf8; }
-
-        body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; padding: 78px 14px 34px; transition: 0.3s ease; }
-        .back-nav { position: fixed; top: 20px; right: 20px; z-index: 1000; }
-        html[dir="ltr"] .back-nav { right: auto; left: 20px; }
-        .circle-btn {
-            background: var(--bg-card); width: 40px; height: 40px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); border: 1px solid var(--border-color);
-            color: var(--text-main); text-decoration: none; transition: 0.3s;
+        :root {
+            --bg-body: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-main: #000000;
+            --text-muted: #1a1a1a;
+            --badge-bg: #f1f3f5;
+            --border-color: #dee2e6;
+            --check-bg: #d1e7dd;
+            --check-color: #198754;
+            --danger: #dc2626;
+            --accent: #007bff;
         }
-        .circle-btn:hover { transform: scale(1.1); color: var(--accent); }
 
-        .success-card { background: var(--bg-card); border-radius: 30px; padding: 34px 22px; width: 100%; max-width: 520px; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1); border: 1px solid var(--border-color); position: relative; }
-        .check-container { width: 76px; height: 76px; background: var(--check-bg); color: var(--check-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.4rem; margin: 0 auto 18px; }
-        .order-id { background: var(--badge-bg); padding: 8px 20px; border-radius: 50px; display: inline-block; margin-bottom: 20px; color: var(--text-main); font-size: 0.86rem; border: 1px dashed var(--accent); }
-        .summary-box { background: var(--badge-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 16px; text-align: start; margin-bottom: 16px; }
-        .summary-row { display: flex; justify-content: space-between; gap: 18px; padding: 9px 0; border-bottom: 1px solid var(--border-color); }
-        .summary-row:last-child { border-bottom: 0; }
-        .summary-label { color: var(--text-muted); font-size: .84rem; }
-        .summary-value { font-weight: 900; text-align: end; overflow-wrap: anywhere; }
-        .status-badge { border-radius: 999px; padding: 7px 14px; color: #fff; font-weight: 800; font-size: .78rem; display: inline-block; }
-        .btn-main, .btn-soft, .btn-danger-soft { border-radius: 999px; padding: 13px 16px; font-weight: 800; border: 0; width: 100%; transition: .2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-main { background: var(--accent); color: white; }
-        .btn-soft { background: var(--badge-bg); color: var(--text-main); border: 1px solid var(--border-color); }
-        .btn-danger-soft { background: rgba(220, 38, 38, .11); color: var(--danger); border: 1px solid rgba(220, 38, 38, .22); }
-        .btn-main:hover, .btn-soft:hover, .btn-danger-soft:hover { transform: translateY(-1px); }
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .text-muted { color: var(--text-muted) !important; opacity: 1 !important; }
-        .modal-content { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 24px; }
-        .form-control { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; padding: 12px; }
-        .form-control:focus { background: var(--bg-body); color: var(--text-main); }
-        @media (max-width: 460px) { .action-grid { grid-template-columns: 1fr; } .success-card { border-radius: 24px; padding-inline: 18px; } }
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #ffffff;
+            --text-muted: #f1f5f9;
+            --badge-bg: #2d3748;
+            --border-color: #475569;
+            --check-bg: rgba(25, 135, 84, 0.3);
+            --check-color: #2ecc71;
+            --danger: #ef4444;
+            --accent: #38bdf8;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 78px 14px 34px;
+            transition: 0.3s ease;
+        }
+
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        html[dir="ltr"] .back-nav {
+            right: auto;
+            left: 20px;
+        }
+
+        .circle-btn {
+            background: var(--bg-card);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .circle-btn:hover {
+            transform: scale(1.1);
+            color: var(--accent);
+        }
+
+        .success-card {
+            background: var(--bg-card);
+            border-radius: 30px;
+            padding: 34px 22px;
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .check-container {
+            width: 76px;
+            height: 76px;
+            background: var(--check-bg);
+            color: var(--check-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.4rem;
+            margin: 0 auto 18px;
+        }
+
+        .order-id {
+            background: var(--badge-bg);
+            padding: 8px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            font-size: 0.86rem;
+            border: 1px dashed var(--accent);
+        }
+
+        .summary-box {
+            background: var(--badge-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 16px;
+            text-align: start;
+            margin-bottom: 16px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .summary-row:last-child {
+            border-bottom: 0;
+        }
+
+        .summary-label {
+            color: var(--text-muted);
+            font-size: .84rem;
+        }
+
+        .summary-value {
+            font-weight: 900;
+            text-align: end;
+            overflow-wrap: anywhere;
+        }
+
+        .status-badge {
+            border-radius: 999px;
+            padding: 7px 14px;
+            color: #fff;
+            font-weight: 800;
+            font-size: .78rem;
+            display: inline-block;
+        }
+
+        .btn-main,
+        .btn-soft,
+        .btn-danger-soft {
+            border-radius: 999px;
+            padding: 13px 16px;
+            font-weight: 800;
+            border: 0;
+            width: 100%;
+            transition: .2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-main {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-soft {
+            background: var(--badge-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-danger-soft {
+            background: rgba(220, 38, 38, .11);
+            color: var(--danger);
+            border: 1px solid rgba(220, 38, 38, .22);
+        }
+
+        .btn-main:hover,
+        .btn-soft:hover,
+        .btn-danger-soft:hover {
+            transform: translateY(-1px);
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .text-muted {
+            color: var(--text-muted) !important;
+            opacity: 1 !important;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+        }
+
+        .form-control {
+            background: var(--bg-body);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 12px;
+        }
+
+        .form-control:focus {
+            background: var(--bg-body);
+            color: var(--text-main);
+        }
+
+        @media (max-width: 460px) {
+            .action-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .success-card {
+                border-radius: 24px;
+                padding-inline: 18px;
+            }
+        }
     </style>
 </head>
 
@@ -266,19 +461,31 @@ $userName = $_SESSION['userName'] ?? 'User';
         const rescheduleModal = new bootstrap.Modal(document.getElementById('rescheduleModal'));
         const statusModalEl = document.getElementById('statusModal');
         const statusModal = new bootstrap.Modal(statusModalEl);
+        const cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
 
         const pageTranslations = {
             ar: {
-                status_label: "الحالة", station_label: "المحطة", service_label: "الخدمة", appointment_label: "الموعد",
-                payment_label: "الدفع", total_label: "الإجمالي", view_details: "تفاصيل الطلب",
-                btn_reschedule: "تعديل الموعد", btn_cancel_booking: "إلغاء الحجز",
+                status_label: "الحالة",
+                station_label: "المحطة",
+                service_label: "الخدمة",
+                appointment_label: "الموعد",
+                payment_label: "الدفع",
+                total_label: "الإجمالي",
+                view_details: "تفاصيل الطلب",
+                btn_reschedule: "تعديل الموعد",
+                btn_cancel_booking: "إلغاء الحجز",
                 visa_refund_hint: "في حال الإلغاء، يرجع مبلغ الفيزا إلى محفظة Clevo داخل التطبيق.",
                 locked_hint: "لا يمكن تعديل أو إلغاء هذا الطلب من هذه المرحلة.",
-                reschedule_title: "تعديل موعد الحجز", date_label: "التاريخ", time_label: "الوقت",
-                btn_save_reschedule: "حفظ الموعد", btn_close: "إغلاق", btn_ok: "موافق",
+                reschedule_title: "تعديل موعد الحجز",
+                date_label: "التاريخ",
+                time_label: "الوقت",
+                btn_save_reschedule: "حفظ الموعد",
+                btn_close: "إغلاق",
+                btn_ok: "موافق",
                 cancel_confirm: "هل أنت متأكد من إلغاء الحجز؟",
                 loading: "جاري المعالجة...",
-                success_title: "تم بنجاح", cancel_success: "تم إلغاء الحجز. إذا كان مدفوعاً بفيزا أو محفظة، تم حفظ المبلغ في محفظتك.",
+                success_title: "تم بنجاح",
+                cancel_success: "تم إلغاء الحجز. إذا كان مدفوعاً بفيزا أو محفظة، تم حفظ المبلغ في محفظتك.",
                 reschedule_success: "تم حفظ الموعد الجديد وإرسال الطلب للمحطة للمراجعة.",
                 error_title: "تعذر تنفيذ الطلب",
                 booking_locked: "لا يمكن تعديل هذا الطلب بعد بدء التنفيذ أو اكتماله.",
@@ -286,16 +493,27 @@ $userName = $_SESSION['userName'] ?? 'User';
                 generic_error: "حاول مرة أخرى بعد قليل."
             },
             en: {
-                status_label: "Status", station_label: "Station", service_label: "Service", appointment_label: "Appointment",
-                payment_label: "Payment", total_label: "Total", view_details: "Order Details",
-                btn_reschedule: "Reschedule", btn_cancel_booking: "Cancel Booking",
+                status_label: "Status",
+                station_label: "Station",
+                service_label: "Service",
+                appointment_label: "Appointment",
+                payment_label: "Payment",
+                total_label: "Total",
+                view_details: "Order Details",
+                btn_reschedule: "Reschedule",
+                btn_cancel_booking: "Cancel Booking",
                 visa_refund_hint: "If cancelled, Visa payments are returned to your Clevo wallet.",
                 locked_hint: "This order can no longer be changed or cancelled.",
-                reschedule_title: "Reschedule Booking", date_label: "Date", time_label: "Time",
-                btn_save_reschedule: "Save Appointment", btn_close: "Close", btn_ok: "OK",
+                reschedule_title: "Reschedule Booking",
+                date_label: "Date",
+                time_label: "Time",
+                btn_save_reschedule: "Save Appointment",
+                btn_close: "Close",
+                btn_ok: "OK",
                 cancel_confirm: "Are you sure you want to cancel this booking?",
                 loading: "Processing...",
-                success_title: "Success", cancel_success: "Booking cancelled. Visa or wallet payments were kept in your wallet.",
+                success_title: "Success",
+                cancel_success: "Booking cancelled. Visa or wallet payments were kept in your wallet.",
                 reschedule_success: "The new appointment was saved and sent to the station for review.",
                 error_title: "Action failed",
                 booking_locked: "This order cannot be changed after work starts or completes.",
@@ -322,13 +540,15 @@ $userName = $_SESSION['userName'] ?? 'User';
         }
 
         function showStatus(type, title, body, afterClose) {
-            document.getElementById('statusIcon').innerHTML = type === 'success'
-                ? '<i class="fas fa-check-circle text-success"></i>'
-                : '<i class="fas fa-circle-exclamation text-warning"></i>';
+            document.getElementById('statusIcon').innerHTML = type === 'success' ?
+                '<i class="fas fa-check-circle text-success"></i>' :
+                '<i class="fas fa-circle-exclamation text-warning"></i>';
             document.getElementById('statusTitle').innerText = title;
             document.getElementById('statusBody').innerText = body;
             if (afterClose) {
-                statusModalEl.addEventListener('hidden.bs.modal', afterClose, { once: true });
+                statusModalEl.addEventListener('hidden.bs.modal', afterClose, {
+                    once: true
+                });
             }
             statusModal.show();
         }
@@ -355,21 +575,73 @@ $userName = $_SESSION['userName'] ?? 'User';
             Object.entries(extra).forEach(([key, value]) => params.append(key, value));
             return fetch(window.location.href, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
                 body: params.toString()
             }).then(res => res.json());
         }
 
         function cancelBooking(btn) {
-            if (!confirm(t('cancel_confirm'))) return;
-            withLoading(btn, () => postBookingAction('cancel_booking').then(data => {
-                if (data.status === 'success') {
-                    showStatus('success', t('success_title'), t('cancel_success'), () => location.href = 'booking-history.php');
-                } else {
-                    const body = data.message === 'booking_locked' ? t('booking_locked') : t('generic_error');
-                    showStatus('error', t('error_title'), body);
-                }
-            }).catch(() => showStatus('error', t('error_title'), t('generic_error'))));
+
+            const cancelModal = new bootstrap.Modal(
+                document.getElementById('cancelModal')
+            );
+
+            cancelModal.show();
+
+            document.getElementById('confirmCancelBtn').onclick = function() {
+
+                cancelModal.hide();
+
+                postBookingAction('cancel_booking')
+
+                    .then(data => {
+
+                        if (data.status === 'success') {
+                            document.querySelector('[data-status-label]').innerText =
+                                lang === 'ar' ? 'ملغي' : 'Cancelled';
+
+                            document.querySelector('[data-status-label]')
+                                .className = 'status-badge bg-danger';
+
+                            document.querySelector('.action-grid').remove();
+                            showStatus(
+                                'success',
+                                t('success_title'),
+                                t('cancel_success'),
+                            );
+
+
+                        } else {
+
+                            const body =
+                                data.message === 'booking_locked' ?
+                                t('booking_locked') :
+                                t('generic_error');
+
+                            showStatus(
+                                'error',
+                                t('error_title'),
+                                body
+                            );
+
+                        }
+
+                    })
+
+                    .catch(() => {
+
+                        showStatus(
+                            'error',
+                            t('error_title'),
+                            t('generic_error')
+                        );
+
+                    });
+
+            };
+
         }
 
         function openRescheduleModal() {
@@ -379,14 +651,17 @@ $userName = $_SESSION['userName'] ?? 'User';
         function submitReschedule(btn) {
             const booking_date = document.getElementById('newBookingDate').value;
             const booking_time = document.getElementById('newBookingTime').value;
-            withLoading(btn, () => postBookingAction('reschedule_booking', { booking_date, booking_time }).then(data => {
+            withLoading(btn, () => postBookingAction('reschedule_booking', {
+                booking_date,
+                booking_time
+            }).then(data => {
                 if (data.status === 'success') {
                     rescheduleModal.hide();
                     showStatus('success', t('success_title'), t('reschedule_success'), () => location.reload());
                 } else {
-                    const body = data.message === 'booking_locked'
-                        ? t('booking_locked')
-                        : (data.message === 'invalid_datetime' ? t('invalid_datetime') : t('generic_error'));
+                    const body = data.message === 'booking_locked' ?
+                        t('booking_locked') :
+                        (data.message === 'invalid_datetime' ? t('invalid_datetime') : t('generic_error'));
                     showStatus('error', t('error_title'), body);
                 }
             }).catch(() => showStatus('error', t('error_title'), t('generic_error'))));
@@ -403,5 +678,41 @@ $userName = $_SESSION['userName'] ?? 'User';
         });
     </script>
     <script src="../assets/lamea.js"></script>
+    <div class="modal fade" id="cancelModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content p-4 text-center">
+
+                <div class="mb-3 fs-1 text-danger">
+                    <i class="fas fa-ban"></i>
+                </div>
+
+                <h5 class="fw-bold mb-2">
+                    إلغاء الحجز
+                </h5>
+
+                <p class="small text-muted mb-4">
+                    هل أنتِ متأكدة من إلغاء الحجز؟
+                </p>
+
+                <div class="d-flex gap-2">
+
+                    <button type="button"
+                        class="btn-soft"
+                        data-bs-dismiss="modal">
+                        رجوع
+                    </button>
+
+                    <button type="button"
+                        class="btn-danger-soft"
+                        id="confirmCancelBtn">
+                        نعم، إلغاء
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
 </body>
+
 </html>

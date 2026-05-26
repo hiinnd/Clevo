@@ -435,6 +435,5 @@ $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FR
             }
         };
     </script>
-    <script src="../assets/lamea.js"></script>
 </body>
 </html>
