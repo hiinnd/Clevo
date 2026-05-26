@@ -33,7 +33,7 @@ function clevoEnsureBookingWorkflowColumns(mysqli $conn): void
 
 function clevoBookingCanBeChanged(string $status): bool
 {
-    return in_array($status, ['Pending', 'Accepted'], true);
+    return $status === 'Pending';
 }
 
 function clevoBookingReference(array $booking, int $bookingID = 0): string
@@ -178,7 +178,7 @@ function clevoCancelBookingForUser(mysqli $conn, int $bookingID, int $userID): a
 
         $update = $conn->prepare("UPDATE booking
             SET Status = 'Cancelled', DriverID = NULL, Accepted_At = NULL, notification_sent = 1
-            WHERE BookingID = ? AND UserID = ? AND Status IN ('Pending','Accepted')");
+            WHERE BookingID = ? AND UserID = ? AND Status = 'Pending'");
         $update->bind_param("ii", $bookingID, $userID);
         $update->execute();
         if ($update->affected_rows <= 0) {
@@ -259,7 +259,7 @@ function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID
 
         $update = $conn->prepare("UPDATE booking
             SET Booking_Date = ?, Booking_Time = ?, Status = 'Pending', DriverID = NULL, Accepted_At = NULL, notification_sent = 0
-            WHERE BookingID = ? AND UserID = ? AND Status IN ('Pending','Accepted')");
+            WHERE BookingID = ? AND UserID = ? AND Status = 'Pending'");
         $update->bind_param("ssii", $slot['date'], $slot['time'], $bookingID, $userID);
         $update->execute();
         if ($update->affected_rows <= 0) {
