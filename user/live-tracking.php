@@ -201,7 +201,7 @@ if (!$order) {
         setInterval(updateTracking, 10000); 
         updateTracking(); 
     </script>
-    <script src="../assets/lamea.js"></script>
+
 </body>
 </html>
 
