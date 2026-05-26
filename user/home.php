@@ -540,8 +540,28 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                 </div>
                 <?php if ($pending_booking['Status'] === 'Accepted' && empty($pending_booking['Payment_Method'])): ?>
                     <a class="order-next-btn" href="../includes/pending-dues.php"><i class="fas fa-credit-card"></i> الدفع</a>
+
                 <?php elseif ($pending_booking['Status'] === 'Accepted' && $pending_booking['Payment_Method'] === 'plan'): ?>
                     <span class="order-next-btn" style="background:#10b981;"><i class="fas fa-gem"></i> <span data-i18n="paid_from_plan">من الباقة</span></span>
+                <?php endif; ?>
+                <?php if (
+                    $pending_booking['Status'] === 'Accepted' &&
+                    $pending_booking['Service_Location'] === 'delivery'
+                ): ?>
+
+                    <div class="d-flex justify-content-center mt-3">
+
+                        <a class="order-next-btn"
+                            href="live-tracking.php?id=<?= $pending_booking['BookingID'] ?>">
+
+                            <i class="fas fa-location-dot"></i>
+
+                            تتبع السائق
+
+                        </a>
+
+                    </div>
+
                 <?php endif; ?>
             </div>
         </div>
@@ -745,7 +765,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                         .then(data => {
 
                             let city = data.name;
-                             
+
                             if (
                                 localStorage.getItem('app_lang') === 'ar' &&
                                 city.toLowerCase() === 'amman'
