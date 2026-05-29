@@ -99,8 +99,10 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
 
         body { font-family: 'Cairo', sans-serif; background: var(--main-bg); color: var(--text); min-height: 100vh; transition: 0.5s; margin: 0; padding-bottom: 40px; }
         .glass { background: var(--glass); backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 25px; color: var(--text); }
-        .header-section { padding: 20px; display: flex; align-items: center; justify-content: space-between; position: relative; height: 150px; border-radius: 0 0 40px 40px; background: linear-gradient(135deg, var(--accent), #0284c7); margin-bottom: 28px; }
-        .back-circle-btn { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; }
+        .header-section { padding: 20px; display: flex; align-items: center; justify-content: center; position: relative; height: 150px; border-radius: 0 0 40px 40px; background: linear-gradient(135deg, var(--accent), #0284c7); margin-bottom: 28px; }
+        .back-circle-btn { position: absolute; top: 20px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; }
+        [dir="rtl"] .back-circle-btn { right: 20px; }
+        [dir="ltr"] .back-circle-btn { left: 20px; }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
         h4.fw-black { flex-grow: 1; text-align: center; color: white !important; margin: 0; font-weight: 900; }
         .active-plan { padding: 18px; margin-bottom: 22px; overflow: hidden; }
@@ -125,7 +127,6 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
 </head>
 <body>
     <div class="header-section shadow">
-        <div style="width: 40px;"></div>
         <h4 class="fw-black" data-i18n="plans_title">باقات الاشتراك</h4>
         <a href="home.php" class="back-circle-btn"><i class="fas fa-arrow-right" id="backIcon"></i></a>
     </div>

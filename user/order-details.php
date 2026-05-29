@@ -773,7 +773,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                             <i class="fas fa-list"></i>
                             <span class="lang-node" data-ar="سجل الحجوزات" data-en="Booking History">سجل الحجوزات</span>
                         </a>
-                        <?php if ($serviceLocation === 'delivery' && !empty($order['DriverID']) && in_array($status, ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'], true)): ?>
+                        <?php if ($serviceLocation === 'delivery' && !empty($paymentMethod) && !empty($order['DriverID']) && in_array($status, ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'], true)): ?>
                             <a href="live-tracking.php?id=<?= (int) $bookingID ?>" class="btn-main">
                                 <i class="fas fa-map-location-dot"></i>
                                 <span class="lang-node" data-ar="تتبع الآن" data-en="Track Now">تتبع الآن</span>

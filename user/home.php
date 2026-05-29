@@ -24,11 +24,31 @@ $pending_stmt = $conn->prepare("SELECT b.*, s.Name as station_name, serv.Name as
                                 FROM `booking` b
                                 JOIN stations s ON b.StationID = s.StationID
                                 JOIN services serv ON b.ServiceID = serv.ServiceID
-                                WHERE b.UserID = ? AND b.Status IN ('Pending', 'Accepted')
+                                WHERE b.UserID = ? AND b.Status IN ('Pending', 'Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')
                                 ORDER BY b.BookingID DESC LIMIT 1");
 $pending_stmt->bind_param("i", $userID);
 $pending_stmt->execute();
 $pending_booking = $pending_stmt->get_result()->fetch_assoc();
+
+$activeOrderStatusLabels = [
+    'Pending' => 'بانتظار الموافقة',
+    'Accepted' => 'تمت الموافقة',
+    'Arrived' => 'وصل السائق',
+    'In Progress' => 'قيد التنفيذ',
+    'Pickup' => 'قيد الاستلام',
+    'Washing' => 'قيد الغسيل',
+    'Returning' => 'قيد الإرجاع',
+];
+$activeOrderStatusClass = $pending_booking && $pending_booking['Status'] === 'Pending' ? 'status-pending' : 'status-accepted';
+$paymentRequiredFirst = $pending_booking
+    && $pending_booking['Status'] === 'Accepted'
+    && in_array($pending_booking['Service_Location'], ['home', 'delivery'], true)
+    && empty($pending_booking['Payment_Method']);
+$canTrackDelivery = $pending_booking
+    && $pending_booking['Service_Location'] === 'delivery'
+    && in_array($pending_booking['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'], true)
+    && !empty($pending_booking['Payment_Method'])
+    && !$paymentRequiredFirst;
 
 
 $notif_stmt = $conn->prepare("SELECT COUNT(*) as unread FROM `notifications` WHERE user_id = ? AND is_read = 0");
@@ -518,8 +538,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         <div class="order-status-card shadow-sm">
             <div class="d-flex justify-content-between align-items-start gap-3">
                 <div>
-                    <span class="status-pill <?= $pending_booking['Status'] === 'Accepted' ? 'status-accepted' : 'status-pending' ?>">
-                        <?= $pending_booking['Status'] === 'Accepted' ? 'تمت الموافقة' : 'بانتظار الموافقة' ?>
+                    <span class="status-pill <?= $activeOrderStatusClass ?>">
+                        <?= htmlspecialchars($activeOrderStatusLabels[$pending_booking['Status']] ?? $pending_booking['Status']) ?>
                     </span>
                     <h6 class="fw-bold mt-2 mb-1"><?= htmlspecialchars($pending_booking['service_name']) ?></h6>
                     <p class="small opacity-75 mb-1"><?= htmlspecialchars($pending_booking['station_name']) ?> | #<?= htmlspecialchars($pending_booking['Order_Number']) ?></p>
@@ -544,10 +564,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                 <?php elseif ($pending_booking['Status'] === 'Accepted' && $pending_booking['Payment_Method'] === 'plan'): ?>
                     <span class="order-next-btn" style="background:#10b981;"><i class="fas fa-gem"></i> <span data-i18n="paid_from_plan">من الباقة</span></span>
                 <?php endif; ?>
-                <?php if (
-                    $pending_booking['Status'] === 'Accepted' &&
-                    $pending_booking['Service_Location'] === 'delivery'
-                ): ?>
+                <?php if ($canTrackDelivery): ?>
 
                     <div class="d-flex justify-content-center mt-3">
 

@@ -29,6 +29,15 @@ if (!$order) {
     echo "الطلب غير موجود أو غير متاح للتتبع حالياً.";
     exit;
 }
+
+if (
+    (int) $order['UserID'] === (int) $viewerID
+    && ($order['Service_Location'] ?? '') === 'delivery'
+    && empty($order['Payment_Method'])
+) {
+    header("Location: ../includes/payment-method.php?id=" . (int) $bookingID);
+    exit;
+}
 ?>
 
 <!DOCTYPE html>

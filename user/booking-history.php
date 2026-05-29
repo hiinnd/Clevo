@@ -296,7 +296,7 @@ $csrf_token = generate_csrf_token();
                                 <a href="order-details.php?id=<?= $row['BookingID'] ?>" class="btn-track shadow-sm">
                                     <i class="fas fa-info-circle"></i> <span data-i18n="btn_details">تفاصيل الطلب</span>
                                 </a>
-                                <?php if ($row['Service_Location'] === 'delivery' && !empty($row['DriverID']) && in_array($row['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'])): ?>
+                                <?php if ($row['Service_Location'] === 'delivery' && !empty($row['Payment_Method']) && !empty($row['DriverID']) && in_array($row['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'])): ?>
                                     <a href="live-tracking.php?id=<?= $row['BookingID'] ?>" class="btn-track shadow-sm">
                                         <i class="fas fa-map-marker-alt"></i> <span data-i18n="btn_track">تتبع الآن</span>
                                     </a>

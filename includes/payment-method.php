@@ -119,16 +119,12 @@ if ($booking['Status'] !== 'Accepted' || !empty($booking['Payment_Method'])) {
 }
 
 $base_price = (float) $booking['Total_Price'];
-$adminCommission = (float) ($booking['Admin_Commission'] ?? 0);
-$ownerAmount = max(0, $base_price - $adminCommission);
 $pointsRequired = (int) ceil($base_price * 100);
 $wallet = clevoEnsureWallet($conn, $userID);
 $walletBalance = (float) $wallet['Balance'];
 $pointsBalance = clevoGetLoyaltyPoints($conn, $userID);
 $isStationService = $booking['Service_Location'] === 'station';
 $activePlan = clevoGetActiveUserPlan($conn, $userID);
-$acceptedAt = trim((string) ($booking['Accepted_At'] ?? '')) ?: (string) ($booking['created_at'] ?? '');
-$paymentDeadline = $acceptedAt ? date('Y-m-d H:i', strtotime($acceptedAt . ' +10 minutes')) : '';
 $csrf_token = generate_csrf_token();
 ?>
 
@@ -159,45 +155,52 @@ $csrf_token = generate_csrf_token();
             color: var(--text-main); margin: 0; min-height: 100vh; transition: 0.3s;
         }
 
-        .payment-container { max-width: 450px; margin: auto; padding: 20px; }
+        .payment-container { width: min(100%, 430px); margin: auto; padding: 14px; }
 
         /* سهم الرجوع - العودة للخلف تلقائياً */
         .back-circle-btn { 
             background: var(--bg-card); border: 1px solid var(--border-color); 
-            color: var(--text-main) !important; width: 42px; height: 42px; border-radius: 50%; 
+            color: var(--text-main) !important; width: 38px; height: 38px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center; text-decoration: none;
+            flex: 0 0 38px;
         }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
         /* بطاقة الخصم */
         .loyalty-card { 
             background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); 
-            border-radius: 20px; padding: 20px; color: #ffffff !important;
+            border: 2px solid transparent; border-radius: 16px; padding: 14px; color: #ffffff !important;
+            cursor: pointer; transition: 0.2s;
+        }
+        .loyalty-card.active {
+            border-color: #bfdbfe;
+            box-shadow: 0 0 0 3px rgba(191, 219, 254, .22);
         }
 
         /* خيارات الدفع */
         .method-item { 
             background: var(--bg-card); border: 2px solid var(--border-color); 
-            border-radius: 18px; padding: 18px; margin-bottom: 15px; 
+            border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
             cursor: pointer; transition: 0.2s; color: var(--text-main);
         }
         .method-item.active { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+        .method-icon {
+            width: 42px; height: 42px; flex: 0 0 42px;
+            display: flex; align-items: center; justify-content: center;
+            margin-inline-end: 12px;
+        }
 
         /* وضوح النصوص في الصناديق */
-        .price-box { 
-            background: var(--bg-card); border-radius: 20px; padding: 25px; 
-            text-align: center; border: 1px solid var(--border-color);
-        }
         .summary-card {
-            background: var(--bg-card); border-radius: 20px; padding: 18px;
+            background: var(--bg-card); border-radius: 16px; padding: 14px;
             border: 1px solid var(--border-color);
         }
         .summary-row {
             display: flex; justify-content: space-between; align-items: center;
-            gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border-color);
+            gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color);
         }
         .summary-row:last-child { border-bottom: 0; }
-        .summary-label { color: var(--text-muted); font-size: .86rem; }
+        .summary-label { color: var(--text-muted); font-size: .84rem; }
         .summary-value { color: var(--text-main); font-weight: 800; text-align: end; overflow-wrap: anywhere; }
         .summary-total { color: #22c55e; font-size: 1.15rem; font-weight: 900; }
         .method-hint { color: var(--text-muted); font-size: .78rem; display: block; margin-top: 2px; }
@@ -206,7 +209,17 @@ $csrf_token = generate_csrf_token();
 
         .btn-confirm { 
             background: var(--accent); color: #ffffff !important; border: none; 
-            border-radius: 50px; padding: 16px; width: 100%; font-weight: 900;
+            border-radius: 50px; padding: 13px; width: 100%; font-weight: 900;
+        }
+
+        @media (max-width: 380px) {
+            .payment-container { padding: 10px; }
+            .summary-card, .loyalty-card { padding: 12px; }
+            .method-item { padding: 10px 12px; }
+            .method-icon { width: 38px; height: 38px; flex-basis: 38px; margin-inline-end: 10px; }
+            .method-icon i { font-size: 1rem !important; }
+            .summary-total { font-size: 1.05rem; }
+            h5 { font-size: 1rem; }
         }
 
         /* المودال */
@@ -219,15 +232,15 @@ $csrf_token = generate_csrf_token();
 <body>
     <div class="payment-container">
         <!-- Header -->
-        <div class="d-flex align-items-center gap-3 mb-4 mt-2">
+        <div class="d-flex align-items-center gap-3 mb-3 mt-1">
             <a href="javascript:history.back()" class="back-circle-btn shadow-sm">
                 <i class="fas fa-arrow-right" id="backIcon"></i>
             </a>
             <h5 class="mb-0 fw-bold text-clear" data-i18n="pay_confirm_title">تأكيد الدفع والخصم</h5>
         </div>
 
-        <div class="summary-card shadow-sm mb-4">
-            <h6 class="fw-bold text-clear mb-3"><i class="fas fa-receipt me-1"></i> <span data-i18n="booking_details">تفاصيل الحجز</span></h6>
+        <div class="summary-card shadow-sm mb-3">
+            <h6 class="fw-bold text-clear mb-2"><i class="fas fa-receipt me-1"></i> <span data-i18n="booking_details">تفاصيل الحجز</span></h6>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="booking_number">رقم الطلب</span>
                 <span class="summary-value">#<?= e($booking['Order_Number'] ?: $bookingID) ?></span>
@@ -244,20 +257,6 @@ $csrf_token = generate_csrf_token();
                 <span class="summary-label" data-i18n="appointment_label">الموعد</span>
                 <span class="summary-value"><?= e($booking['Booking_Date']) ?> | <?= e(substr((string) $booking['Booking_Time'], 0, 5)) ?></span>
             </div>
-            <?php if ($paymentDeadline): ?>
-            <div class="summary-row">
-                <span class="summary-label" data-i18n="pay_deadline">مهلة الدفع</span>
-                <span class="summary-value"><?= e($paymentDeadline) ?></span>
-            </div>
-            <?php endif; ?>
-            <div class="summary-row">
-                <span class="summary-label" data-i18n="service_amount">قيمة الخدمة</span>
-                <span class="summary-value"><?= number_format($ownerAmount, 2) ?> JOD</span>
-            </div>
-            <div class="summary-row">
-                <span class="summary-label" data-i18n="platform_fee">رسوم المنصة</span>
-                <span class="summary-value"><?= number_format($adminCommission, 2) ?> JOD</span>
-            </div>
             <div class="summary-row">
                 <span class="summary-label fw-bold" data-i18n="total_due">الإجمالي المطلوب</span>
                 <span class="summary-total"><?= number_format($base_price, 2) ?> JOD</span>
@@ -265,10 +264,10 @@ $csrf_token = generate_csrf_token();
         </div>
 
         <!-- Points Section -->
-        <div class="loyalty-card shadow-sm mb-4">
+        <div class="loyalty-card shadow-sm mb-3" id="pointsCard">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-1 fw-bold"><i class="fas fa-coins me-1"></i> <span data-i18n="loyalty_points">نقاط الولاء</span></h6>
+                    <h6 class="mb-1 fw-bold"><i class="fas fa-coins me-1"></i> <span data-i18n="loyalty_points">نقاط Clevo</span></h6>
                     <p class="mb-0 small" style="color: #e0f2fe;">رصيدك الحالي: <?= number_format($pointsBalance) ?> نقطة</p>
                     <p class="mb-0 small" style="color: #e0f2fe;">المطلوب لهذا الحجز: <?= number_format($pointsRequired) ?> نقطة</p>
                 </div>
@@ -278,22 +277,13 @@ $csrf_token = generate_csrf_token();
             </div>
         </div>
 
-        <!-- Price Display -->
-        <div class="price-box shadow-sm mb-4">
-            <span class="text-muted-clear d-block mb-1 small" data-i18n="final_amount_label">المبلغ المطلوب دفعه</span>
-            <h2 class="text-primary mb-0 fw-black" id="finalTotal"><?php echo number_format($base_price, 2); ?> JOD</h2>
-            <div id="discountNote" class="text-success small fw-bold mt-2 d-none">
-                <i class="fas fa-check-circle me-1"></i> تم تطبيق الخصم!
-            </div>
-        </div>
-
         <!-- Methods -->
-        <h6 class="mb-3 fw-bold text-clear" data-i18n="payment_methods_label">طريقة الدفع:</h6>
+        <h6 class="mb-2 fw-bold text-clear" data-i18n="payment_methods_label">طريقة الدفع:</h6>
         
         <div id="methodsList">
             <?php if ($isStationService): ?>
             <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'cash')">
-                <div class="rounded-circle bg-secondary-subtle p-3 mx-3">
+                <div class="method-icon rounded-circle bg-secondary-subtle">
                     <i class="fas fa-money-bill-wave text-secondary fs-4"></i>
                 </div>
                 <div class="flex-grow-1">
@@ -304,7 +294,7 @@ $csrf_token = generate_csrf_token();
             <?php endif; ?>
             <?php if ($activePlan): ?>
             <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'plan')">
-                <div class="rounded-circle bg-info-subtle p-3 mx-3">
+                <div class="method-icon rounded-circle bg-info-subtle">
                     <i class="fas fa-car-side text-info fs-4"></i>
                 </div>
                 <div class="flex-grow-1">
@@ -316,18 +306,8 @@ $csrf_token = generate_csrf_token();
                 </div>
             </div>
             <?php endif; ?>
-            <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'points')">
-                <div class="rounded-circle bg-success-subtle p-3 mx-3">
-                    <i class="fas fa-coins text-success fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                    <h6 class="mb-0 fw-bold text-clear">نقاط Clevo</h6>
-                    <small class="text-muted-clear">رصيدك: <?= number_format($pointsBalance) ?> / المطلوب: <?= number_format($pointsRequired) ?> points</small>
-                </div>
-            </div>
-
             <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'visa')">
-                <div class="rounded-circle bg-primary-subtle p-3 mx-3">
+                <div class="method-icon rounded-circle bg-primary-subtle">
                     <i class="fas fa-credit-card text-primary fs-4"></i>
                 </div>
                 <div class="flex-grow-1">
@@ -336,7 +316,7 @@ $csrf_token = generate_csrf_token();
             </div>
 
             <div class="method-item d-flex align-items-center shadow-sm" onclick="setMethod(this, 'wallet')">
-                <div class="rounded-circle bg-warning-subtle p-3 mx-3">
+                <div class="method-icon rounded-circle bg-warning-subtle">
                     <i class="fas fa-wallet text-warning fs-4"></i>
                 </div>
                 <div class="flex-grow-1">
@@ -346,7 +326,7 @@ $csrf_token = generate_csrf_token();
             </div>
         </div>
 
-        <button class="btn-confirm shadow mt-4" onclick="processPayment(this)">
+        <button class="btn-confirm shadow mt-3" onclick="processPayment(this)">
             <span data-i18n="btn_confirm_pay">تأكيد الحجز والدفع</span>
         </button>
     </div>
@@ -375,24 +355,24 @@ $csrf_token = generate_csrf_token();
         const msgModal = new bootstrap.Modal(document.getElementById('msgModal'));
         const paymentTranslations = {
             ar: {
-                pay_confirm_title: "تأكيد الدفع والخصم", loyalty_points: "نقاط الولاء",
-                final_amount_label: "المبلغ المطلوب دفعه", payment_methods_label: "طريقة الدفع:",
+                pay_confirm_title: "تأكيد الدفع والخصم", loyalty_points: "نقاط Clevo",
+                payment_methods_label: "طريقة الدفع:",
                 pay_cash: "كاش", cash_desc: "متاح لخدمة المحطة", pay_plan: "من الباقة",
                 plan_washes_left: "غسلات متبقية", pay_visa: "بطاقة بنكية / فيزا",
                 pay_wallet: "محفظة Clevo", current_balance: "الرصيد:", btn_confirm_pay: "تأكيد الحجز والدفع",
                 booking_details: "تفاصيل الحجز", booking_number: "رقم الطلب", station_label: "المحطة", service_label: "الخدمة",
-                appointment_label: "الموعد", pay_deadline: "مهلة الدفع", service_amount: "قيمة الخدمة", platform_fee: "رسوم المنصة",
+                appointment_label: "الموعد",
                 total_due: "الإجمالي المطلوب",
                 btn_ok: "موافق"
             },
             en: {
-                pay_confirm_title: "Confirm Payment", loyalty_points: "Loyalty Points",
-                final_amount_label: "Amount to pay", payment_methods_label: "Payment method:",
+                pay_confirm_title: "Confirm Payment", loyalty_points: "Clevo Points",
+                payment_methods_label: "Payment method:",
                 pay_cash: "Cash", cash_desc: "Available at station", pay_plan: "From plan",
                 plan_washes_left: "washes left", pay_visa: "Bank Card / Visa",
                 pay_wallet: "Clevo Wallet", current_balance: "Balance:", btn_confirm_pay: "Confirm Booking & Payment",
                 booking_details: "Booking details", booking_number: "Order number", station_label: "Station", service_label: "Service",
-                appointment_label: "Appointment", pay_deadline: "Payment deadline", service_amount: "Service amount", platform_fee: "Platform fee",
+                appointment_label: "Appointment",
                 total_due: "Total due",
                 btn_ok: "OK"
             }
@@ -417,29 +397,34 @@ $csrf_token = generate_csrf_token();
             if (lang !== 'ar') document.getElementById('backIcon').className = "fas fa-arrow-left";
         };
 
-        document.getElementById('usePoints').addEventListener('change', function() {
-            if (this.checked) {
-                selectMethodByName('points');
-            } else if (selectedMethod === 'points') {
-                selectedMethod = "";
-                document.querySelectorAll('.method-item').forEach(i => i.classList.remove('active'));
-            }
+        const pointsCard = document.getElementById('pointsCard');
+        const usePoints = document.getElementById('usePoints');
+
+        pointsCard.addEventListener('click', function(event) {
+            if (event.target === usePoints) return;
+            togglePointsMethod(!usePoints.checked);
+        });
+
+        usePoints.addEventListener('change', function() {
+            togglePointsMethod(this.checked);
         });
 
         function setMethod(el, m) {
             document.querySelectorAll('.method-item').forEach(i => i.classList.remove('active'));
             el.classList.add('active');
             selectedMethod = m;
-            const usePoints = document.getElementById('usePoints');
-            if (usePoints) usePoints.checked = m === 'points';
+            togglePointsMethod(false, false);
         }
 
-        function selectMethodByName(method) {
-            const item = Array.from(document.querySelectorAll('.method-item')).find(el => {
-                const handler = el.getAttribute('onclick') || '';
-                return handler.includes("'" + method + "'") || handler.includes('"' + method + '"');
-            });
-            if (item) setMethod(item, method);
+        function togglePointsMethod(active, clearSelected = true) {
+            usePoints.checked = active;
+            pointsCard.classList.toggle('active', active);
+            if (active) {
+                selectedMethod = 'points';
+                document.querySelectorAll('.method-item').forEach(i => i.classList.remove('active'));
+            } else if (clearSelected && selectedMethod === 'points') {
+                selectedMethod = "";
+            }
         }
 
         function showMessage(type, titleAr, titleEn, bodyAr, bodyEn, callback) {

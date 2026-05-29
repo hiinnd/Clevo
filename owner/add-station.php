@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
     <title data-i18n="add_st_page_title">إعداد المغسلة | Clevo</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
@@ -96,6 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
 
         .modal-content { background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); border-radius: 30px !important; }
         #map-container { width: 100%; height: 350px; border-radius: 15px; overflow: hidden; margin-bottom: 15px; border: 1px solid var(--border-color); }
+        #stationMap { width: 100%; height: 100%; z-index: 1; }
+        [data-theme="dark"] #stationMap { filter: brightness(0.7) invert(1) contrast(2.4) hue-rotate(190deg) saturate(0.45); }
+        .map-help-text { color: var(--text-muted-custom); font-size: .78rem; font-weight: 700; margin: -6px 0 12px; }
 
         @media (max-width: 768px) {
             .main-wrapper { display: block; }
@@ -193,9 +197,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
             <div class="modal-content p-4">
                 <h6 class="fw-bold mb-3" data-i18n="label_location">تحديد موقع المغسلة</h6>
                 <div id="map-container">
-                    <iframe id="mapFrame" width="100%" height="100%" frameborder="0" style="border:0;"></iframe>
+                    <div id="stationMap"></div>
                 </div>
+                <p class="map-help-text" data-i18n="map_help">حرّك العلامة أو اضغط على الخريطة لتعديل موقع المحطة.</p>
                 <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary rounded-pill fw-bold" onclick="useCurrentLocation()">
+                        <i class="fas fa-location-crosshairs"></i>
+                    </button>
                     <button type="button" class="btn btn-success rounded-pill fw-bold flex-fill" onclick="confirmMapLocation()">تأكيد الموقع الحالي</button>
                     <button type="button" class="btn btn-light border rounded-pill fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </div>
@@ -222,40 +230,82 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
     <div class="modal fade" id="statusModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content p-4 text-center border-0 shadow-lg"><div id="modalIcon" class="mb-3"></div><h5 id="modalTitle" class="fw-bold mb-2"></h5><p id="modalBody" class="small text-muted-custom mb-3"></p><button class="btn btn-primary w-100 rounded-pill py-2" data-bs-dismiss="modal">موافق</button></div></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const translations = {
             ar: {
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_notifications: "الإشعارات", nav_logout: "خروج",
                 add_st_title: "إعداد بيانات المغسلة", label_name: "اسم المغسلة التجاري", label_location: "الموقع الجغرافي", label_open_time: "من ساعة", label_close_time: "إلى ساعة", label_image: "صورة الواجهة", save_btn: "حفظ البيانات ونشر المغسلة",
                 placeholder_name: "أدخل اسم المغسلة هنا", placeholder_location: "اضغط لاختيار وتأكيد موقعك على الخريطة", status_active_now: "نشط الآن", status_closed_now: "مغلق الآن",
+                map_help: "حرّك العلامة أو اضغط على الخريطة لتعديل موقع المحطة.", locating: "جاري تحديد موقعك...", location_fallback: "تم تحديد الموقع الجغرافي بنجاح",
+                location_denied: "لم يتم السماح بالموقع، حرّك العلامة يدوياً على الخريطة.",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", success_t: "تم بنجاح", success_b: "تم حفظ بيانات المغسلة."
             },
             en: {
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_notifications: "Notifications", nav_logout: "Logout",
                 add_st_title: "Station Setup", label_name: "Station Name", label_location: "Location", label_open_time: "Open", label_close_time: "Close", label_image: "Cover Image", save_btn: "Save & Publish",
                 placeholder_name: "Enter station name", placeholder_location: "Click to select and confirm your map location", status_active_now: "Active Now", status_closed_now: "Closed Now",
+                map_help: "Move the pin or tap the map to adjust the station location.", locating: "Getting your location...", location_fallback: "Location selected successfully",
+                location_denied: "Location was not allowed. Move the pin manually on the map.",
                 logout_title: "Logout Confirmation", logout_msg: "Confirm logout?", btn_confirm_logout: "Yes", btn_cancel: "Cancel", success_t: "Success", success_b: "Data saved."
             }
         };
 
-        let tempLat = 31.9522; // موقع افتراضي (عمان)
-        let tempLon = 35.9114;
+        let tempLat = <?= is_numeric($existingStation['Lat'] ?? null) ? (float) $existingStation['Lat'] : '31.9522' ?>;
+        let tempLon = <?= is_numeric($existingStation['Lon'] ?? null) ? (float) $existingStation['Lon'] : '35.9114' ?>;
+        let stationMap = null;
+        let stationMarker = null;
+        let mapModalInstance = null;
 
         function openMapModal() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    tempLat = pos.coords.latitude;
-                    tempLon = pos.coords.longitude;
-                    loadMapFrame();
-                }, () => { loadMapFrame(); });
-            } else {
-                loadMapFrame();
-            }
-            new bootstrap.Modal(document.getElementById('mapModal')).show();
+            mapModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('mapModal'));
+            mapModalInstance.show();
+            setTimeout(() => {
+                initStationMap();
+                if (!document.getElementById('stLat').value && !document.getElementById('stLon').value) {
+                    useCurrentLocation(false);
+                }
+            }, 180);
         }
 
-        function loadMapFrame() {
-            document.getElementById('mapFrame').src = `https://maps.google.com/maps?q=${tempLat},${tempLon}&z=15&output=embed`;
+        function initStationMap() {
+            if (typeof L === 'undefined') return;
+            const savedLat = parseFloat(document.getElementById('stLat').value);
+            const savedLon = parseFloat(document.getElementById('stLon').value);
+            if (Number.isFinite(savedLat) && Number.isFinite(savedLon)) {
+                tempLat = savedLat;
+                tempLon = savedLon;
+            }
+            if (!stationMap) {
+                stationMap = L.map('stationMap', { zoomControl: false }).setView([tempLat, tempLon], 16);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(stationMap);
+                stationMarker = L.marker([tempLat, tempLon], { draggable: true }).addTo(stationMap);
+                stationMarker.on('dragend', () => {
+                    const pos = stationMarker.getLatLng();
+                    setTempLocation(pos.lat, pos.lng);
+                });
+                stationMap.on('click', (event) => setTempLocation(event.latlng.lat, event.latlng.lng));
+            }
+            setTempLocation(tempLat, tempLon);
+            setTimeout(() => stationMap.invalidateSize(), 80);
+        }
+
+        function setTempLocation(lat, lon) {
+            tempLat = lat;
+            tempLon = lon;
+            if (stationMarker) stationMarker.setLatLng([lat, lon]);
+            if (stationMap) stationMap.setView([lat, lon], Math.max(stationMap.getZoom(), 16));
+        }
+
+        function useCurrentLocation(showStatus = true) {
+            const lang = localStorage.getItem('app_lang') || 'ar';
+            if (showStatus) document.getElementById('stLocation').value = translations[lang].locating;
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition((pos) => {
+                setTempLocation(pos.coords.latitude, pos.coords.longitude);
+            }, () => {
+                if (showStatus) document.getElementById('stLocation').value = translations[lang].location_denied;
+            });
         }
 
         function confirmMapLocation() {
@@ -266,14 +316,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
             
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${tempLat}&lon=${tempLon}&accept-language=${lang}`)
             .then(res => res.json()).then(data => {
-                const street = data.address.road || data.address.suburb || data.address.city || "📍 تم تحديد الموقع الجغرافي بنجاح";
+                const address = data.address || {};
+                const street = address.road || address.neighbourhood || address.suburb || address.city || translations[lang].location_fallback;
                 document.getElementById('stLocation').value = street;
             }).catch(() => {
                 document.getElementById('stLocation').value = `${tempLat.toFixed(4)}, ${tempLon.toFixed(4)}`;
             });
 
-            const modalEl = document.getElementById('mapModal');
-            const modal = bootstrap.Modal.getInstance(modalEl);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('mapModal'));
             if (modal) modal.hide();
         }
 

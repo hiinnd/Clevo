@@ -204,6 +204,7 @@ $csrf_token = generate_csrf_token();
     <title data-i18n="st_details_title">تفاصيل المحطة | Clevo</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -358,6 +359,55 @@ $csrf_token = generate_csrf_token();
             padding: 12px;
             font-weight: 700;
             min-height: 74px;
+        }
+
+        .location-map-card {
+            display: none;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.16);
+            margin-bottom: 12px;
+        }
+
+        #serviceLocationMap {
+            width: 100%;
+            height: 170px;
+            min-height: 170px;
+            z-index: 1;
+        }
+
+        [data-theme="dark"] #serviceLocationMap {
+            filter: brightness(0.7) invert(1) contrast(2.4) hue-rotate(190deg) saturate(0.45);
+        }
+
+        .map-confirm-row {
+            padding: 10px 12px 12px;
+            background: var(--glass);
+        }
+
+        .map-confirm-row input {
+            padding: 10px 12px;
+            border-radius: 13px;
+            font-size: .9rem;
+        }
+
+        .map-helper {
+            color: var(--text);
+            opacity: .78;
+            font-size: .75rem;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .google-map-link {
+            display: none;
+            width: fit-content;
+            margin-top: 8px;
+            color: var(--accent);
+            font-size: .78rem;
+            font-weight: 900;
+            text-decoration: none;
         }
 
         .plan-booking-panel {
@@ -537,6 +587,17 @@ $csrf_token = generate_csrf_token();
             <button type="button" class="btn btn-outline-primary rounded-pill fw-bold w-100 mb-3" onclick="captureLocation()">
                 <i class="fas fa-location-crosshairs me-1"></i> <span data-i18n="capture_location_btn">تحديد موقعي الحالي</span>
             </button>
+            <div class="location-map-card shadow-sm" id="locationMapCard">
+                <div id="serviceLocationMap"></div>
+                <div class="map-confirm-row">
+                    <label class="small fw-bold mb-1" for="detectedAddress" data-i18n="street_label">اسم الشارع / الموقع</label>
+                    <input type="text" id="detectedAddress" data-i18n-placeholder="street_placeholder" placeholder="اسم الشارع سيظهر هنا ويمكنك تعديله">
+                    <div class="map-helper" data-i18n="map_hint">حرّك العلامة على الخريطة لتعديل موقعك بدقة.</div>
+                    <a href="#" target="_blank" rel="noopener" id="googleMapLink" class="google-map-link">
+                        <i class="fas fa-map-location-dot me-1"></i><span data-i18n="open_google_maps">فتح الموقع على Google Maps</span>
+                    </a>
+                </div>
+            </div>
             <textarea id="addressDetails" data-i18n-placeholder="address_placeholder" placeholder="اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة"></textarea>
             <input type="hidden" id="latVal">
             <input type="hidden" id="lngVal">
@@ -563,12 +624,19 @@ $csrf_token = generate_csrf_token();
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const allServices = <?= json_encode($all_services); ?>;
         const activePlan = <?= json_encode($activePlanPayload, JSON_UNESCAPED_UNICODE); ?>;
         const csrfToken = <?= json_encode($csrf_token); ?>;
+        const stationPoint = {
+            lat: <?= is_numeric($station['Lat'] ?? null) ? (float) $station['Lat'] : '31.9539' ?>,
+            lng: <?= is_numeric($station['Lon'] ?? null) ? (float) $station['Lon'] : '35.9106' ?>
+        };
         let selectedServices = [];
         let currentType = "";
+        let locationMap = null;
+        let locationMarker = null;
         const lang = localStorage.getItem('app_lang') || 'ar';
         const msgModal = new bootstrap.Modal(document.getElementById('alertModal'));
 
@@ -606,6 +674,11 @@ $csrf_token = generate_csrf_token();
                 location_step_label: "4. موقع الخدمة",
                 payment_note: "ملاحظة: الدفع لخدمة المنزل أو الاستلام والتسليم يكون فيزا أو محفظة أو نقاط ولاء أو باقة فقط.",
                 capture_location_btn: "تحديد موقعي الحالي",
+                street_label: "اسم الشارع / الموقع",
+                street_placeholder: "اسم الشارع سيظهر هنا ويمكنك تعديله",
+                map_hint: "حرّك العلامة على الخريطة لتعديل موقعك بدقة.",
+                open_google_maps: "فتح الموقع على Google Maps",
+                searching_address: "جاري قراءة اسم الشارع...",
                 address_placeholder: "اكتب وصف الموقع، رقم البناية، أو أي ملاحظة تساعد المحطة",
                 location_title_unavailable: "الموقع غير متاح",
                 location_body_unavailable: "اكتب عنوانك يدوياً في خانة وصف الموقع.",
@@ -652,6 +725,11 @@ $csrf_token = generate_csrf_token();
                 location_step_label: "4. Service location",
                 payment_note: "Note: home and pickup orders can be paid by Visa, wallet, loyalty points, or plan only.",
                 capture_location_btn: "Use current location",
+                street_label: "Street / location name",
+                street_placeholder: "Street name will appear here and you can edit it",
+                map_hint: "Move the pin on the map to adjust your location.",
+                open_google_maps: "Open in Google Maps",
+                searching_address: "Reading street name...",
                 address_placeholder: "Write building number, street, or any note that helps the station",
                 location_title_unavailable: "Location unavailable",
                 location_body_unavailable: "Write your address manually in the location notes.",
@@ -678,6 +756,7 @@ $csrf_token = generate_csrf_token();
             currentType = type;
             document.getElementById('locationPanel').style.display = type === 'station' ? 'none' : 'block';
             if (type !== 'station') {
+                ensureLocationMap();
                 setTimeout(() => document.getElementById('locationPanel').scrollIntoView({
                     behavior: 'smooth',
                     block: 'center'
@@ -749,17 +828,72 @@ $csrf_token = generate_csrf_token();
             msgModal.show();
         }
 
+        function ensureLocationMap() {
+            const mapCard = document.getElementById('locationMapCard');
+            mapCard.style.display = 'block';
+            if (typeof L === 'undefined') return;
+
+            const startLat = parseFloat(document.getElementById('latVal').value) || stationPoint.lat || 31.9539;
+            const startLng = parseFloat(document.getElementById('lngVal').value) || stationPoint.lng || 35.9106;
+            if (!locationMap) {
+                locationMap = L.map('serviceLocationMap', {
+                    zoomControl: false
+                }).setView([startLat, startLng], 16);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19
+                }).addTo(locationMap);
+                locationMarker = L.marker([startLat, startLng], {
+                    draggable: true
+                }).addTo(locationMap);
+                locationMarker.on('dragend', () => {
+                    const pos = locationMarker.getLatLng();
+                    setServiceLocation(pos.lat, pos.lng, true);
+                });
+                locationMap.on('click', (event) => setServiceLocation(event.latlng.lat, event.latlng.lng, true));
+            }
+            setTimeout(() => locationMap.invalidateSize(), 80);
+        }
+
+        function setServiceLocation(lat, lng, shouldFetchAddress = true) {
+            document.getElementById('latVal').value = lat;
+            document.getElementById('lngVal').value = lng;
+            ensureLocationMap();
+            if (locationMarker) locationMarker.setLatLng([lat, lng]);
+            if (locationMap) locationMap.setView([lat, lng], Math.max(locationMap.getZoom(), 16));
+            const googleLink = document.getElementById('googleMapLink');
+            googleLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+            googleLink.style.display = 'inline-flex';
+            googleLink.style.alignItems = 'center';
+            if (shouldFetchAddress) fetchStreetName(lat, lng);
+        }
+
+        function fetchStreetName(lat, lng) {
+            const addressInput = document.getElementById('detectedAddress');
+            addressInput.value = translations[lang].searching_address;
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=${lang}`)
+                .then(res => res.json())
+                .then(data => {
+                    const address = data.address || {};
+                    const street = address.road || address.neighbourhood || address.suburb || address.city || data.display_name || '';
+                    addressInput.value = street;
+                })
+                .catch(() => {
+                    addressInput.value = '';
+                });
+        }
+
         function captureLocation() {
             if (!navigator.geolocation) {
+                ensureLocationMap();
                 showAlert('<i class="fas fa-map-marker-alt text-warning"></i>', translations[lang].location_title_unavailable, translations[lang].location_body_unavailable);
                 return;
             }
 
             navigator.geolocation.getCurrentPosition((pos) => {
-                document.getElementById('latVal').value = pos.coords.latitude;
-                document.getElementById('lngVal').value = pos.coords.longitude;
+                setServiceLocation(pos.coords.latitude, pos.coords.longitude, true);
                 showAlert('<i class="fas fa-check-circle text-success"></i>', translations[lang].location_title_saved, translations[lang].location_body_saved);
             }, () => {
+                ensureLocationMap();
                 showAlert('<i class="fas fa-map-marker-alt text-warning"></i>', translations[lang].location_title_failed, translations[lang].location_body_failed);
             });
         }
@@ -797,7 +931,10 @@ $csrf_token = generate_csrf_token();
             params.append('use_plan', document.getElementById('usePlanSwitch')?.checked ? '1' : '0');
             params.append('latitude', document.getElementById('latVal').value);
             params.append('longitude', document.getElementById('lngVal').value);
-            params.append('address_details', document.getElementById('addressDetails').value);
+            const streetInputValue = document.getElementById('detectedAddress').value.trim();
+            const streetName = streetInputValue === translations[lang].searching_address ? '' : streetInputValue;
+            const addressNotes = document.getElementById('addressDetails').value.trim();
+            params.append('address_details', [streetName, addressNotes].filter(Boolean).join('\n'));
 
             fetch(window.location.href, {
                     method: 'POST',
