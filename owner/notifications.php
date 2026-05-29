@@ -23,6 +23,19 @@ if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     exit;
 }
 
+if (isset($_GET['read_all'])) {
+    $stmtReadAll = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0");
+    $stmtReadAll->bind_param("i", $owner_id);
+    $stmtReadAll->execute();
+    header("Location: notifications.php");
+    exit;
+}
+
+$unreadStmt = $conn->prepare("SELECT COUNT(*) AS unread FROM notifications WHERE user_id = ? AND is_read = 0");
+$unreadStmt->bind_param("i", $owner_id);
+$unreadStmt->execute();
+$unread_count = (int) ($unreadStmt->get_result()->fetch_assoc()['unread'] ?? 0);
+
 
 $query = "SELECT n.id, n.title, n.body as message, n.type, n.is_read, n.created_at, s.Name AS station_name
     FROM notifications n
@@ -79,6 +92,7 @@ $notifications = $stmt->get_result();
         [dir="ltr"] .notif-card.unread { border-left: 5px solid var(--accent); background: rgba(96, 165, 250, 0.05); }
         
         .btn-ctrl { width: 35px; height: 35px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); color: white; border: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-read-all { border-radius: 999px; font-size: .82rem; font-weight: 900; padding: 8px 14px; }
         .empty-state { background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 24px; padding: 48px 20px; color: var(--text-muted); }
         .modal-content { border-radius: 30px; background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); }
 
@@ -120,12 +134,16 @@ $notifications = $stmt->get_result();
 
     <div class="content-area">
         <div class="orders-header">
-            <div class="container d-flex justify-content-between align-items-center">
+            <div class="container d-flex justify-content-between align-items-center gap-2">
                 <a href="owner-dashboard.php" class="circle-back-btn shadow-sm">
                     <i class="fas fa-arrow-right" id="backIcon"></i>
                 </a>
                 <h6 class="mb-0 fw-bold" data-i18n="notifications_title">تنبيهات النظام</h6>
-                <div style="width: 40px;"></div>
+                <?php if ($unread_count > 0): ?>
+                    <a href="?read_all=1" class="btn btn-primary btn-read-all shadow-sm" data-i18n="btn_read_all">قراءة الكل</a>
+                <?php else: ?>
+                    <div style="width: 40px;"></div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -180,12 +198,12 @@ $notifications = $stmt->get_result();
         ar: {
             nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_notifications: "الإشعارات", nav_logout: "خروج", 
             notifications_title: "تنبيهات النظام", no_notifications: "لا توجد إشعارات حالياً", no_notifications_hint: "ستظهر إشعارات الطلبات والتقييمات هنا.",
-            logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", notifications_title_page: "مركز الإشعارات | Clevo"
+            logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", btn_read_all: "قراءة الكل", notifications_title_page: "مركز الإشعارات | Clevo"
         },
         en: {
             nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_notifications: "Notifications", nav_logout: "Logout", 
             notifications_title: "System Notifications", no_notifications: "No notifications right now", no_notifications_hint: "Order and review notifications will appear here.",
-            logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", notifications_title_page: "Notifications | Clevo"
+            logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", btn_read_all: "Mark all read", notifications_title_page: "Notifications | Clevo"
         }
     };
 
@@ -229,6 +247,7 @@ $notifications = $stmt->get_result();
             const key = el.getAttribute('data-i18n');
             if (translations[lang][key]) el.innerText = translations[lang][key];
         });
+        document.title = translations[lang].notifications_title_page;
         if(!isRtl) document.getElementById('backIcon').className = "fas fa-arrow-left";
         document.getElementById('langBtnText').innerText = isRtl ? 'EN' : 'AR';
         document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';

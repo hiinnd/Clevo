@@ -24,24 +24,61 @@ if (isset($_GET['change_status'])) {
 
 
 $today = date('Y-m-d');
-$today_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Booking_Date = '$today' AND s.UserID = '$owner_id'");
-$today_count = mysqli_fetch_assoc($today_res)['total'];
+$today_stmt = $conn->prepare("SELECT COUNT(*) AS total
+    FROM booking b
+    JOIN stations s ON b.StationID = s.StationID
+    WHERE b.Booking_Date = ? AND s.UserID = ?");
+$today_stmt->bind_param("si", $today, $owner_id);
+$today_stmt->execute();
+$today_count = (int) ($today_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
 
-$active_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning') AND s.UserID = '$owner_id'");
-$active_count = mysqli_fetch_assoc($active_res)['total'];
+$active_stmt = $conn->prepare("SELECT COUNT(*) AS total
+    FROM booking b
+    JOIN stations s ON b.StationID = s.StationID
+    WHERE b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning') AND s.UserID = ?");
+$active_stmt->bind_param("i", $owner_id);
+$active_stmt->execute();
+$active_count = (int) ($active_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
 
-$earnings_res = mysqli_query($conn, "SELECT SUM(b.Total_Price) as total FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.Booking_Date = '$today' AND b.Status = 'Completed' AND s.UserID = '$owner_id'");
-$today_earnings = mysqli_fetch_assoc($earnings_res)['total'] ?? 0;
+$earnings_stmt = $conn->prepare("SELECT COALESCE(SUM(GREATEST(b.Total_Price - COALESCE(b.Admin_Commission, 0), 0)), 0) AS total
+    FROM booking b
+    JOIN stations s ON b.StationID = s.StationID
+    WHERE b.Booking_Date = ? AND b.Status = 'Completed' AND s.UserID = ?");
+$earnings_stmt->bind_param("si", $today, $owner_id);
+$earnings_stmt->execute();
+$today_earnings = (float) ($earnings_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
 
-$notif_count_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM notifications WHERE user_id = '$owner_id' AND is_read = 0");
-$unread_count = mysqli_fetch_assoc($notif_count_res)['total'] ?? 0;
+$notif_count_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM notifications WHERE user_id = ? AND is_read = 0");
+$notif_count_stmt->bind_param("i", $owner_id);
+$notif_count_stmt->execute();
+$unread_count = (int) ($notif_count_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
 
-$recent_orders = mysqli_query($conn, "SELECT b.*, u.UserName FROM booking b JOIN user u ON b.UserID = u.UserID JOIN stations s ON b.StationID = s.StationID WHERE s.UserID = '$owner_id' ORDER BY b.created_at DESC LIMIT 5");
-$recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FROM reviews r JOIN booking b ON r.BookingID = b.BookingID JOIN stations s ON b.StationID = s.StationID JOIN user u ON b.UserID = u.UserID WHERE s.UserID = '$owner_id' ORDER BY r.ReviewID DESC LIMIT 2");
+$recent_orders_stmt = $conn->prepare("SELECT b.*, u.UserName
+    FROM booking b
+    JOIN user u ON b.UserID = u.UserID
+    JOIN stations s ON b.StationID = s.StationID
+    WHERE s.UserID = ?
+    ORDER BY b.created_at DESC
+    LIMIT 5");
+$recent_orders_stmt->bind_param("i", $owner_id);
+$recent_orders_stmt->execute();
+$recent_orders = $recent_orders_stmt->get_result();
+
+$recent_reviews_stmt = $conn->prepare("SELECT r.Rating, r.Comment, u.UserName
+    FROM reviews r
+    JOIN booking b ON r.BookingID = b.BookingID
+    JOIN stations s ON b.StationID = s.StationID
+    JOIN user u ON b.UserID = u.UserID
+    WHERE s.UserID = ?
+    ORDER BY r.ReviewID DESC
+    LIMIT 2");
+$recent_reviews_stmt->bind_param("i", $owner_id);
+$recent_reviews_stmt->execute();
+$recent_reviews = $recent_reviews_stmt->get_result();
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -208,8 +245,10 @@ $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FR
                             </a>
 
                             <?php
-                            $st_res = mysqli_query($conn, "SELECT Status FROM stations WHERE UserID = $owner_id");
-                            $st_data = mysqli_fetch_assoc($st_res);
+                            $st_stmt = $conn->prepare("SELECT Status FROM stations WHERE UserID = ? LIMIT 1");
+                            $st_stmt->bind_param("i", $owner_id);
+                            $st_stmt->execute();
+                            $st_data = $st_stmt->get_result()->fetch_assoc();
                             $status = $st_data['Status'] ?? 'Active';
                             ?>
                             <div class="dropdown">
@@ -282,7 +321,7 @@ $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FR
                                                         if ($row['Status'] == 'In Progress') $status_class = "bg-info text-white";
                                                         if ($row['Status'] == 'Completed') $status_class = "bg-success";
                                                         ?>
-                                                        <span class="badge <?php echo $status_class; ?> px-3 py-2 rounded-pill"><?php echo $row['Status']; ?></span>
+                                                        <span class="badge <?php echo $status_class; ?> px-3 py-2 rounded-pill" data-status-value="<?= e($row['Status']) ?>"><?php echo e($row['Status']); ?></span>
                                                     </td>
                                                     <td><small class="opacity-75"><?php echo $row['Booking_Date']; ?></small></td>
                                                 </tr>
@@ -340,10 +379,10 @@ $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FR
     <script>
         const translations = {
             ar: {
-                owner_dash_title: "لوحة تحكم المالك | Clevo", nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", welcome_back_owner: "مرحباً بك يا", today_orders: "طلبات اليوم", your_earnings: "أرباح اليوم (JOD)", recent_orders: "آخر الطلبات", th_customer: "العميل", th_service: "المبلغ", th_status: "الحالة", th_action: "التاريخ", view_all: "عرض الكل", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", active_orders_label: "نشط حالياً", status_active: "نظام نشط", status_busy: "مشغول حالياً", status_closed: "مغلق حالياً", status_label_active: "نشط", status_label_busy: "مشغول", status_label_closed: "مغلق", nav_notifications: "الإشعارات", no_reviews_yet: "لا توجد تقييمات بعد"
+                owner_dash_title: "لوحة تحكم المالك | Clevo", nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", welcome_back_owner: "مرحباً بك يا", today_orders: "طلبات اليوم", your_earnings: "أرباح اليوم (JOD)", recent_orders: "آخر الطلبات", th_customer: "العميل", th_service: "المبلغ", th_status: "الحالة", th_action: "التاريخ", view_all: "عرض الكل", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", active_orders_label: "نشط حالياً", status_active: "نظام نشط", status_busy: "مشغول حالياً", status_closed: "مغلق حالياً", status_label_active: "نشط", status_label_busy: "مشغول", status_label_closed: "مغلق", nav_notifications: "الإشعارات", no_reviews_yet: "لا توجد تقييمات بعد", booking_pending: "قيد الانتظار", booking_accepted: "مقبول", booking_arrived: "وصل السائق", booking_in_progress: "قيد التنفيذ", booking_pickup: "قيد الاستلام", booking_washing: "قيد الغسيل", booking_returning: "قيد الإرجاع", booking_completed: "مكتمل"
             },
             en: {
-                owner_dash_title: "Owner Dashboard | Clevo", nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", welcome_back_owner: "Welcome back,", today_orders: "Today Orders", your_earnings: "Today Profit (JOD)", recent_orders: "Recent Orders", th_customer: "Customer", th_service: "Amount", th_status: "Status", th_action: "Date", view_all: "View All", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", active_orders_label: "Live Tasks", status_active: "System Active", status_busy: "Busy Now", status_closed: "Closed Now", status_label_active: "Active", status_label_busy: "Busy", status_label_closed: "Closed", nav_notifications: "Notifications", no_reviews_yet: "No reviews found"
+                owner_dash_title: "Owner Dashboard | Clevo", nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", welcome_back_owner: "Welcome back,", today_orders: "Today Orders", your_earnings: "Today Profit (JOD)", recent_orders: "Recent Orders", th_customer: "Customer", th_service: "Amount", th_status: "Status", th_action: "Date", view_all: "View All", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", active_orders_label: "Live Tasks", status_active: "System Active", status_busy: "Busy Now", status_closed: "Closed Now", status_label_active: "Active", status_label_busy: "Busy", status_label_closed: "Closed", nav_notifications: "Notifications", no_reviews_yet: "No reviews found", booking_pending: "Pending", booking_accepted: "Accepted", booking_arrived: "Driver arrived", booking_in_progress: "In progress", booking_pickup: "Pickup", booking_washing: "Washing", booking_returning: "Returning", booking_completed: "Completed"
             }
         };
 
@@ -388,6 +427,7 @@ $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FR
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
+            document.title = translations[lang].owner_dash_title;
 
             if (!isRtl && document.getElementById('backIcon')) document.getElementById('backIcon').className = "fas fa-arrow-left";
             document.getElementById('langBtnText').innerText = isRtl ? 'EN' : 'AR';
@@ -420,6 +460,21 @@ $recent_reviews = mysqli_query($conn, "SELECT r.Rating, r.Comment, u.UserName FR
             document.getElementById('opt-active').innerHTML = '🟢 ' + translations[lang]['status_label_active'];
             document.getElementById('opt-busy').innerHTML = '🟡 ' + translations[lang]['status_label_busy'];
             document.getElementById('opt-closed').innerHTML = '🔴 ' + translations[lang]['status_label_closed'];
+
+            const statusMap = {
+                Pending: 'booking_pending',
+                Accepted: 'booking_accepted',
+                Arrived: 'booking_arrived',
+                'In Progress': 'booking_in_progress',
+                Pickup: 'booking_pickup',
+                Washing: 'booking_washing',
+                Returning: 'booking_returning',
+                Completed: 'booking_completed'
+            };
+            document.querySelectorAll('[data-status-value]').forEach(el => {
+                const key = statusMap[el.getAttribute('data-status-value')];
+                if (key && translations[lang][key]) el.innerText = translations[lang][key];
+            });
 
             // تفعيل الترجمة التبادلية الحية لأسماء العملاء والتعليقات في جدول العرض لو السيستم إنجليزي
             if (lang === 'en') {

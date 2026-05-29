@@ -77,6 +77,11 @@ if (
         .worker-card { background: var(--card-bg); border-radius: 18px; padding: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border-color); }
         .top-nav { position: absolute; top: 20px; width: 100%; padding: 0 20px; z-index: 1000; display: flex; justify-content: space-between; align-items: center; }
         .circle-btn { background: var(--bg-panel); width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-main); text-decoration: none; }
+        .live-info-stack { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); width: min(92vw, 430px); z-index: 950; display: grid; gap: 8px; }
+        .live-mini-card { background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 18px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 8px 22px rgba(0,0,0,.16); backdrop-filter: blur(15px); }
+        .live-mini-icon { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; }
+        .live-mini-title { font-size: .82rem; font-weight: 900; margin: 0; }
+        .live-mini-sub { font-size: .72rem; color: var(--text-muted); margin: 0; font-weight: 700; }
         .map-legend { position: absolute; left: 14px; bottom: 245px; z-index: 900; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 16px; padding: 10px 12px; box-shadow: 0 8px 22px rgba(0,0,0,.18); font-size: .78rem; }
         [dir="rtl"] .map-legend { left: auto; right: 14px; }
         .legend-row { display: flex; align-items: center; gap: 8px; white-space: nowrap; margin-bottom: 5px; }
@@ -87,6 +92,10 @@ if (
             position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
             background: #22c55e; color: white; padding: 10px 25px; border-radius: 50px;
             font-weight: bold; z-index: 2000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        @media (max-height: 680px) {
+            .live-info-stack { position: fixed; top: 68px; }
+            .live-mini-card { padding: 8px 10px; }
         }
     </style>
 </head>
@@ -109,6 +118,34 @@ if (
         </a>
         <div class="badge bg-danger rounded-pill px-3 py-2 shadow d-flex align-items-center gap-2">
             <span data-i18n="live_label">تتبع مباشر</span> <i class="fas fa-circle small fa-beat"></i>
+        </div>
+    </div>
+
+    <div class="live-info-stack">
+        <div class="live-mini-card">
+            <div class="d-flex align-items-center min-w-0">
+                <img src="<?= e(clevoProfileImageUrl($order['driver_pic'] ?? '', $order['driver_name'] ?? 'Driver')) ?>" class="rounded-circle live-mini-icon" style="object-fit: cover;">
+                <div class="mx-2 text-start min-w-0">
+                    <p class="live-mini-title text-truncate"><?= e($order['driver_name'] ?? '-') ?></p>
+                    <p class="live-mini-sub" data-i18n="captain_title">كابتن Clevo المعتمد</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="tel:<?= e($order['driver_phone'] ?? '') ?>" class="btn btn-sm btn-primary rounded-pill"><i class="fas fa-phone"></i></a>
+                <a href="https://wa.me/<?= e($order['driver_phone'] ?? '') ?>" class="btn btn-sm btn-success rounded-pill"><i class="fab fa-whatsapp"></i></a>
+            </div>
+        </div>
+        <div class="live-mini-card">
+            <div class="d-flex align-items-center min-w-0">
+                <span class="live-mini-icon bg-success-subtle text-success"><i class="fas fa-store"></i></span>
+                <div class="mx-2 text-start min-w-0">
+                    <p class="live-mini-title text-truncate"><?= e($order['station_name'] ?? '-') ?></p>
+                    <p class="live-mini-sub text-truncate"><?= e($order['station_location'] ?? '') ?></p>
+                </div>
+            </div>
+            <?php if ($order['station_lat'] !== null && $order['station_lon'] !== null): ?>
+                <a href="https://www.google.com/maps?q=<?= e($order['station_lat']) ?>,<?= e($order['station_lon']) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success rounded-pill"><i class="fas fa-map-location-dot"></i></a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -146,20 +183,6 @@ if (
 
         <div id="status-alert" class="alert alert-primary py-2 small mb-3 fw-bold shadow-sm">جاري جلب موقع السائق...</div>
 
-        <!-- بطاقة بيانات السائق -->
-        <div class="worker-card mb-2">
-            <div class="d-flex align-items-center">
-                <img src="<?= e(clevoProfileImageUrl($order['driver_pic'] ?? '', $order['driver_name'] ?? 'Driver')) ?>" class="rounded-circle" style="width: 45px; height: 45px; object-fit: cover;">
-                <div class="mx-2 text-start">
-                    <h6 class="mb-0 small fw-bold"><?= e($order['driver_name'] ?? '-') ?></h6>
-                    <small class="text-muted fw-bold" data-i18n="captain_title">كابتن Clevo المعتمد</small>
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="tel:<?= e($order['driver_phone'] ?? '') ?>" class="btn btn-sm btn-primary rounded-pill"><i class="fas fa-phone"></i></a>
-                <a href="https://wa.me/<?= e($order['driver_phone'] ?? '') ?>" class="btn btn-sm btn-success rounded-pill"><i class="fab fa-whatsapp"></i></a>
-            </div>
-        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

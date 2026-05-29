@@ -337,7 +337,16 @@ $csrf_token = generate_csrf_token();
                             <div class="row align-items-center text-start">
                                 <div class="col-md-8">
                                     <h6 class="mb-1"><span data-i18n="customer_label">الزبون:</span> <span><?= e($order['customer_name']) ?></span> <span class="small text-primary">#<?= e($order['Order_Number']) ?></span></h6>
-                                    <p class="mb-0 small opacity-75"><?= $order['Status'] == 'Accepted' ? 'جاري التنفيذ' . ($order['driver_name'] ? ' بواسطة: ' . e($order['driver_name']) : '') : 'بانتظار قبول الطلب' ?></p>
+                                    <p class="mb-0 small opacity-75">
+                                        <?php if ($order['Status'] === 'Accepted'): ?>
+                                            <span data-i18n="status_in_progress">جاري التنفيذ</span>
+                                            <?php if ($order['driver_name']): ?>
+                                                <span data-i18n="by_driver">بواسطة:</span> <?= e($order['driver_name']) ?>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span data-i18n="status_waiting_accept">بانتظار قبول الطلب</span>
+                                        <?php endif; ?>
+                                    </p>
                                     <p class="mb-0 small fw-bold"><i class="fas fa-soap me-1"></i><?= e($order['service_name']) ?> | <?= e($order['Booking_Date']) ?> <?= date('h:i A', strtotime($order['Booking_Time'])) ?></p>
                                     <p class="mb-0 small opacity-75">
                                         <i class="fas fa-phone me-1"></i><?= e($order['customer_phone']) ?>
@@ -353,17 +362,17 @@ $csrf_token = generate_csrf_token();
                                     <?php if($order['Service_Location'] != 'station'): ?>
                                         <p class="mb-0 small text-danger fw-bold"><i class="fas fa-location-dot me-1"></i><?= htmlspecialchars($order['Address_Details'] ?: 'تم إرسال موقع على الخريطة') ?></p>
                                         <?php if($order['Latitude'] && $order['Longitude']): ?>
-                                            <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Latitude']) ?>,<?= e($order['Longitude']) ?>">فتح الموقع على الخريطة</a>
+                                            <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Latitude']) ?>,<?= e($order['Longitude']) ?>" data-i18n="open_map">فتح الموقع على الخريطة</a>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                     <?php if($order['Status'] == 'Accepted'): ?>
-                                        <p class="mb-0 small text-success fw-bold"><i class="fas fa-key me-1"></i> كود السائق: <?= e($order['d_code']) ?></p>
+                                        <p class="mb-0 small text-success fw-bold"><i class="fas fa-key me-1"></i> <span data-i18n="driver_code">كود السائق:</span> <?= e($order['d_code']) ?></p>
                                     <?php endif; ?>
                                     <?php if(!empty($order['Driver_Lat']) && !empty($order['Driver_Lon'])): ?>
-                                        <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Driver_Lat']) ?>,<?= e($order['Driver_Lon']) ?>">Driver live location</a>
+                                        <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Driver_Lat']) ?>,<?= e($order['Driver_Lon']) ?>" data-i18n="driver_live_location">موقع السائق المباشر</a>
                                     <?php endif; ?>
                                     <?php if($order['Service_Location'] === 'delivery' && !empty($order['DriverID'])): ?>
-                                        <a class="small fw-bold text-decoration-none d-block" href="../user/live-tracking.php?id=<?= (int)$order['BookingID'] ?>">فتح التتبع المباشر</a>
+                                        <a class="small fw-bold text-decoration-none d-block" href="../user/live-tracking.php?id=<?= (int)$order['BookingID'] ?>" data-i18n="open_live_tracking">فتح التتبع المباشر</a>
                                     <?php endif; ?>
                                     <p class="mb-0 small text-primary fw-bold mt-1"><span data-i18n="amount_label">المبلغ:</span> <?= e(number_format((float) $order['Total_Price'], 2)) ?> JOD</p>
                                 </div>
@@ -383,7 +392,7 @@ $csrf_token = generate_csrf_token();
                                         <?php elseif(in_array($order['Service_Location'], ['station','home']) && in_array($order['Status'], ['Accepted','In Progress'])): ?>
                                             <button class="btn btn-success btn-action shadow-sm" onclick="completeOrder(<?= (int) $order['BookingID'] ?>, this)" data-i18n="btn_complete">إنهاء الطلب</button>
                                         <?php else: ?>
-                                            <button class="btn btn-primary btn-action shadow-sm" disabled>تم القبول</button>
+                                            <button class="btn btn-primary btn-action shadow-sm" disabled data-i18n="btn_accepted">تم القبول</button>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
@@ -456,10 +465,10 @@ $csrf_token = generate_csrf_token();
     <script>
         const translations = {
             ar: { 
-                nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", header_title_orders: "طلبات الزبائن الواردة", home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", customer_label: "الزبون:", amount_label: "المبلغ:", payment_label: "دفع:", payment_plan: "من الباقة", btn_assign_driver: "قبول وتعيين", btn_accept: "قبول", btn_complete: "إنهاء الطلب", btn_wait_payment: "بانتظار الدفع", btn_reject: "رفض", modal_assign_title: "اختيار سائق للمهمة", btn_cancel: "إلغاء", btn_ok: "موافق", no_orders: "لا يوجد حجوزات حالياً", no_orders_hint: "ستظهر الطلبات الجديدة هنا فور وصولها.", reject_confirm_title: "تأكيد الرفض", reject_confirm_body: "هل أنت متأكد من رفض الطلب؟", loading_text: "جاري المعالجة...", error_title: "تعذر تنفيذ الطلب", error_body: "حاول مرة أخرى بعد قليل.", no_drivers: "لا يوجد سائقين نشطين حالياً", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", nav_notifications: "الإشعارات"
+                orders_page_title: "الطلبات الواردة | Clevo", nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", header_title_orders: "طلبات الزبائن الواردة", home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", customer_label: "الزبون:", amount_label: "المبلغ:", payment_label: "دفع:", payment_plan: "من الباقة", btn_assign_driver: "قبول وتعيين", btn_accept: "قبول", btn_complete: "إنهاء الطلب", btn_wait_payment: "بانتظار الدفع", btn_reject: "رفض", modal_assign_title: "اختيار سائق للمهمة", btn_cancel: "إلغاء", btn_ok: "موافق", no_orders: "لا يوجد حجوزات حالياً", no_orders_hint: "ستظهر الطلبات الجديدة هنا فور وصولها.", reject_confirm_title: "تأكيد الرفض", reject_confirm_body: "هل أنت متأكد من رفض الطلب؟", loading_text: "جاري المعالجة...", error_title: "تعذر تنفيذ الطلب", error_body: "حاول مرة أخرى بعد قليل.", no_drivers: "لا يوجد سائقين نشطين حالياً", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", nav_notifications: "الإشعارات", status_in_progress: "جاري التنفيذ", by_driver: "بواسطة:", status_waiting_accept: "بانتظار قبول الطلب", open_map: "فتح الموقع على الخريطة", driver_code: "كود السائق:", driver_live_location: "موقع السائق المباشر", open_live_tracking: "فتح التتبع المباشر", btn_accepted: "تم القبول"
             },
             en: { 
-                nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", header_title_orders: "Customer Requests", home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", customer_label: "Customer:", amount_label: "Amount:", payment_label: "Payment:", payment_plan: "From plan", btn_assign_driver: "Accept & Assign", btn_accept: "Accept", btn_complete: "Complete Order", btn_wait_payment: "Waiting for payment", btn_reject: "Reject", modal_assign_title: "Select Driver", btn_cancel: "Cancel", btn_ok: "OK", no_orders: "No bookings right now", no_orders_hint: "New customer requests will appear here.", reject_confirm_title: "Confirm Rejection", reject_confirm_body: "Are you sure you want to reject this order?", loading_text: "Processing...", error_title: "Action failed", error_body: "Please try again shortly.", no_drivers: "No active drivers right now", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", nav_notifications: "Notifications"
+                orders_page_title: "Incoming Orders | Clevo", nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", header_title_orders: "Customer Requests", home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", customer_label: "Customer:", amount_label: "Amount:", payment_label: "Payment:", payment_plan: "From plan", btn_assign_driver: "Accept & Assign", btn_accept: "Accept", btn_complete: "Complete Order", btn_wait_payment: "Waiting for payment", btn_reject: "Reject", modal_assign_title: "Select Driver", btn_cancel: "Cancel", btn_ok: "OK", no_orders: "No bookings right now", no_orders_hint: "New customer requests will appear here.", reject_confirm_title: "Confirm Rejection", reject_confirm_body: "Are you sure you want to reject this order?", loading_text: "Processing...", error_title: "Action failed", error_body: "Please try again shortly.", no_drivers: "No active drivers right now", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", nav_notifications: "Notifications", status_in_progress: "In progress", by_driver: "by:", status_waiting_accept: "Waiting for acceptance", open_map: "Open location on map", driver_code: "Driver code:", driver_live_location: "Driver live location", open_live_tracking: "Open live tracking", btn_accepted: "Accepted"
             }
         };
 
@@ -513,7 +522,7 @@ $csrf_token = generate_csrf_token();
 
         function openAssignModal(orderId, orderNum, btn) {
             const container = document.getElementById('driversListContainer');
-            container.innerHTML = '<p class="text-center small opacity-50">جاري التحميل...</p>';
+            container.innerHTML = `<p class="text-center small opacity-50">${t('loading_text')}</p>`;
             const params = new URLSearchParams();
             params.append('action', 'fetch_drivers_list');
             withLoading(btn, () => postAction(params)).then(response => {
@@ -586,6 +595,7 @@ $csrf_token = generate_csrf_token();
             document.getElementById('bootstrap-css').href = isRtl ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
             
             document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if(translations[lang][key]) el.innerText = translations[lang][key]; });
+            document.title = translations[lang].orders_page_title;
             if(!isRtl) document.getElementById('backIcon').className = "fas fa-arrow-left";
             document.getElementById('langBtnText').innerText = isRtl ? 'EN' : 'AR';
             document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';

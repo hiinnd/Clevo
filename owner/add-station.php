@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
                     <button type="button" class="btn btn-primary rounded-pill fw-bold" onclick="useCurrentLocation()">
                         <i class="fas fa-location-crosshairs"></i>
                     </button>
-                    <button type="button" class="btn btn-success rounded-pill fw-bold flex-fill" onclick="confirmMapLocation()">تأكيد الموقع الحالي</button>
+                    <button type="button" class="btn btn-success rounded-pill fw-bold flex-fill" onclick="confirmMapLocation()" data-i18n="confirm_location_btn">تأكيد الموقع الحالي</button>
                     <button type="button" class="btn btn-light border rounded-pill fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </div>
             </div>
@@ -237,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_notifications: "الإشعارات", nav_logout: "خروج",
                 add_st_title: "إعداد بيانات المغسلة", label_name: "اسم المغسلة التجاري", label_location: "الموقع الجغرافي", label_open_time: "من ساعة", label_close_time: "إلى ساعة", label_image: "صورة الواجهة", save_btn: "حفظ البيانات ونشر المغسلة",
                 placeholder_name: "أدخل اسم المغسلة هنا", placeholder_location: "اضغط لاختيار وتأكيد موقعك على الخريطة", status_active_now: "نشط الآن", status_closed_now: "مغلق الآن",
-                map_help: "حرّك العلامة أو اضغط على الخريطة لتعديل موقع المحطة.", locating: "جاري تحديد موقعك...", location_fallback: "تم تحديد الموقع الجغرافي بنجاح",
+                map_help: "حرّك العلامة أو اضغط على الخريطة لتعديل موقع المحطة.", confirm_location_btn: "تأكيد الموقع الحالي", locating: "جاري تحديد موقعك...", location_fallback: "تم تحديد الموقع الجغرافي بنجاح",
                 location_denied: "لم يتم السماح بالموقع، حرّك العلامة يدوياً على الخريطة.",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", success_t: "تم بنجاح", success_b: "تم حفظ بيانات المغسلة."
             },
@@ -245,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_notifications: "Notifications", nav_logout: "Logout",
                 add_st_title: "Station Setup", label_name: "Station Name", label_location: "Location", label_open_time: "Open", label_close_time: "Close", label_image: "Cover Image", save_btn: "Save & Publish",
                 placeholder_name: "Enter station name", placeholder_location: "Click to select and confirm your map location", status_active_now: "Active Now", status_closed_now: "Closed Now",
-                map_help: "Move the pin or tap the map to adjust the station location.", locating: "Getting your location...", location_fallback: "Location selected successfully",
+                map_help: "Move the pin or tap the map to adjust the station location.", confirm_location_btn: "Confirm current location", locating: "Getting your location...", location_fallback: "Location selected successfully",
                 location_denied: "Location was not allowed. Move the pin manually on the map.",
                 logout_title: "Logout Confirmation", logout_msg: "Confirm logout?", btn_confirm_logout: "Yes", btn_cancel: "Cancel", success_t: "Success", success_b: "Data saved."
             }
@@ -353,11 +353,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (translations[lang][key]) {
-                    if (key.includes('[placeholder]')) el.placeholder = translations[lang][key.replace('[placeholder]', '')];
-                    else el.innerText = translations[lang][key];
+                if (key.includes('[placeholder]')) {
+                    const cleanKey = key.replace('[placeholder]', '');
+                    if (translations[lang][cleanKey]) el.placeholder = translations[lang][cleanKey];
+                } else if (translations[lang][key]) {
+                    el.innerText = translations[lang][key];
                 }
             });
+            document.title = translations[lang].add_st_page_title + ' | Clevo';
             if(lang === 'en') document.getElementById('backIcon').className = "fas fa-arrow-left";
             document.getElementById('langBtnText').innerText = lang === 'ar' ? 'EN' : 'AR';
             document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
