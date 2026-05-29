@@ -404,6 +404,42 @@ $csrf_token = generate_csrf_token();
             padding: 10px 12px;
             border: 1px solid var(--border);
         }
+
+        .form-switch .form-check-input {
+            width: 4rem !important;
+            height: 2rem !important;
+            border: none !important;
+            cursor: pointer;
+
+            background-image: none !important;
+            background-color: #93c5fd !important;
+            border-radius: 999px !important;
+            position: relative;
+        }
+
+        .form-switch .form-check-input::before {
+            content: "";
+            position: absolute;
+            width: 1.4rem;
+            height: 1.4rem;
+            background: #fff;
+            border-radius: 50%;
+            top: 0.3rem;
+            left: 0.3rem;
+            transition: .3s;
+        }
+
+        .form-switch .form-check-input:checked {
+            background-color: #1e3a8a !important;
+        }
+
+        .form-switch .form-check-input:checked::before {
+            transform: translateX(2rem);
+        }
+
+        .form-switch .form-check-input:focus {
+            box-shadow: none !important;
+        }
     </style>
 </head>
 

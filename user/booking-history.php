@@ -60,6 +60,7 @@ $csrf_token = generate_csrf_token();
 
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -68,69 +69,201 @@ $csrf_token = generate_csrf_token();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
+        :root {
             --main-bg: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
             --glass: rgba(255, 255, 255, 0.7);
-            --text: #0369a1; --accent: #0ea5e9; --border: rgba(255, 255, 255, 0.1);
+            --text: #0369a1;
+            --accent: #0ea5e9;
+            --border: rgba(255, 255, 255, 0.1);
             --card-text-main: #0369a1;
             --modal-bg: #ffffff;
             --input-bg: #ffffff;
         }
-        [data-theme="dark"] { 
+
+        [data-theme="dark"] {
             --main-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             --glass: rgba(30, 41, 59, 0.5);
-            --text: #f1f5f9; --accent: #38bdf8; --border: rgba(255, 255, 255, 0.05);
+            --text: #f1f5f9;
+            --accent: #38bdf8;
+            --border: rgba(255, 255, 255, 0.05);
             --card-text-main: #f1f5f9;
             --modal-bg: #1e293b;
             --input-bg: #334155;
         }
-        
-        body { font-family: 'Cairo', sans-serif; background: var(--main-bg); color: var(--text); min-height: 100vh; transition: 0.5s; margin: 0; padding-bottom: 40px; }
-        .glass { background: var(--glass); backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 25px; }
 
-        .history-header { 
-            padding: 20px; display: flex; align-items: center; justify-content: space-between; 
-            position: relative; height: 140px; border-radius: 0 0 40px 40px; 
-            background: linear-gradient(135deg, var(--accent), #0284c7); margin-bottom: 30px; 
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--main-bg);
+            color: var(--text);
+            min-height: 100vh;
+            transition: 0.5s;
+            margin: 0;
+            padding-bottom: 40px;
         }
-        
-        .back-circle-btn { 
-            width: 40px; height: 40px; border-radius: 50%; display: flex; 
-            align-items: center; justify-content: center; text-decoration: none; 
-            background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; z-index: 10;
+
+        .glass {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border);
+            border-radius: 25px;
         }
-        .spacer-div { width: 40px; }
-        [dir="rtl"] .back-circle-btn { order: 1 ; } 
-        [dir="rtl"] .spacer-div { order: 3; }
-        [dir="ltr"] .back-circle-btn { order: 1; }
-        [dir="ltr"] .spacer-div { order: 3; }
-        [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        h4.fw-black { order: 2; flex-grow: 1; text-align: center; color: white !important; margin: 0; font-weight: 900; }
+        .history-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            height: 140px;
+            border-radius: 0 0 40px 40px;
+            background: linear-gradient(135deg, var(--accent), #0284c7);
+            margin-bottom: 30px;
+        }
 
-        .filter-container { padding: 0 15px; margin-bottom: 20px; display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; }
-        .filter-btn { background: var(--glass); border: 1px solid var(--border); color: var(--text); padding: 8px 20px; border-radius: 50px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; white-space: nowrap; }
-        .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); font-weight: 700; }
+        .back-circle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            transition: 0.3s;
+            z-index: 10;
+        }
 
-        .history-card { padding: 20px; margin-bottom: 12px; transition: 0.3s; border: 1px solid var(--border); color: var(--card-text-main); }
-        .history-card h6 { color: var(--card-text-main); }
-        .status-badge { font-size: 0.75rem; padding: 5px 15px; border-radius: 50px; font-weight: 700; display: inline-block; }
-        .price-tag { font-weight: 900; color: #22c55e; font-size: 1.1rem; }
+        .spacer-div {
+            width: 40px;
+        }
 
-        .btn-track { 
-            background: var(--accent); color: white; border: none; border-radius: 12px; 
-            padding: 8px 20px; font-size: 0.85rem; font-weight: 700; margin-top: 10px;
-            display: inline-flex; align-items: center; gap: 8px; transition: 0.3s;
+        [dir="rtl"] .back-circle-btn {
+            order: 1;
+        }
+
+        [dir="rtl"] .spacer-div {
+            order: 3;
+        }
+
+        [dir="ltr"] .back-circle-btn {
+            order: 1;
+        }
+
+        [dir="ltr"] .spacer-div {
+            order: 3;
+        }
+
+        [dir="ltr"] #backIcon {
+            transform: rotate(180deg);
+        }
+
+        h4.fw-black {
+            order: 2;
+            flex-grow: 1;
+            text-align: center;
+            color: white !important;
+            margin: 0;
+            font-weight: 900;
+        }
+
+        .filter-container {
+            padding: 0 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .filter-btn {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .filter-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            font-weight: 700;
+        }
+
+        .history-card {
+            padding: 20px;
+            margin-bottom: 12px;
+            transition: 0.3s;
+            border: 1px solid var(--border);
+            color: var(--card-text-main);
+        }
+
+        .history-card h6 {
+            color: var(--card-text-main);
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-weight: 700;
+            display: inline-block;
+            color: #000 !important;
+        }
+
+        .price-tag {
+            font-weight: 900;
+            color: #22c55e;
+            font-size: 1.1rem;
+        }
+
+        .btn-track {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 8px 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
             text-decoration: none;
         }
-        .btn-track:hover { background: #0284c7; color: white; transform: scale(1.05); }
+
+        .btn-track:hover {
+            background: #0284c7;
+            color: white;
+            transform: scale(1.05);
+        }
 
         /* Dark/Light Compatibility for Modal */
-        .modal-content { background-color: var(--modal-bg) !important; color: var(--card-text-main) !important; border: 1px solid var(--border); }
-        .modal-content textarea { background-color: var(--input-bg) !important; color: var(--card-text-main) !important; border: 1px solid var(--border); }
-        .modal-content textarea::placeholder { color: var(--card-text-main); opacity: 0.6; }
+        .modal-content {
+            background-color: var(--modal-bg) !important;
+            color: var(--card-text-main) !important;
+            border: 1px solid var(--border);
+        }
+
+        .modal-content textarea {
+            background-color: var(--input-bg) !important;
+            color: var(--card-text-main) !important;
+            border: 1px solid var(--border);
+        }
+
+        .modal-content textarea::placeholder {
+            color: var(--card-text-main);
+            opacity: 0.6;
+        }
     </style>
 </head>
+
 <body>
     <div class="history-header shadow">
         <div class="spacer-div"></div>
@@ -142,7 +275,7 @@ $csrf_token = generate_csrf_token();
 
     <div class="filter-container">
         <button class="filter-btn active" onclick="filterHistory('all', this)" data-i18n="filter_all"></button>
-        <button class="filter-btn" onclick="filterHistory('In Progress', this)" data-i18n="filter_ongoing"></button>
+        <button class="filter-btn" onclick="filterHistory('ongoing', this)" data-i18n="filter_ongoing"></button>
         <button class="filter-btn" onclick="filterHistory('Completed', this)" data-i18n="filter_completed"></button>
         <button class="filter-btn" onclick="filterHistory('Pending', this)" data-i18n="filter_pending"></button>
     </div>
@@ -150,7 +283,7 @@ $csrf_token = generate_csrf_token();
     <main class="container px-3">
         <div id="historyList">
             <?php if ($history->num_rows > 0): ?>
-                <?php while($row = $history->fetch_assoc()): ?>
+                <?php while ($row = $history->fetch_assoc()): ?>
                     <div class="glass history-card shadow-sm" data-status="<?= $row['Status'] ?>">
                         <div class="d-flex justify-content-between align-items-start">
                             <div style="flex: 1;">
@@ -159,16 +292,16 @@ $csrf_token = generate_csrf_token();
                                 <small class="opacity-75 d-block mb-2">
                                     <i class="far fa-calendar-alt me-1"></i> <?= $row['Booking_Date'] ?> | <?= $row['Booking_Time'] ?>
                                 </small>
-                                
+
                                 <a href="order-details.php?id=<?= $row['BookingID'] ?>" class="btn-track shadow-sm">
                                     <i class="fas fa-info-circle"></i> <span data-i18n="btn_details">تفاصيل الطلب</span>
                                 </a>
-                                <?php if($row['Service_Location'] === 'delivery' && !empty($row['DriverID']) && in_array($row['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'])): ?>
+                                <?php if ($row['Service_Location'] === 'delivery' && !empty($row['DriverID']) && in_array($row['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'])): ?>
                                     <a href="live-tracking.php?id=<?= $row['BookingID'] ?>" class="btn-track shadow-sm">
                                         <i class="fas fa-map-marker-alt"></i> <span data-i18n="btn_track">تتبع الآن</span>
                                     </a>
                                 <?php endif; ?>
-                                <?php if($row['Status'] == 'Completed'): ?>
+                                <?php if ($row['Status'] == 'Completed'): ?>
                                     <button type="button" class="btn-track shadow-sm" onclick="openRatingModal(<?= (int)$row['BookingID'] ?>)" style="border:0;">
                                         <i class="fas fa-star"></i> <span data-i18n="btn_rate">تقييم</span>
                                     </button>
@@ -179,13 +312,13 @@ $csrf_token = generate_csrf_token();
                             </div>
 
                             <div class="text-end">
-                                <?php 
-                                    $status = $row['Status'];
-                                    $badgeClass = 'bg-secondary';
-                                    if($status == 'Completed') $badgeClass = 'bg-success';
-                                    elseif($status == 'Pending') $badgeClass = 'bg-warning text-dark';
-                                    elseif($status == 'In Progress') $badgeClass = 'bg-info text-white';
-                                    elseif(in_array($status, ['Canceled', 'Cancelled', 'Cancelled_Timeout', 'Rejected'], true)) $badgeClass = 'bg-danger';
+                                <?php
+                                $status = $row['Status'];
+                                $badgeClass = 'bg-secondary';
+                                if ($status == 'Completed') $badgeClass = 'bg-success';
+                                elseif ($status == 'Pending') $badgeClass = 'bg-warning text-dark';
+                                elseif ($status == 'In Progress') $badgeClass = 'bg-info text-white';
+                                elseif (in_array($status, ['Canceled', 'Cancelled', 'Cancelled_Timeout', 'Rejected'], true)) $badgeClass = 'bg-danger';
                                 ?>
                                 <span class="status-badge <?= $badgeClass ?>"><?= $status ?></span>
                                 <div class="price-tag mt-2">
@@ -228,19 +361,37 @@ $csrf_token = generate_csrf_token();
         const translations = {
             ar: {
                 history_page_title: "سجل الحجوزات | Clevo",
-                history_title: "سجل الحجوزات", filter_all: "الكل", filter_completed: "مكتمل", 
-                filter_pending: "قيد الانتظار", filter_ongoing: "قيد التنفيذ", 
-                no_history: "لا يوجد حجوزات حالياً", btn_track: "تتبع الآن",
-                btn_details: "تفاصيل الطلب", btn_rate: "تقييم", btn_complaint: "أرسل شكوى",
-                rate_service: "تقييم الخدمة", rate_placeholder: "اكتب ملاحظتك...", btn_save_rate: "حفظ التقييم", paid_from_plan: "من الباقة"
+                history_title: "سجل الحجوزات",
+                filter_all: "الكل",
+                filter_completed: "مكتمل",
+                filter_pending: "قيد الانتظار",
+                filter_ongoing: "قيد التنفيذ",
+                no_history: "لا يوجد حجوزات حالياً",
+                btn_track: "تتبع الآن",
+                btn_details: "تفاصيل الطلب",
+                btn_rate: "تقييم",
+                btn_complaint: "أرسل شكوى",
+                rate_service: "تقييم الخدمة",
+                rate_placeholder: "اكتب ملاحظتك...",
+                btn_save_rate: "حفظ التقييم",
+                paid_from_plan: "من الباقة"
             },
             en: {
                 history_page_title: "Booking History | Clevo",
-                history_title: "Booking History", filter_all: "All", filter_completed: "Completed", 
-                filter_pending: "Pending", filter_ongoing: "Ongoing", 
-                no_history: "No bookings right now", btn_track: "Track Now",
-                btn_details: "Order Details", btn_rate: "Rate", btn_complaint: "Send Complaint",
-                rate_service: "Rate Service", rate_placeholder: "Write your comment...", btn_save_rate: "Save Rating", paid_from_plan: "From plan"
+                history_title: "Booking History",
+                filter_all: "All",
+                filter_completed: "Completed",
+                filter_pending: "Pending",
+                filter_ongoing: "Ongoing",
+                no_history: "No bookings right now",
+                btn_track: "Track Now",
+                btn_details: "Order Details",
+                btn_rate: "Rate",
+                btn_complaint: "Send Complaint",
+                rate_service: "Rate Service",
+                rate_placeholder: "Write your comment...",
+                btn_save_rate: "Save Rating",
+                paid_from_plan: "From plan"
             }
         };
         const csrfToken = <?= json_encode($csrf_token) ?>;
@@ -271,21 +422,69 @@ $csrf_token = generate_csrf_token();
             params.append('rating', quickRating);
             params.append('comment', document.getElementById('quickComment').value);
             params.append('csrf_token', csrfToken);
-            fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() })
+            fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString()
+                })
                 .then(res => res.json())
-                .then(data => { if (data.status === 'success') location.reload(); });
+                .then(data => {
+                    if (data.status === 'success') location.reload();
+                });
         }
 
         function filterHistory(status, btn) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+
+            document.querySelectorAll('.filter-btn')
+                .forEach(b => b.classList.remove('active'));
+
             btn.classList.add('active');
+
             document.querySelectorAll('.history-card').forEach(card => {
-                if (status === 'all' || card.dataset.status === status) {
-                    card.style.display = 'block';
+
+                const cardStatus = card.dataset.status;
+
+                if (status === 'all') {
+
+                    card.style.display = '';
+
+                } else if (
+                    status === 'ongoing' && [
+                        'Accepted',
+                        'Arrived',
+                        'In Progress',
+                        'Pickup',
+                        'Washing',
+                        'Returning'
+                    ].includes(cardStatus)
+                ) {
+
+                    card.style.display = '';
+
+                } else if (
+                    status === 'Completed' &&
+                    cardStatus === 'Completed'
+                ) {
+
+                    card.style.display = '';
+
+                } else if (
+                    status === 'Pending' &&
+                    cardStatus === 'Pending'
+                ) {
+
+                    card.style.display = '';
+
                 } else {
+
                     card.style.display = 'none';
+
                 }
+
             });
+
         }
 
         window.onload = () => {
@@ -293,7 +492,7 @@ $csrf_token = generate_csrf_token();
             const theme = localStorage.getItem('global_theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-            
+
             // ترجمة النصوص العادية وثنائية العناوين
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
@@ -307,12 +506,12 @@ $csrf_token = generate_csrf_token();
             });
 
             // تحديث عنوان الصفحة التلقائي
-            if(translations[lang]['history_page_title']) {
+            if (translations[lang]['history_page_title']) {
                 document.title = translations[lang]['history_page_title'];
             }
         };
     </script>
     <script src="../assets/lamea.js"></script>
 </body>
-</html>
 
+</html>
