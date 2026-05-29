@@ -28,6 +28,9 @@ if (!$due) {
     exit();
 }
 
+header("Location: payment-method.php?id=" . (int) $due['BookingID']);
+exit();
+
 $dueAmount = number_format((float) $due['Total_Price'], 2);
 ?>
 
@@ -194,7 +197,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             const dueLabel = document.querySelector('.cash-only-label');
             if (dueLabel) {
                 dueLabel.innerText = ['home', 'delivery'].includes(dueServiceLocation)
-                    ? (lang === 'ar' ? 'الدفع مطلوب خلال 5 دقائق من الموافقة' : 'Payment is required within 5 minutes of approval')
+                    ? (lang === 'ar' ? 'الدفع مطلوب خلال 10 دقائق من الموافقة' : 'Payment is required within 10 minutes of approval')
                     : (lang === 'ar' ? 'الدفع اختياري لخدمة المحطة' : 'Payment is optional for at-station service');
             }
             

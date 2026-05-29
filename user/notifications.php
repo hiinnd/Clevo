@@ -167,7 +167,7 @@ $notifications = $stmt->get_result();
                     if (strpos($body_ar, 'لأن الدفع لم يكتمل') !== false) {
                         preg_match('/#[A-Za-z0-9]+/', $body_ar, $matches);
                         $order_num = isset($matches[0]) ? $matches[0] : '';
-                        $body_en = "Because payment was not completed within 5 minutes after approval, your order {$order_num} has been cancelled.";
+                        $body_en = "Because payment was not completed within 10 minutes after approval, your order {$order_num} has been cancelled.";
                     }
                     if (strpos($body_ar, 'تم قبول طلبك بنجاح') !== false) {
                         preg_match('/#[A-Za-z0-9]+/', $body_ar, $matches);

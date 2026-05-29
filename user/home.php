@@ -531,7 +531,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                             <span id="timerText">--:--</span>
                         </div>
                     <?php elseif ($pending_booking['Status'] === 'Accepted' && in_array($pending_booking['Service_Location'], ['home', 'delivery'], true) && empty($pending_booking['Payment_Method'])): ?>
-                        <div class="timer-container justify-content-start" id="bookingTimer" data-start="<?= $pending_booking['Accepted_At'] ?: $pending_booking['created_at'] ?>" data-duration="5">
+                        <div class="timer-container justify-content-start" id="bookingTimer" data-start="<?= $pending_booking['Accepted_At'] ?: $pending_booking['created_at'] ?>" data-duration="10">
                             <i class="fas fa-credit-card"></i>
                             <span>مهلة الدفع</span>
                             <span id="timerText">--:--</span>
@@ -539,7 +539,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                     <?php endif; ?>
                 </div>
                 <?php if ($pending_booking['Status'] === 'Accepted' && empty($pending_booking['Payment_Method'])): ?>
-                    <a class="order-next-btn" href="../includes/pending-dues.php"><i class="fas fa-credit-card"></i> الدفع</a>
+                    <a class="order-next-btn" href="../includes/payment-method.php?id=<?= (int) $pending_booking['BookingID'] ?>"><i class="fas fa-credit-card"></i> الدفع</a>
 
                 <?php elseif ($pending_booking['Status'] === 'Accepted' && $pending_booking['Payment_Method'] === 'plan'): ?>
                     <span class="order-next-btn" style="background:#10b981;"><i class="fas fa-gem"></i> <span data-i18n="paid_from_plan">من الباقة</span></span>

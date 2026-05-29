@@ -330,7 +330,7 @@ function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
             WHERE Status = 'Accepted'
               AND Service_Location IN ('home', 'delivery')
               AND (Payment_Method IS NULL OR Payment_Method = '')
-              AND COALESCE(Accepted_At, created_at) < (NOW() - INTERVAL 5 MINUTE)
+              AND COALESCE(Accepted_At, created_at) < (NOW() - INTERVAL 10 MINUTE)
               AND COALESCE(notification_sent, 0) = 0";
 
     if ($userID !== null) {
@@ -356,7 +356,7 @@ function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
         if ($update->affected_rows > 0) {
             clevoRestorePlanWashForBooking($conn, $bookingID);
             $title = "تم إلغاء الطلب";
-            $body = "تم إلغاء طلبك #$orderNumber لأن الدفع لم يكتمل خلال 5 دقائق بعد الموافقة.";
+            $body = "تم إلغاء طلبك #$orderNumber لأن الدفع لم يكتمل خلال 10 دقائق بعد الموافقة.";
             $type = "danger";
             $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
             $notice->bind_param("isss", $customerID, $title, $body, $type);

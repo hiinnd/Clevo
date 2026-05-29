@@ -49,12 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $order_num = (string) $order_data['Order_Number'];
             if ($order_data['Payment_Method'] === 'plan') {
                 $msg = "تم قبول طلبك #$order_num وسيتم احتسابه من باقتك.";
-            } elseif ($order_data['Service_Location'] === 'station') {
-                $msg = "تم قبول طلبك #$order_num. يمكنك الآن اختيار طريقة الدفع.";
-            } elseif ($order_data['Service_Location'] === 'home') {
-                $msg = "تم قبول طلبك #$order_num. سيتم تجهيز الخدمة وتسليمها بدون سائق.";
             } else {
-                $msg = "تم قبول طلبك #$order_num. جاري تعيين سائق وتتبع الطلب.";
+                $msg = "تم قبول طلبك #$order_num. اضغط زر الدفع لاختيار طريقة الدفع خلال 10 دقائق.";
             }
             clevoCreateNotification($conn, $customer_id, 'تم قبول الطلب', $msg, 'success');
             
@@ -104,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $customer = $res->get_result()->fetch_assoc();
             $customer_id = (int) ($customer['UserID'] ?? 0);
 
-            $msg_c = "تم قبول طلبك بنجاح! الكابتن في الطريق إليك لطلبك #$order_num";
+            $msg_c = "تم قبول طلبك #$order_num. تم تعيين السائق، ويرجى اختيار طريقة الدفع خلال 10 دقائق من زر الدفع.";
             clevoCreateNotification($conn, $customer_id, 'تم قبول الطلب', $msg_c, 'success');
 
             $msg_d = "لديك مهمة جديدة للطلب #" . $order_num . "، كود الدخول هو: " . $new_access_code;

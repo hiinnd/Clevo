@@ -231,13 +231,41 @@ $result = $stmt->get_result();
             new bootstrap.Modal(document.getElementById('searchStatusModal')).show();
         }
 
-        function filterStations() {
+        let activeSort = 'all';
+
+        function getStationItems() {
+            return Array.from(document.querySelectorAll('.station-item'));
+        }
+
+        function stationMatchesSearch(item) {
             const val = document.getElementById('searchInput').value.toLowerCase();
-            const items = document.querySelectorAll('.station-item');
-            items.forEach(item => {
-                const match = item.innerText.toLowerCase().includes(val);
-                item.style.display = match ? "block" : "none";
+            return item.innerText.toLowerCase().includes(val);
+        }
+
+        function applySearchVisibility() {
+            getStationItems().forEach(item => {
+                item.style.display = stationMatchesSearch(item) ? "" : "none";
             });
+        }
+
+        function sortItems(items, type) {
+            if (type === 'price') {
+                return items.sort((a, b) => (parseFloat(a.dataset.price) || 0) - (parseFloat(b.dataset.price) || 0));
+            }
+            if (type === 'rating') {
+                return items.sort((a, b) => (parseFloat(b.dataset.rating) || 0) - (parseFloat(a.dataset.rating) || 0));
+            }
+            return items.sort((a, b) => (parseInt(a.dataset.index, 10) || 0) - (parseInt(b.dataset.index, 10) || 0));
+        }
+
+        function renderSortedItems(items) {
+            const container = document.getElementById('stationsContainer');
+            items.forEach(item => container.appendChild(item));
+            applySearchVisibility();
+        }
+
+        function filterStations() {
+            applySearchVisibility();
         }
 
         function getDistance(lat1, lon1, lat2, lon2) {
@@ -263,32 +291,29 @@ $result = $stmt->get_result();
                 document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 
-                const container = document.getElementById('stationsContainer');
-                const items = Array.from(document.querySelectorAll('.station-item'));
+                activeSort = 'nearest';
+                const items = getStationItems();
                 
                 items.sort((a, b) => {
-                    const distA = getDistance(uLat, uLon, parseFloat(a.dataset.lat), parseFloat(a.dataset.lon));
-                    const distB = getDistance(uLat, uLon, parseFloat(b.dataset.lat), parseFloat(b.dataset.lon));
+                    const aLat = parseFloat(a.dataset.lat);
+                    const aLon = parseFloat(a.dataset.lon);
+                    const bLat = parseFloat(b.dataset.lat);
+                    const bLon = parseFloat(b.dataset.lon);
+                    const distA = Number.isFinite(aLat) && Number.isFinite(aLon) ? getDistance(uLat, uLon, aLat, aLon) : Number.MAX_SAFE_INTEGER;
+                    const distB = Number.isFinite(bLat) && Number.isFinite(bLon) ? getDistance(uLat, uLon, bLat, bLon) : Number.MAX_SAFE_INTEGER;
                     return distA - distB;
                 });
-                items.forEach(item => container.appendChild(item));
+                renderSortedItems(items);
             }, () => {
                 showSearchModal('warning', tr('unavailable_title'), tr('location_required'));
-            });
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
         }
 
         function applyQuickFilter(btn, type) {
             document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
-            const container = document.getElementById('stationsContainer');
-            const items = Array.from(document.querySelectorAll('.station-item'));
-            
-            if (type === 'all') items.sort((a, b) => a.dataset.index - b.dataset.index);
-            if (type === 'price') items.sort((a, b) => parseFloat(a.dataset.price) - parseFloat(b.dataset.price));
-            if (type === 'rating') items.sort((a, b) => parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating));
-            
-            items.forEach(item => container.appendChild(item));
+            activeSort = type;
+            renderSortedItems(sortItems(getStationItems(), type));
         }
 
         function goToStation(id, name, status) {

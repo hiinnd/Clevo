@@ -6,14 +6,14 @@ include __DIR__ . '/../includes/app-helpers.php';
 clevoEnsureTrackingColumns($conn);
 
 
-$sessionRole = strtolower($_SESSION['role'] ?? '');
+$sessionRole = strtolower($_SESSION['role'] ?? $_SESSION['Role'] ?? '');
 if (!isset($_SESSION['userID']) || $sessionRole !== 'driver') {
     header('Location: ../general/login.php'); 
     exit;
 }
 
 
-$driver_id = $_SESSION['userID'];
+$driver_id = (int) $_SESSION['userID'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -21,10 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
     
     if ($action == 'update_location') {
-        $lat = mysqli_real_escape_string($conn, $_POST['lat']);
-        $lng = mysqli_real_escape_string($conn, $_POST['lng']);
-        $update_gps = mysqli_query($conn, "UPDATE booking SET Driver_Lat = '$lat', Driver_Lon = '$lng' WHERE DriverID = '$driver_id' AND Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')");
-        echo json_encode(['status' => $update_gps ? 'success' : 'error']);
+        $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT);
+        $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
+        if ($lat === false || $lng === false) {
+            echo json_encode(['status' => 'error']);
+            exit;
+        }
+        $update_gps = $conn->prepare("UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE DriverID = ? AND Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')");
+        $update_gps->bind_param("ddi", $lat, $lng, $driver_id);
+        $ok = $update_gps->execute();
+        echo json_encode(['status' => $ok ? 'success' : 'error']);
         exit;
     }
 

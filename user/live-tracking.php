@@ -14,7 +14,8 @@ if ($viewerID <= 0) {
 }
 
 
-$stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, d.UserName as driver_name, d.ProfilePic as driver_pic, d.PhoneNumber as driver_phone
+$stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, d.UserName as driver_name, d.ProfilePic as driver_pic, d.PhoneNumber as driver_phone,
+        s.Name AS station_name, s.Location AS station_location, s.Lat AS station_lat, s.Lon AS station_lon
           FROM booking b
           JOIN user u ON b.UserID = u.UserID
           JOIN stations s ON b.StationID = s.StationID
@@ -67,6 +68,11 @@ if (!$order) {
         .worker-card { background: var(--card-bg); border-radius: 18px; padding: 15px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--border-color); }
         .top-nav { position: absolute; top: 20px; width: 100%; padding: 0 20px; z-index: 1000; display: flex; justify-content: space-between; align-items: center; }
         .circle-btn { background: var(--bg-panel); width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-main); text-decoration: none; }
+        .map-legend { position: absolute; left: 14px; bottom: 245px; z-index: 900; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 16px; padding: 10px 12px; box-shadow: 0 8px 22px rgba(0,0,0,.18); font-size: .78rem; }
+        [dir="rtl"] .map-legend { left: auto; right: 14px; }
+        .legend-row { display: flex; align-items: center; gap: 8px; white-space: nowrap; margin-bottom: 5px; }
+        .legend-row:last-child { margin-bottom: 0; }
+        .legend-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
 
         .arrival-toast {
             position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
@@ -98,6 +104,11 @@ if (!$order) {
     </div>
 
     <div id="map"></div>
+    <div class="map-legend">
+        <div class="legend-row"><span class="legend-dot" style="background:#3b82f6"></span><span data-i18n="legend_driver">السائق</span></div>
+        <div class="legend-row"><span class="legend-dot" style="background:#ef4444"></span><span data-i18n="legend_customer">موقعك</span></div>
+        <div class="legend-row"><span class="legend-dot" style="background:#16a34a"></span><span data-i18n="legend_station">المحطة</span></div>
+    </div>
 
     <div class="tracking-panel text-center">
         <!-- الرسم البياني الزمني Progress Steps -->
@@ -113,6 +124,10 @@ if (!$order) {
             <div class="step-item" id="step-Washing">
                 <div class="step-icon"><i class="fas fa-soap"></i></div>
                 <span class="small fw-bold" data-i18n="step_wash">جاري الغسيل</span>
+            </div>
+            <div class="step-item" id="step-Returning">
+                <div class="step-icon"><i class="fas fa-rotate-left"></i></div>
+                <span class="small fw-bold" data-i18n="step_return">راجع إليك</span>
             </div>
             <div class="step-item" id="step-Completed">
                 <div class="step-icon"><i class="fas fa-check"></i></div>
@@ -141,20 +156,91 @@ if (!$order) {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const bookingID = <?= (int)$bookingID ?>;
-        const customerLat = <?= $order['Latitude'] ?: '31.985' ?>;
-        const customerLng = <?= $order['Longitude'] ?: '35.898' ?>;
+        const lang = localStorage.getItem('app_lang') || 'ar';
+        const customerPoint = {
+            lat: <?= $order['Latitude'] !== null ? (float) $order['Latitude'] : 'null' ?>,
+            lng: <?= $order['Longitude'] !== null ? (float) $order['Longitude'] : 'null' ?>
+        };
+        const stationPoint = {
+            lat: <?= $order['station_lat'] !== null ? (float) $order['station_lat'] : 'null' ?>,
+            lng: <?= $order['station_lon'] !== null ? (float) $order['station_lon'] : 'null' ?>
+        };
+        const fallbackPoint = customerPoint.lat && customerPoint.lng ? customerPoint : (stationPoint.lat && stationPoint.lng ? stationPoint : { lat: 31.985, lng: 35.898 });
+        const labels = {
+            ar: {
+                tracking_title: 'تتبع الطلب', live_label: 'تتبع مباشر', step_pickup: 'تم القبول',
+                step_way: 'في الطريق', step_wash: 'جاري الغسيل', step_return: 'راجع إليك',
+                step_done: 'تم الانتهاء', captain_title: 'كابتن Clevo المعتمد',
+                legend_driver: 'السائق', legend_customer: 'موقعك', legend_station: 'المحطة',
+                customer_popup: 'موقع المنزل / الخدمة', station_popup: 'موقع المحطة',
+                returning: 'السائق في طريق العودة إليك', to_customer: 'السائق متجه إلى موقعك',
+                to_station: 'السيارة في الطريق إلى المحطة', at_station: 'السيارة في المحطة للغسيل',
+                completed: 'تم إنهاء الطلب'
+            },
+            en: {
+                tracking_title: 'Order Tracking', live_label: 'Live tracking', step_pickup: 'Accepted',
+                step_way: 'On the way', step_wash: 'Washing', step_return: 'Returning',
+                step_done: 'Completed', captain_title: 'Certified Clevo Captain',
+                legend_driver: 'Driver', legend_customer: 'Your location', legend_station: 'Station',
+                customer_popup: 'Home / service location', station_popup: 'Station location',
+                returning: 'Driver is returning to you', to_customer: 'Driver is heading to your location',
+                to_station: 'Car is heading to the station', at_station: 'Car is at the station for washing',
+                completed: 'Order completed'
+            }
+        };
+        const t = key => (labels[lang] && labels[lang][key]) || key;
 
-        const map = L.map('map', { zoomControl: false }).setView([customerLat, customerLng], 14);
+        const map = L.map('map', { zoomControl: false }).setView([fallbackPoint.lat, fallbackPoint.lng], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        L.marker([customerLat, customerLng]).addTo(map).bindPopup("موقع الخدمة");
+        const pointIcon = (color, icon) => L.divIcon({
+            html: `<i class="fas ${icon}" style="color:${color};font-size:25px;text-shadow:0 0 10px white;"></i>`,
+            className: 'c-icon'
+        });
+        const driverIcon = pointIcon('#3b82f6', 'fa-car-side');
+        const customerIcon = pointIcon('#ef4444', 'fa-house');
+        const stationIcon = pointIcon('#16a34a', 'fa-store');
+        const bounds = [];
+        if (customerPoint.lat && customerPoint.lng) {
+            L.marker([customerPoint.lat, customerPoint.lng], { icon: customerIcon }).addTo(map).bindPopup(t('customer_popup'));
+            bounds.push([customerPoint.lat, customerPoint.lng]);
+        }
+        if (stationPoint.lat && stationPoint.lng) {
+            L.marker([stationPoint.lat, stationPoint.lng], { icon: stationIcon }).addTo(map).bindPopup(t('station_popup'));
+            bounds.push([stationPoint.lat, stationPoint.lng]);
+        }
+        const driverMarker = L.marker([fallbackPoint.lat, fallbackPoint.lng], { icon: driverIcon }).addTo(map);
+        let routeLine = L.polyline([], { color: '#3b82f6', weight: 5, opacity: 0.78, dashArray: '8, 10' }).addTo(map);
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
 
-        const driverMarker = L.marker([customerLat, customerLng], {
-            icon: L.divIcon({
-                html: `<i class="fas fa-car-side" style="color:#3b82f6;font-size:26px;text-shadow: 0 0 10px white;"></i>`,
-                className: 'c-icon'
-            })
-        }).addTo(map);
+        function isPoint(point) {
+            return point && Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng));
+        }
+
+        function targetForStatus(status) {
+            if (status === 'Pickup' || status === 'Washing') return stationPoint;
+            if (status === 'Returning' || status === 'Accepted' || status === 'Arrived' || status === 'In Progress') return customerPoint;
+            return null;
+        }
+
+        function statusText(status) {
+            if (status === 'Returning') return t('returning');
+            if (status === 'Pickup') return t('to_station');
+            if (status === 'Washing') return t('at_station');
+            if (status === 'Completed') return t('completed');
+            return t('to_customer');
+        }
+
+        function updateRoute(driverPoint, status) {
+            const target = targetForStatus(status);
+            if (isPoint(driverPoint) && isPoint(target)) {
+                routeLine.setLatLngs([[driverPoint.lat, driverPoint.lng], [target.lat, target.lng]]);
+                map.fitBounds([[driverPoint.lat, driverPoint.lng], [target.lat, target.lng]], { padding: [50, 50], maxZoom: 15 });
+            } else {
+                routeLine.setLatLngs([]);
+            }
+            document.getElementById('status-alert').innerText = statusText(status);
+        }
 
         // وظيفة جلب البيانات اللحظية (تحديث كل 10 ثوانٍ)
         function updateTracking() {
@@ -163,10 +249,11 @@ if (!$order) {
             .then(data => {
                 if(data.status === 'success') {
                     const payload = data.data || {};
-                    const newPos = [payload.lat, payload.lng];
+                    const newPos = [payload.driver.lat, payload.driver.lng];
                     driverMarker.setLatLng(newPos);
                     
                     updateUI(payload.orderStatus);
+                    updateRoute({ lat: payload.driver.lat, lng: payload.driver.lng }, payload.orderStatus);
 
                     if(payload.hasArrived && !sessionStorage.getItem('notified_arrival')) {
                         showArrivalNotification();
@@ -187,7 +274,8 @@ if (!$order) {
             const currentStep = document.getElementById('step-' + status.replace(' ', '-'));
             if(currentStep) currentStep.classList.add('active');
             
-            let steps = ['Accepted', 'In Progress', 'Washing', 'Completed'];
+            if (status === 'Pickup') status = 'Washing';
+            let steps = ['Accepted', 'In Progress', 'Washing', 'Returning', 'Completed'];
             let found = false;
             steps.forEach(s => {
                 if(s === status) found = true;
@@ -199,7 +287,17 @@ if (!$order) {
         }
 
         setInterval(updateTracking, 10000); 
-        updateTracking(); 
+        updateTracking();
+        document.documentElement.setAttribute('lang', lang);
+        document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+        document.getElementById('bootstrap-rtl').href = lang === 'ar'
+            ? 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css'
+            : 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';
+        if (lang !== 'ar') document.getElementById('backIcon').className = 'fas fa-arrow-left';
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (labels[lang] && labels[lang][key]) el.innerText = labels[lang][key];
+        });
     </script>
 
 </body>
