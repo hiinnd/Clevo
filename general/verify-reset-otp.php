@@ -8,6 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     ]);
     exit;
 }
+clevo_require_csrf_token(true);
 $otp = trim($_POST['otp'] ?? '');
 if (!isset($_SESSION['reset_user_id'])) {
     echo json_encode([

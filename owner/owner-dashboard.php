@@ -4,15 +4,13 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 
 
-$owner_id = (int) ($_SESSION['userID'] ?? 0);
-
-
-if ($owner_id === 0) {
-    header('Location: ../general/login.php');
-    exit;
-}
+$owner_id = clevo_require_role('owner', '../general/login.php');
 
 if (isset($_GET['change_status'])) {
+    if (!validate_csrf_token($_GET['csrf_token'] ?? '')) {
+        http_response_code(403);
+        exit('CSRF token validation failed.');
+    }
     $allowed = ['Active', 'Busy', 'Closed'];
     $newStatus = in_array($_GET['change_status'], $allowed, true) ? $_GET['change_status'] : 'Active';
     $stmt = $conn->prepare("UPDATE stations SET Status = ? WHERE UserID = ? LIMIT 1");
@@ -256,9 +254,9 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                                     <span id="statusDisplay"></span>
                                 </button>
                                 <ul class="dropdown-menu shadow">
-                                    <li><a class="dropdown-item" href="?change_status=Active" id="opt-active"></a></li>
-                                    <li><a class="dropdown-item" href="?change_status=Busy" id="opt-busy"></a></li>
-                                    <li><a class="dropdown-item" href="?change_status=Closed" id="opt-closed"></a></li>
+                                    <li><a class="dropdown-item" href="?change_status=Active&csrf_token=<?= e(generate_csrf_token()) ?>" id="opt-active"></a></li>
+                                    <li><a class="dropdown-item" href="?change_status=Busy&csrf_token=<?= e(generate_csrf_token()) ?>" id="opt-busy"></a></li>
+                                    <li><a class="dropdown-item" href="?change_status=Closed&csrf_token=<?= e(generate_csrf_token()) ?>" id="opt-closed"></a></li>
                                 </ul>
                             </div>
                         </div>

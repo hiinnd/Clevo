@@ -158,7 +158,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             <span data-i18n="btn_pay_now">سداد الآن</span> <i class="fas fa-credit-card ms-2"></i>
         </button>
 
-        <button onclick="location.href='support.php'" class="btn-custom btn-support">
+        <button onclick="location.href='../user/support.php'" class="btn-custom btn-support">
             <span data-i18n="btn_support">تواصل مع الدعم</span> <i class="fas fa-headset ms-2"></i>
         </button>
 

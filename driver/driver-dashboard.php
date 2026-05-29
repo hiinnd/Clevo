@@ -17,6 +17,7 @@ $driver_id = (int) $_SESSION['userID'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
+    clevo_require_csrf_token(true);
     $action = $_POST['action'];
 
     
@@ -242,11 +243,13 @@ $task = mysqli_fetch_assoc($result);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
+
         function markAsArrived(orderId, customerId, orderNum) {
             fetch(window.location.href, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=arrived_to_location&order_id=${orderId}&customer_id=${customerId}&order_num=${orderNum}`
+                body: `action=arrived_to_location&csrf_token=${encodeURIComponent(csrfToken)}&order_id=${orderId}&customer_id=${customerId}&order_num=${orderNum}`
             })
             .then(res => res.json())
             .then(data => { if(data.status === 'success') location.reload(); });
@@ -255,6 +258,7 @@ $task = mysqli_fetch_assoc($result);
         function updateTaskStatus(orderId, status) {
             const params = new URLSearchParams();
             params.append('action', 'update_status');
+            params.append('csrf_token', csrfToken);
             params.append('order_id', orderId);
             params.append('status', status);
             return fetch(window.location.href, {
@@ -282,6 +286,7 @@ $task = mysqli_fetch_assoc($result);
             navigator.geolocation.getCurrentPosition((pos) => {
                 const params = new URLSearchParams();
                 params.append('action', 'update_location');
+                params.append('csrf_token', csrfToken);
                 params.append('lat', pos.coords.latitude);
                 params.append('lng', pos.coords.longitude);
                 fetch(window.location.href, {

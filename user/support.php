@@ -12,6 +12,7 @@ $success = false;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_ticket_action'])) {
+    clevo_require_csrf_token();
     $subject = trim($_POST['subject']);
     $message = trim($_POST['message']);
     
@@ -130,6 +131,7 @@ if ($uID) {
                         </div>
                     <?php else: ?>
                         <form method="POST">
+                            <?= csrf_input(); ?>
                             <input type="hidden" name="send_ticket_action" value="1">
                             <h6 class="mb-4 fw-bold"><i class="fas fa-headset me-2"></i><span data-i18n="support_header_title">كيف يمكننا مساعدتك؟</span></h6>
                             

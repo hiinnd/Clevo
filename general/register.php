@@ -11,6 +11,7 @@ $registration_success = false;
 $registered_role = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
+    clevo_require_csrf_token();
     $role      = $_POST['role'];
     $name      = trim($_POST['full_name']);
     $email     = trim($_POST['email']);
@@ -305,6 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
         </div>
 
         <form method="POST" enctype="multipart/form-data">
+            <?= csrf_input(); ?>
             <input type="hidden" name="register_action" value="1">
             <div class="mb-3">
                 <label class="small fw-bold mb-2" data-i18n="i_am">أريد التسجيل كـ...</label>

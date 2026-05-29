@@ -3,12 +3,7 @@ session_start();
 include(__DIR__ . "/../includes/config.php");
 
 
-if (!isset($_SESSION['userID'])) {
-    header("Location: login.php");
-    exit();
-}
-
-$userID = $_SESSION['userID'];
+$userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 
 
 $stmt = $conn->prepare("SELECT Balance, WalletID FROM `wallet` WHERE UserID = ?");

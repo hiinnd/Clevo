@@ -3,7 +3,7 @@
 session_start();
 include __DIR__ . '/../includes/config.php';
 
-$owner_id = $_SESSION['userID'] ?? 0;
+$owner_id = clevo_require_role('owner', '../general/login.php');
 $existingStation = null;
 if ($owner_id > 0) {
     $stmt = $conn->prepare("SELECT * FROM stations WHERE UserID = ? LIMIT 1");
@@ -14,6 +14,7 @@ if ($owner_id > 0) {
 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
+    clevo_require_csrf_token(true);
     $name = mysqli_real_escape_string($conn, $_POST['stName']);
     $location = mysqli_real_escape_string($conn, $_POST['stLocation']);
     $lat = trim($_POST['stLat']) !== '' ? mysqli_real_escape_string($conn, $_POST['stLat']) : ($existingStation['Lat'] ?? '');
@@ -153,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
                 <div class="mx-auto" style="max-width: 800px; margin-bottom: 50px;">
                     <div class="form-container shadow-sm">
                         <form id="addStationForm" enctype="multipart/form-data">
+                            <?= csrf_input(); ?>
                             <input type="hidden" name="stLat" id="stLat" value="<?= htmlspecialchars($existingStation['Lat'] ?? '') ?>">
                             <input type="hidden" name="stLon" id="stLon" value="<?= htmlspecialchars($existingStation['Lon'] ?? '') ?>">
                             <input type="hidden" name="stLocationUrl" id="stLocationUrl" value="<?= htmlspecialchars($existingStation['Location_URL'] ?? '') ?>">

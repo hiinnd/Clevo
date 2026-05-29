@@ -15,6 +15,7 @@ $admin_id = $_SESSION['userID'] ?? 0;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
@@ -30,6 +31,7 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
+    clevo_require_csrf_token();
     $u_id = intval($_POST['user_id']);
     $user_info = $conn->query("SELECT DeviceID FROM user WHERE UserID = $u_id")->fetch_assoc();
     $device_id = $user_info['DeviceID'] ?? '';
@@ -207,6 +209,7 @@ $blacklist_res = $conn->query("
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content text-center p-4 shadow-lg border-0">
                 <form method="POST">
+                    <?= csrf_input(); ?>
                     <input type="hidden" name="user_id" id="modalUserId">
                     <div class="text-success mb-3"><i class="fas fa-unlock-alt fa-3x"></i></div>
                     <h6 class="fw-bold mb-3">فك حظر المستخدم</h6>

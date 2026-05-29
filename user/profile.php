@@ -4,12 +4,7 @@ include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/app-helpers.php");
 
 
-if (!isset($_SESSION['userID'])) {
-    header("Location: login.php");
-    exit();
-}
-
-$userID = $_SESSION['userID'];
+$userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 
 
 $stmt = $conn->prepare("SELECT UserName, PhoneNumber, Email, ProfilePic, CarName FROM `user` WHERE UserID = ?");
@@ -19,6 +14,7 @@ $userData = $stmt->get_result()->fetch_assoc();
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || isset($_POST['save_profile_image']))) {
+    clevo_require_csrf_token();
     $newName = trim($_POST['full_name']);
     $newPhone = trim($_POST['phone']);
     $newEmail = trim($_POST['email']);
@@ -122,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
                 <?php $avatar = clevoProfileImageUrl($userData['ProfilePic'] ?? '', $userData['UserName'] ?? 'User'); ?>
                 <img src="<?= $avatar ?>" class="profile-img shadow">
                 <form id="imgForm" enctype="multipart/form-data" method="POST">
+                    <?= csrf_input(); ?>
                     <input type="hidden" name="save_profile_image" value="1">
                     <input type="hidden" name="full_name" value="<?= htmlspecialchars($userData['UserName']) ?>">
                     <input type="hidden" name="phone" value="<?= htmlspecialchars($userData['PhoneNumber']) ?>">
@@ -143,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
                     </h6>
                     
                     <form method="POST" enctype="multipart/form-data">
+                        <?= csrf_input(); ?>
                         <input type="hidden" name="save_profile" value="1">
                         <div class="row g-3">
                             <div class="col-sm-12">

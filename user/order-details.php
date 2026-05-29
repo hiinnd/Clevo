@@ -4,12 +4,7 @@ include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
 
-if (!isset($_SESSION['userID'])) {
-    header("Location: ../general/login.php");
-    exit();
-}
-
-$userID = (int) $_SESSION['userID'];
+$userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 $bookingID = (int) ($_GET['id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
 

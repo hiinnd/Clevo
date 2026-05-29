@@ -14,6 +14,7 @@ clevoEnsureTrackingColumns($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_booking_status') {
     header('Content-Type: application/json; charset=utf-8');
+    clevo_require_csrf_token(true);
     $status = $_POST['status'] ?? '';
     $order_id = (int) ($_POST['order_id'] ?? 0);
     $allowed = ['Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning', 'Completed'];
@@ -106,9 +107,12 @@ $task = $task_stmt->get_result()->fetch_assoc();
     </main>
 
     <script>
+        const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
+
         function updateStatus(btn) {
             const params = new URLSearchParams();
             params.append('action', 'update_booking_status');
+            params.append('csrf_token', csrfToken);
             params.append('status', btn.dataset.status);
             params.append('order_id', '<?= (int)($task['BookingID'] ?? 0) ?>');
             fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() })

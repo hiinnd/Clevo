@@ -18,6 +18,7 @@ $admin_id = $_SESSION['userID'] ?? 0;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
@@ -40,6 +41,7 @@ $msg_type = "";
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
+    clevo_require_csrf_token();
     $name_ar = trim($_POST['name_ar']);
     $name_en = trim($_POST['name_en']);
     $price = floatval($_POST['price']);
@@ -62,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
+    clevo_require_csrf_token();
     $plan_id = intval($_POST['plan_id']);
     $name_ar = trim($_POST['name_ar']);
     $name_en = trim($_POST['name_en']);
@@ -83,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
 
 
 if (isset($_POST['confirm_delete_id'])) {
+    clevo_require_csrf_token();
     $delete_id = intval($_POST['confirm_delete_id']);
     if($conn->query("DELETE FROM plans WHERE id = $delete_id")) { $show_msg_modal = true; $msg_type = "deleted"; }
 }
@@ -220,6 +224,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             <div class="modal-content p-4 shadow-lg border-0">
                 <h5 class="fw-bold mb-4 text-primary text-start" id="modalTitle"></h5>
                 <form method="POST">
+                    <?= csrf_input(); ?>
                     <input type="hidden" name="plan_id" id="p_id">
                     <div class="row g-3 text-start">
                         <div class="col-sm-6"><label class="form-label small fw-bold">الاسم بالعربي</label><input type="text" name="name_ar" id="p_name_ar" class="form-control" required></div>
@@ -247,7 +252,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
         </div>
     </div>
 
-    <div class="modal fade" id="deleteModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content text-center p-4 shadow border-0"><i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i><h6 class="fw-bold" data-i18n="confirm_del_h">تأكيد الحذف</h6><form method="POST"><input type="hidden" name="confirm_delete_id" id="del_id"><div class="d-grid gap-2 mt-3"><button type="submit" class="btn btn-danger rounded-pill fw-bold" data-i18n="btn_delete">نعم، احذف</button><button type="button" class="btn btn-light border rounded-pill" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button></div></form></div></div></div>
+    <div class="modal fade" id="deleteModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content text-center p-4 shadow border-0"><i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i><h6 class="fw-bold" data-i18n="confirm_del_h">تأكيد الحذف</h6><form method="POST"><?= csrf_input(); ?><input type="hidden" name="confirm_delete_id" id="del_id"><div class="d-grid gap-2 mt-3"><button type="submit" class="btn btn-danger rounded-pill fw-bold" data-i18n="btn_delete">نعم، احذف</button><button type="button" class="btn btn-light border rounded-pill" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button></div></form></div></div></div>
     <div class="modal fade" id="msgModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content text-center p-4 shadow border-0"><i class="fas fa-check-circle text-success fa-4x mb-3"></i><h6 class="fw-bold" id="msgTitle"></h6><button type="button" class="btn btn-primary rounded-pill px-5 mt-3" data-bs-dismiss="modal">OK</button></div></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

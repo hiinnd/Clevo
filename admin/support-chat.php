@@ -15,6 +15,7 @@ $admin_id = $_SESSION['userID'] ?? 0;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
@@ -41,6 +42,7 @@ $t_id = intval($_GET['ticket_id']);
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
+    clevo_require_csrf_token();
     $reply_msg = trim($_POST['reply_msg']);
     if (!empty($reply_msg)) {
         
@@ -208,6 +210,7 @@ if (!$ticket) {
 
                             <div class="reply-box">
                                 <form method="POST">
+                                    <?= csrf_input(); ?>
                                     <textarea name="reply_msg" class="form-control mb-3" rows="3" data-i18n-placeholder="placeholder_reply" placeholder="اكتب ردك هنا..." required></textarea>
                                     <button type="submit" name="admin_reply" class="btn-send shadow-sm">
                                         <i class="fas fa-paper-plane me-1"></i> <span data-i18n="btn_send">إرسال الرد</span>

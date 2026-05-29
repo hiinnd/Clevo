@@ -3,10 +3,7 @@ session_start();
 include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/app-helpers.php");
 
-if (!isset($_SESSION['userID'])) {
-    header("Location: login.php");
-    exit();
-}
+$userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 
 
 $query = "SELECT s.*, (SELECT MIN(Price) FROM services WHERE services.StationID = s.StationID) as min_price 

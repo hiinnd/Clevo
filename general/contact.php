@@ -5,6 +5,7 @@ include __DIR__ . '/../includes/config.php';
 $message_sent = false;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
+    clevo_require_csrf_token();
     $name = mysqli_real_escape_string($conn, $_POST['full_name']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $subject = mysqli_real_escape_string($conn, $_POST['subject']);
@@ -157,6 +158,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
 
                     <div class="col-lg-7">
                         <form action="contact.php" method="POST">
+                            <?= csrf_input(); ?>
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="small fw-bold mb-1" data-i18n="full_name_label">الاسم الكامل</label>

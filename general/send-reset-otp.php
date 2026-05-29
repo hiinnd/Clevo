@@ -18,6 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+clevo_require_csrf_token(true);
+
 $email = trim($_POST['email'] ?? '');
 
 if (empty($email)) {

@@ -4,19 +4,15 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 
 
-if(!isset($_SESSION['userID']) || $_SESSION['role'] !== 'owner'){
-    header("Location: ../login.php");
-    exit();
-}
-
-$owner_id = $_SESSION['userID'];
+$owner_id = clevo_require_role('owner', '../general/login.php');
 $station_query = $conn->query("SELECT StationID FROM stations WHERE UserID = $owner_id");
 $station_data = $station_query->fetch_assoc();
 $station_id = $station_data['StationID'] ?? 0;
 
 
-if(isset($_GET['delete'])){
-    $id = intval($_GET['delete']);
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_service_id'])){
+    clevo_require_csrf_token();
+    $id = intval($_POST['delete_service_id']);
     $conn->query("DELETE FROM services WHERE ServiceID = $id AND StationID = $station_id");
     header("Location: manage-services.php?msg=deleted");
     exit();
@@ -24,6 +20,7 @@ if(isset($_GET['delete'])){
 
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
+    clevo_require_csrf_token();
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $price = floatval($_POST['price']);
     $edit_id = intval($_POST['edit_id']);
@@ -170,6 +167,7 @@ while($row = $services_res->fetch_assoc()){
                             <div class="card-custom shadow-sm">
                                 <h6 id="formTitle" class="mb-3 text-primary fw-bold" data-i18n="add_new_service">إضافة خدمة جديدة</h6>
                                 <form id="serviceForm" method="POST">
+                                    <?= csrf_input(); ?>
                                     <input type="hidden" name="edit_id" id="editId" value="0">
                                     <div class="mb-3">
                                         <label class="small mb-1" data-i18n="service_name_label">اسم الخدمة</label>
@@ -247,7 +245,11 @@ while($row = $services_res->fetch_assoc()){
                 <h5 class="fw-bold" data-i18n="delete_service_title">تأكيد حذف الخدمة</h5>
                 <p class="small opacity-75" data-i18n="delete_service_msg">هل أنت متأكد من حذف هذه الخدمة؟</p>
                 <div class="d-grid gap-2 mt-3">
-                    <a href="#" id="deleteServiceLink" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_delete">حذف</a>
+                    <form method="POST" class="m-0">
+                        <?= csrf_input(); ?>
+                        <input type="hidden" name="delete_service_id" id="deleteServiceId">
+                        <button type="submit" class="btn btn-danger rounded-pill py-2 fw-bold w-100" data-i18n="btn_delete">حذف</button>
+                    </form>
                     <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </div>
             </div>
@@ -281,7 +283,7 @@ while($row = $services_res->fetch_assoc()){
         function toggleGlobalTheme() { localStorage.setItem('global_theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); location.reload(); }
         function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
         function confirmDeleteService(id) {
-            document.getElementById('deleteServiceLink').href = 'manage-services.php?delete=' + encodeURIComponent(id);
+            document.getElementById('deleteServiceId').value = id;
             new bootstrap.Modal(document.getElementById('deleteServiceModal')).show();
         }
 

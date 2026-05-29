@@ -15,6 +15,7 @@ $admin_id = $_SESSION['userID'] ?? 0;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
@@ -33,6 +34,7 @@ $msg_type = "";
 
 
 if (isset($_POST['confirm_delete_id'])) {
+    clevo_require_csrf_token();
     $delete_id = intval($_POST['confirm_delete_id']);
     if($conn->query("DELETE FROM stations WHERE StationID = $delete_id")) { 
         $show_msg_modal = true; 
@@ -42,6 +44,7 @@ if (isset($_POST['confirm_delete_id'])) {
 
 
 if (isset($_POST['confirm_block_id'])) {
+    clevo_require_csrf_token();
     $block_id = intval($_POST['confirm_block_id']);
     if($conn->query("UPDATE stations SET Status = 'Closed' WHERE StationID = $block_id")) { 
         $show_msg_modal = true; 
@@ -203,6 +206,7 @@ $res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations
                     <h5 class="fw-bold mb-2" id="confirmTitle"></h5>
                     <p class="small text-muted-custom mb-4" id="confirmBody"></p>
                     <form method="POST" id="confirmForm">
+                        <?= csrf_input(); ?>
                         <input type="hidden" name="" id="confirmInputId">
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-danger rounded-pill fw-bold py-2" data-i18n="btn_confirm">تأكيد الإجراء</button>

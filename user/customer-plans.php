@@ -4,18 +4,14 @@ include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/app-helpers.php");
 include_once(__DIR__ . "/../includes/plan-helpers.php");
 
-if (!isset($_SESSION['userID'])) {
-    header("Location: ../general/login.php");
-    exit();
-}
-
-$userID = (int) $_SESSION['userID'];
+$userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 $message_key = isset($_GET['subscribed']) ? "success_sub" : "";
 $message_type = $message_key ? "success" : "";
 
 clevoEnsurePlanColumns($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_wallet'])) {
+    clevo_require_csrf_token();
     $planID = (int) ($_POST['plan_id'] ?? 0);
 
     $stmt_p = $conn->prepare("SELECT * FROM plans WHERE id = ? AND is_active = 1 LIMIT 1");
@@ -205,6 +201,7 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
             <div class="modal-content p-4 text-center">
                 <h6 class="fw-bold mb-4" data-i18n="choose_pay_method">اختر طريقة الدفع</h6>
                 <form method="POST">
+                    <?= csrf_input(); ?>
                     <input type="hidden" name="plan_id" id="modalPlanID">
                     <button type="submit" name="pay_wallet" class="pay-option d-flex align-items-center mb-3">
                         <i class="fas fa-wallet fa-2x text-success ms-3 me-3"></i>

@@ -4,12 +4,7 @@ include(__DIR__ . "/../includes/config.php");
 include(__DIR__ . "/../includes/app-helpers.php");
 
 
-if (!isset($_SESSION['userID'])) {
-    header("Location: login.php");
-    exit();
-}
-
-$userID = $_SESSION['userID'];
+$userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 $error = "";
 $success = false;
 
@@ -44,6 +39,7 @@ $currentPoints = clevoGetLoyaltyPoints($conn, (int)$userID);
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
+    clevo_require_csrf_token();
     $requiredPoints = intval($_POST['points_to_deduct']);
     $rewardValue = $requiredPoints / 100; 
 
@@ -205,6 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 <i class="fas fa-coins text-warning fa-4x mb-3"></i>
                 <h6 class="fw-bold mb-3 text-custom-title text-center" data-i18n="redeem_confirm_t">تأكيد تحويل النقاط لرصيد؟</h6>
                 <form method="POST">
+                    <?= csrf_input(); ?>
                     <input type="hidden" name="points_to_deduct" id="modalPoints">
                     <button type="submit" name="redeem_points" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mb-2 text-white" data-i18n="btn_confirm">تأكيد الاستبدال</button>
                     <button type="button" class="btn btn-light w-100 rounded-pill border py-2 fw-bold text-custom-muted text-center" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>

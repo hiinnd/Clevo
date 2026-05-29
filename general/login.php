@@ -128,6 +128,14 @@ if (isset($_POST['reset_password_action'])) {
 
     header('Content-Type: application/json');
 
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'csrf_failed'
+        ]);
+        exit;
+    }
+
     $newPassword =
         $_POST['password'] ?? '';
 
@@ -575,6 +583,7 @@ if (isset($_POST['reset_password_action'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
         const translations = {
             ar: {
                 login_title: "تسجيل الدخول | Clevo",
@@ -634,6 +643,15 @@ if (isset($_POST['reset_password_action'])) {
             }
         };
 
+        function showMessageModal(type, title, message) {
+            document.getElementById('msgIcon').innerHTML = type === 'success'
+                ? '<i class="fas fa-check-circle fa-4x text-success"></i>'
+                : '<i class="fas fa-times-circle fa-4x text-danger"></i>';
+            document.getElementById('msgTitle').innerText = title;
+            document.getElementById('msgText').innerText = message;
+            new bootstrap.Modal(document.getElementById('msgModal')).show();
+        }
+
         function goToStep(current, next) {
             bootstrap.Modal.getInstance(document.getElementById('forgotStep' + current)).hide();
             setTimeout(() => {
@@ -692,7 +710,8 @@ if (isset($_POST['reset_password_action'])) {
                     },
 
                     body: 'reset_password_action=1&password=' +
-                        encodeURIComponent(newPw)
+                        encodeURIComponent(newPw) +
+                        '&csrf_token=' + encodeURIComponent(csrfToken)
 
                 })
 
@@ -724,11 +743,7 @@ if (isset($_POST['reset_password_action'])) {
 
                     } else {
 
-                        alert(
-                            lang === 'ar' ?
-                            'حدث خطأ' :
-                            'Error'
-                        );
+                        showMessageModal('error', translations[lang].error_title, lang === 'ar' ? 'حدث خطأ' : 'Error');
                     }
                 });
         }
@@ -756,7 +771,8 @@ if (isset($_POST['reset_password_action'])) {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     },
 
-                    body: 'email=' + encodeURIComponent(email)
+                    body: 'email=' + encodeURIComponent(email) +
+                        '&csrf_token=' + encodeURIComponent(csrfToken)
 
                 })
 
@@ -780,7 +796,7 @@ if (isset($_POST['reset_password_action'])) {
 
                     } else {
 
-                        alert(data.message || 'Error');
+                        showMessageModal('error', translations[lang].error_title, data.message || 'Error');
                     }
                 });
         }
@@ -825,7 +841,8 @@ if (isset($_POST['reset_password_action'])) {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     },
 
-                    body: 'otp=' + encodeURIComponent(otp)
+                    body: 'otp=' + encodeURIComponent(otp) +
+                        '&csrf_token=' + encodeURIComponent(csrfToken)
 
                 })
 

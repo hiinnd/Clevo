@@ -834,7 +834,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                      <button class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">${translations[lang].ok_btn}</button>`
                 );
             } else {
-                location.href = `booking.php?station_id=${stationId}`;
+                location.href = `../user/station-details.php?id=${stationId}`;
             }
         }
 

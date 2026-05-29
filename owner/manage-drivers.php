@@ -4,12 +4,7 @@ session_start();
 include __DIR__ . '/../includes/config.php';
 
 
-if(!isset($_SESSION['userID']) || $_SESSION['role'] !== 'owner'){
-    header("Location: ../login.php");
-    exit();
-}
-
-$owner_id = $_SESSION['userID'] ?? 0;
+$owner_id = clevo_require_role('owner', '../general/login.php');
 
 
 $station_query = mysqli_query($conn, "SELECT StationID FROM stations WHERE UserID = '$owner_id'");
@@ -19,6 +14,7 @@ $my_station_id = $station_data['StationID'] ?? 0;
 
 if (isset($_POST['action'])) {
     header('Content-Type: application/json');
+    clevo_require_csrf_token(true);
     $action = $_POST['action'];
 
     if ($action == 'fetch_drivers') {
@@ -243,6 +239,7 @@ if (isset($_POST['action'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
         const translations = {
             ar: { 
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", nav_notifications: "الإشعارات",
@@ -274,7 +271,7 @@ if (isset($_POST['action'])) {
             const container = document.getElementById('driversContainer');
             const lang = localStorage.getItem('app_lang') || 'ar';
             const isRtl = lang === 'ar';
-            const response = await fetch('', { method: 'POST', body: new URLSearchParams({ 'action': 'fetch_drivers' }) });
+            const response = await fetch('', { method: 'POST', body: new URLSearchParams({ 'action': 'fetch_drivers', 'csrf_token': csrfToken }) });
             const drivers = await response.json();
             
             if (drivers.length === 0) { 
@@ -323,6 +320,7 @@ if (isset($_POST['action'])) {
                 method: 'POST', 
                 body: new URLSearchParams({ 
                     'action': 'add_driver', 
+                    'csrf_token': csrfToken,
                     'name': name, 
                     'phone': phone 
                 }) 
@@ -343,7 +341,7 @@ if (isset($_POST['action'])) {
         async function executeDeleteDriver() {
             const id = document.getElementById('targetDriverId').value;
             if(id > 0) {
-                await fetch('', { method: 'POST', body: new URLSearchParams({ 'action': 'delete_driver', 'id': id }) });
+                await fetch('', { method: 'POST', body: new URLSearchParams({ 'action': 'delete_driver', 'id': id, 'csrf_token': csrfToken }) });
                 bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
                 renderDrivers();
             }

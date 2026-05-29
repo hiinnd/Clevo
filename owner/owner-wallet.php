@@ -4,7 +4,7 @@ session_start();
 include __DIR__ . '/../includes/config.php'; 
 
 
-$userID = $_SESSION['userID'] ?? 0; 
+$userID = clevo_require_role('owner', '../general/login.php');
 $balance = 0.00;
 $transactions = [];
 $monthly_profit = 0.00;

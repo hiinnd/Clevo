@@ -120,7 +120,7 @@
 
 <body>
     <div class="map-header">
-        <a href="home.php" class="ctrl-btn-circle"><i class="fas fa-arrow-right" id="backIcon"></i></a>
+        <a href="../user/home.php" class="ctrl-btn-circle"><i class="fas fa-arrow-right" id="backIcon"></i></a>
         <h6 class="mb-0 fw-bold" data-i18n="loc_page_title">تحديد الموقع</h6>
         <div style="width: 38px;"></div>
     </div>
@@ -222,7 +222,7 @@
             localStorage.setItem('selected_lat', marker.getLatLng().lat);
             localStorage.setItem('selected_lng', marker.getLatLng().lng);
             localStorage.setItem('selected_google_maps_url', `https://www.google.com/maps?q=${marker.getLatLng().lat},${marker.getLatLng().lng}`);
-            location.href = 'home.php'; // أو النجاح
+            location.href = '../user/home.php'; // أو النجاح
         }
     </script>
 </body>

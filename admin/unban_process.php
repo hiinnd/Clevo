@@ -1,7 +1,10 @@
 <?php
 include __DIR__ . '/../includes/config.php';
 
+clevo_require_role('Admin', '../general/login.php');
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['user_id'])) {
+    clevo_require_csrf_token();
     $user_id = intval($_POST['user_id']); 
     
     

@@ -2,10 +2,11 @@
 
 session_start();
 include __DIR__ . '/../includes/config.php'; 
-$owner_id = (int) ($_SESSION['userID'] ?? 0);
+$owner_id = clevo_require_role('owner', '../general/login.php');
 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'submit_reply') {
+    clevo_require_csrf_token(true);
     $review_id = mysqli_real_escape_string($conn, $_POST['review_id']);
     $reply_text = mysqli_real_escape_string($conn, $_POST['reply_text']);
     
@@ -283,6 +284,7 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
 
             const formData = new URLSearchParams();
             formData.append('action', 'submit_reply');
+            formData.append('csrf_token', <?= json_encode(generate_csrf_token()) ?>);
             formData.append('review_id', id);
             formData.append('reply_text', replyText);
 

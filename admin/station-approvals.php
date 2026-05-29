@@ -22,6 +22,7 @@ $admin_id = $_SESSION['userID'] ?? 0;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
@@ -59,6 +60,7 @@ $res_pending = $conn->query("
 
 
 if (isset($_POST['action']) && isset($_POST['user_id'])) {
+    clevo_require_csrf_token();
     $u_id = intval($_POST['user_id']);
     $action = $_POST['action'];
     if ($action === 'Approve') {
@@ -461,7 +463,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
     <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm" style="max-width: 340px;">
             <div class="modal-content text-center p-4 shadow-lg">
-                <form method="POST"><input type="hidden" name="user_id" id="modal_st_id"><input type="hidden" name="action" id="modal_st_action">
+                <form method="POST"><?= csrf_input(); ?><input type="hidden" name="user_id" id="modal_st_id"><input type="hidden" name="action" id="modal_st_action">
                     <div id="mIcon" class="mb-3 fs-1"></div>
                     <h6 class="fw-bold" data-i18n="confirm_action_t">تأكيد الإجراء</h6>
                     <p class="small text-muted-custom mb-4" data-i18n="confirm_msg">هل أنت متأكد؟</p>
