@@ -1,13 +1,22 @@
 <?php
 session_start();
-include(__DIR__ . "/../includes/config.php");
-include(__DIR__ . "/../includes/app-helpers.php");
+include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 
 
-$query = "SELECT s.*, (SELECT MIN(Price) FROM services WHERE services.StationID = s.StationID) as min_price 
-          FROM stations s 
+$query = "SELECT s.*,
+                 (SELECT MIN(Price) FROM services WHERE services.StationID = s.StationID) AS min_price,
+                 COALESCE(rr.user_rating, 0) AS user_rating,
+                 COALESCE(rr.review_count, 0) AS review_count
+          FROM stations s
+          LEFT JOIN (
+              SELECT b.StationID, AVG(r.Rating) AS user_rating, COUNT(r.ReviewID) AS review_count
+              FROM booking b
+              JOIN reviews r ON r.BookingID = b.BookingID
+              GROUP BY b.StationID
+          ) rr ON rr.StationID = s.StationID
           WHERE s.admin_status = 'approved'";
 $stmt = $conn->prepare($query);
 $stmt->execute();
@@ -93,7 +102,8 @@ $result = $stmt->get_result();
         .station-title { color: var(--text) !important; font-weight: 700; }
         .station-loc-text { color: var(--text-muted) !important; }
         
-        .price-start { font-weight: 900; color: #22c55e; font-size: 1.2rem; }
+        .map-link { font-weight: 900; color: #0ea5e9; font-size: 0.95rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .map-link:hover { color: #0284c7; text-decoration: underline; }
         .filter-tags { display: flex; gap: 10px; overflow-x: auto; padding: 15px 5px; scrollbar-width: none; }
         .filter-tags::-webkit-scrollbar { display: none; }
         
@@ -137,18 +147,23 @@ $result = $stmt->get_result();
                 while($row = mysqli_fetch_assoc($result)) 
                 {
                     $min_price = $row['min_price'] ?? '0';
+                    $rating = number_format((float) ($row['user_rating'] ?? 0), 1);
+                    $map_url = trim((string) ($row['Location_URL'] ?? ''));
+                    if ($map_url === '' && is_numeric($row['Lat'] ?? null) && is_numeric($row['Lon'] ?? null)) {
+                        $map_url = 'https://www.google.com/maps?q=' . rawurlencode($row['Lat'] . ',' . $row['Lon']);
+                    }
                     $default_index++;
             ?>
                 <div class="col-12 col-md-6 col-lg-4 station-item" 
                      data-price="<?php echo htmlspecialchars($min_price); ?>" 
-                     data-rating="<?php echo htmlspecialchars($row['Rating']); ?>" 
+                     data-rating="<?php echo htmlspecialchars($rating); ?>" 
                      data-lat="<?php echo htmlspecialchars($row['Lat']); ?>" 
                      data-lon="<?php echo htmlspecialchars($row['Lon']); ?>"
                      data-status="<?php echo htmlspecialchars($row['Status']); ?>"
                      data-index="<?php echo $default_index; ?>">
                     <div class="station-card glass shadow-sm" onclick='goToStation(<?php echo (int) $row['StationID']; ?>, <?php echo json_encode((string) $row['Name']); ?>, <?php echo json_encode((string) $row['Status']); ?>)'>
                        <div style="background-image: url('<?php echo htmlspecialchars(clevoStationImageUrl($row['Image'])); ?>'); height: 160px; background-size: cover; background-position: center; position: relative;">
-                            <div class="badge-rating"><i class="fas fa-star text-warning me-1"></i> <?php echo htmlspecialchars($row['Rating']); ?></div>
+                            <div class="badge-rating"><i class="fas fa-star text-warning me-1"></i> <?php echo htmlspecialchars($rating); ?></div>
                             <?php if($row['Status'] !== 'Active'): ?>
                                 <div class="status-pill" data-status-val="<?php echo htmlspecialchars($row['Status']); ?>"><?= $row['Status'] === 'Busy' ? 'مشغول' : 'مغلق' ?></div>
                             <?php endif; ?>
@@ -157,7 +172,11 @@ $result = $stmt->get_result();
                             <h6 class="station-title mb-1"><?php echo htmlspecialchars($row['Name']); ?></h6>
                             <p class="small station-loc-text mb-3"><i class="fas fa-map-marker-alt text-primary me-1"></i> <span><?php echo htmlspecialchars($row['Location']); ?></span></p>
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="price-start"><?php echo htmlspecialchars($min_price); ?> JOD</span>
+                                <?php if ($map_url !== ''): ?>
+                                    <a class="map-link" href="<?php echo htmlspecialchars($map_url); ?>" target="_blank" rel="noopener" onclick="event.stopPropagation();" data-i18n="station_map_link"><i class="fas fa-location-dot"></i> موقع المحطة</a>
+                                <?php else: ?>
+                                    <span class="small station-loc-text" data-i18n="station_map_unavailable">موقع المحطة غير متاح</span>
+                                <?php endif; ?>
                                 <button class="btn-book-now" data-i18n="<?= $row['Status'] === 'Active' ? 'btn_book_now' : 'btn_unavailable' ?>" <?= $row['Status'] === 'Active' ? '' : 'disabled' ?>><?= $row['Status'] === 'Active' ? 'حجز' : 'غير متاح' ?></button>
                             </div>
                         </div>
@@ -193,6 +212,10 @@ $result = $stmt->get_result();
                 serv_book: "Search Stations", placeholder_search: "Search by name or location...", filter_all: "All", filter_cheapest: "Cheapest", filter_top_rated: "Top Rated", filter_nearest: "Nearest to Me", btn_book_now: "Book Now", btn_ok: "OK", no_stations: "No stations available right now", gps_unsupported: "GPS is not supported on your device", location_required: "Please enable location services and GPS permissions to view nearest stations", unavailable_title: "Station unavailable", status_busy: "Busy", status_closed: "Closed", btn_unavailable: "Unavailable"
             }
         };
+        translations.ar.station_map_link = "موقع المحطة";
+        translations.ar.station_map_unavailable = "موقع المحطة غير متاح";
+        translations.en.station_map_link = "Station location";
+        translations.en.station_map_unavailable = "Station location unavailable";
 
         function applyTranslations(lang) {
             document.querySelectorAll('[data-i18n]').forEach(el => {

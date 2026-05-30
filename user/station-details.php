@@ -1,12 +1,13 @@
 <?php
 session_start();
-include(__DIR__ . "/../includes/config.php");
-include(__DIR__ . "/../includes/booking-helpers.php");
-include(__DIR__ . "/../includes/app-helpers.php");
+include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/booking-helpers.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 cancelExpiredBookings($conn, $userID);
 clevoEnsurePlanColumns($conn);
+clevoEnsureBookingServicesTable($conn);
 
 $stationID = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $query = "SELECT * FROM `stations` WHERE StationID = ?";
@@ -134,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         }
 
         $bookingID = $conn->insert_id;
+        clevoSaveBookingServices($conn, $bookingID, $orderedServices);
         $ownerID = (int) $station['UserID'];
         if ($ownerID > 0) {
             $title = "طلب جديد";

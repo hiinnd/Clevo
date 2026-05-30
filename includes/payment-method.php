@@ -1,8 +1,8 @@
 <?php
 session_start();
-include(__DIR__ . "/config.php");
-include(__DIR__ . "/booking-helpers.php");
-include(__DIR__ . "/app-helpers.php");
+include_once(__DIR__ . "/config.php");
+include_once(__DIR__ . "/booking-helpers.php");
+include_once(__DIR__ . "/app-helpers.php");
 include_once(__DIR__ . "/plan-helpers.php");
 
 if (!isset($_SESSION['userID'])) {
@@ -14,12 +14,15 @@ $userID = (int) $_SESSION['userID'];
 $bookingID = (int) ($_GET['id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
 clevoEnsurePlanColumns($conn);
+clevoEnsureBookingPaymentColumns($conn);
+clevoEnsureBookingServicesTable($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_payment') {
     header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
     $method = $_POST['method'] ?? '';
-    if (!in_array($method, ['cash', 'wallet', 'points', 'plan'], true)) {
+    $usePoints = ($_POST['use_points'] ?? '') === '1';
+    if (!in_array($method, ['cash', 'wallet', 'visa', 'plan'], true)) {
         echo json_encode(['status' => 'error']);
         exit;
     }
@@ -39,15 +42,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_p
     }
 
     if ($method === 'wallet') {
+        $walletPreview = clevoPreviewPointsDiscount($conn, $userID, (float) $booking['Total_Price'], $usePoints);
         $wallet = clevoEnsureWallet($conn, $userID);
-        if (!$wallet || (float) $wallet['Balance'] < (float) $booking['Total_Price']) {
+        if (!$wallet || (float) $wallet['Balance'] < (float) $walletPreview['payable']) {
+            echo json_encode(['status' => 'insufficient']);
+            exit;
+        }
+    }
+
+    $paymentPreview = ['points' => 0.0, 'discount' => 0.0, 'payable' => (float) $booking['Total_Price']];
+    if ($method === 'visa') {
+        $paymentPreview = clevoPreviewPointsDiscount($conn, $userID, (float) $booking['Total_Price'], $usePoints);
+        if ((float) $paymentPreview['payable'] > 0) {
+            echo json_encode(['status' => 'redirect_visa', 'use_points' => $usePoints ? 1 : 0]);
+            exit;
+        }
+    }
+    if ($method !== 'plan') {
+        $conn->begin_transaction();
+        try {
+            $paymentPreview = clevoApplyPointsDiscount($conn, $bookingID, $userID, (float) $booking['Total_Price'], $usePoints);
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+            echo json_encode(['status' => 'insufficient_points']);
+            exit;
+        }
+    }
+
+    $amountDue = (float) $paymentPreview['payable'];
+    if ($amountDue <= 0 && $method !== 'plan') {
+        $method = 'points';
+    }
+
+    if ($method === 'wallet') {
+        $wallet = clevoEnsureWallet($conn, $userID);
+        if (!$wallet || (float) $wallet['Balance'] < $amountDue) {
             echo json_encode(['status' => 'insufficient']);
             exit;
         }
 
-        $amount = (float) $booking['Total_Price'];
+        $amount = $amountDue;
         $walletID = (int) $wallet['WalletID'];
-        if (!clevoDebitWallet($conn, $walletID, $amount)) {
+        if ($amount > 0 && !clevoDebitWallet($conn, $walletID, $amount)) {
             echo json_encode(['status' => 'insufficient']);
             exit;
         }
@@ -55,14 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_p
         $descEn = "Booking payment #$bookingID";
         $type = "debit";
         clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $descEn);
-    }
-
-    if ($method === 'points') {
-        $requiredPoints = (int) ceil(((float) $booking['Total_Price']) * 100);
-        if (!clevoSpendLoyaltyPoints($conn, $userID, $requiredPoints)) {
-            echo json_encode(['status' => 'insufficient_points']);
-            exit;
-        }
     }
 
     if ($method === 'plan') {
@@ -119,10 +148,13 @@ if ($booking['Status'] !== 'Accepted' || !empty($booking['Payment_Method'])) {
 }
 
 $base_price = (float) $booking['Total_Price'];
-$pointsRequired = (int) ceil($base_price * 100);
+$pointsRequired = (int) ceil($base_price * 40);
 $wallet = clevoEnsureWallet($conn, $userID);
 $walletBalance = (float) $wallet['Balance'];
 $pointsBalance = clevoGetLoyaltyPoints($conn, $userID);
+$maxUsablePoints = (int) min(floor($pointsBalance), ceil($base_price * 40));
+$maxPointsDiscount = min($base_price, $maxUsablePoints / 40);
+$servicesSummary = clevoBookingServicesSummary($conn, $booking);
 $isStationService = $booking['Service_Location'] === 'station';
 $activePlan = clevoGetActiveUserPlan($conn, $userID);
 $csrf_token = generate_csrf_token();
@@ -251,7 +283,7 @@ $csrf_token = generate_csrf_token();
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="service_label">الخدمة</span>
-                <span class="summary-value"><?= e($booking['service_name']) ?></span>
+                <span class="summary-value"><?= e($servicesSummary) ?></span>
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="appointment_label">الموعد</span>
@@ -269,7 +301,7 @@ $csrf_token = generate_csrf_token();
                 <div>
                     <h6 class="mb-1 fw-bold"><i class="fas fa-coins me-1"></i> <span data-i18n="loyalty_points">نقاط Clevo</span></h6>
                     <p class="mb-0 small" style="color: #e0f2fe;">رصيدك الحالي: <?= number_format($pointsBalance) ?> نقطة</p>
-                    <p class="mb-0 small" style="color: #e0f2fe;">المطلوب لهذا الحجز: <?= number_format($pointsRequired) ?> نقطة</p>
+                    <p class="mb-0 small" style="color: #e0f2fe;">أقصى خصم متاح: <?= number_format($maxPointsDiscount, 2) ?> JOD (<?= number_format($maxUsablePoints) ?> نقطة)</p>
                 </div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="usePoints" style="transform: scale(1.4); cursor: pointer;">
@@ -419,11 +451,9 @@ $csrf_token = generate_csrf_token();
         function togglePointsMethod(active, clearSelected = true) {
             usePoints.checked = active;
             pointsCard.classList.toggle('active', active);
-            if (active) {
-                selectedMethod = 'points';
-                document.querySelectorAll('.method-item').forEach(i => i.classList.remove('active'));
-            } else if (clearSelected && selectedMethod === 'points') {
+            if (active && selectedMethod === 'plan') {
                 selectedMethod = "";
+                document.querySelectorAll('.method-item').forEach(i => i.classList.remove('active'));
             }
         }
 
@@ -454,16 +484,21 @@ $csrf_token = generate_csrf_token();
                 btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${lang === 'ar' ? 'جاري المعالجة...' : 'Processing...'}`;
             }
 
-            if (selectedMethod === 'visa') {
+            if (false && selectedMethod === 'visa') {
                 location.href = 'payment-gateway.php?id=' + bookingID;
             } else {
                 const params = new URLSearchParams();
                 params.append('action', 'set_payment');
                 params.append('method', selectedMethod);
+                params.append('use_points', usePoints.checked ? '1' : '0');
                 params.append('csrf_token', csrfToken);
                 fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() })
                 .then(res => res.json())
                 .then(data => {
+                    if (data.status === 'redirect_visa') {
+                        location.href = 'payment-gateway.php?id=' + bookingID + '&use_points=' + (usePoints.checked ? '1' : '0');
+                        return;
+                    }
                     if (data.status === 'insufficient') {
                         showMessage('error', 'الرصيد غير كاف', 'Insufficient Balance', 'رصيد المحفظة لا يكفي لإتمام الدفع.', 'Your wallet balance is not enough.');
                         return;

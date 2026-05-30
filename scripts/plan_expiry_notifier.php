@@ -2,8 +2,8 @@
 
 
 
-require __DIR__ . '/../includes/config.php';
-require __DIR__ . '/../includes/app-helpers.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/app-helpers.php';
 
 $daysBefore = 7; 
 $notified = 0;

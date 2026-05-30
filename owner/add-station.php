@@ -1,7 +1,7 @@
 <?php
 
 session_start();
-include __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/config.php';
 
 $owner_id = clevo_require_role('owner', '../general/login.php');
 $existingStation = null;

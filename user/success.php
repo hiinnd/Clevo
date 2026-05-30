@@ -1,8 +1,8 @@
 <?php
 session_start();
-include(__DIR__ . "/../includes/config.php");
-include(__DIR__ . "/../includes/booking-helpers.php");
-include(__DIR__ . "/../includes/app-helpers.php");
+include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/booking-helpers.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 $bookingID = (int) ($_GET['id'] ?? 0);
@@ -68,6 +68,7 @@ if (!$booking) {
 
 $bookingID = (int) $booking['BookingID'];
 $orderNumber = clevoBookingReference($booking, $bookingID);
+$servicesSummary = clevoBookingServicesSummary($conn, $booking);
 $status = (string) ($booking['Status'] ?? 'Pending');
 $canModify = clevoBookingCanBeChanged($status);
 $paymentMethod = (string) ($booking['Payment_Method'] ?? '');
@@ -373,7 +374,7 @@ $userName = $_SESSION['userName'] ?? 'User';
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="service_label">الخدمة</span>
-                <span class="summary-value"><?= e($booking['service_name']) ?></span>
+                <span class="summary-value"><?= e($servicesSummary) ?></span>
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="appointment_label">الموعد</span>

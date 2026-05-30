@@ -2,6 +2,158 @@
 include_once __DIR__ . "/plan-helpers.php";
 include_once __DIR__ . "/app-helpers.php";
 
+function clevoEnsureBookingServicesTable(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $conn->query("CREATE TABLE IF NOT EXISTS booking_services (
+        BookingServiceID INT(11) NOT NULL AUTO_INCREMENT,
+        BookingID INT(11) NOT NULL,
+        ServiceID INT(11) DEFAULT NULL,
+        ServiceName VARCHAR(255) DEFAULT NULL,
+        Price DECIMAL(10,2) DEFAULT 0.00,
+        PRIMARY KEY (BookingServiceID),
+        KEY BookingID (BookingID),
+        KEY ServiceID (ServiceID),
+        CONSTRAINT booking_services_booking_fk FOREIGN KEY (BookingID) REFERENCES booking(BookingID) ON DELETE CASCADE,
+        CONSTRAINT booking_services_service_fk FOREIGN KEY (ServiceID) REFERENCES services(ServiceID) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+}
+
+function clevoEnsureBookingPaymentColumns(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
+    if ($db === '') {
+        return;
+    }
+
+    $columns = [];
+    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'booking'");
+    $stmt->bind_param("s", $db);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $columns[$row['COLUMN_NAME']] = true;
+    }
+
+    if (!isset($columns['Points_Used'])) {
+        $conn->query("ALTER TABLE booking ADD COLUMN Points_Used DECIMAL(10,2) DEFAULT 0.00 AFTER Payment_Method");
+    }
+    if (!isset($columns['Points_Discount'])) {
+        $conn->query("ALTER TABLE booking ADD COLUMN Points_Discount DECIMAL(10,2) DEFAULT 0.00 AFTER Points_Used");
+    }
+    if (!isset($columns['Payable_Amount'])) {
+        $conn->query("ALTER TABLE booking ADD COLUMN Payable_Amount DECIMAL(10,2) DEFAULT NULL AFTER Points_Discount");
+    }
+}
+
+function clevoSaveBookingServices(mysqli $conn, int $bookingID, array $services): void
+{
+    if ($bookingID <= 0 || empty($services)) {
+        return;
+    }
+
+    clevoEnsureBookingServicesTable($conn);
+    $stmt = $conn->prepare("INSERT INTO booking_services (BookingID, ServiceID, ServiceName, Price) VALUES (?, ?, ?, ?)");
+    foreach ($services as $service) {
+        $serviceID = (int) ($service['ServiceID'] ?? 0);
+        $name = (string) ($service['Name'] ?? '');
+        $price = (float) ($service['Price'] ?? 0);
+        $stmt->bind_param("iisd", $bookingID, $serviceID, $name, $price);
+        $stmt->execute();
+    }
+}
+
+function clevoExtractServiceNamesFromAddress(?string $addressDetails): array
+{
+    $addressDetails = (string) $addressDetails;
+    $marker = 'الخدمات:';
+    $pos = mb_strpos($addressDetails, $marker);
+    if ($pos === false) {
+        return [];
+    }
+
+    $servicesText = trim(mb_substr($addressDetails, $pos + mb_strlen($marker)));
+    $servicesText = strtok($servicesText, "\r\n") ?: $servicesText;
+    return array_values(array_filter(array_map('trim', explode(' + ', $servicesText))));
+}
+
+function clevoBookingServicesSummary(mysqli $conn, array $booking): string
+{
+    $bookingID = (int) ($booking['BookingID'] ?? 0);
+    if ($bookingID > 0) {
+        clevoEnsureBookingServicesTable($conn);
+        $stmt = $conn->prepare("SELECT ServiceName FROM booking_services WHERE BookingID = ? ORDER BY BookingServiceID ASC");
+        $stmt->bind_param("i", $bookingID);
+        $stmt->execute();
+        $rows = $stmt->get_result();
+        $names = [];
+        while ($row = $rows->fetch_assoc()) {
+            $name = trim((string) ($row['ServiceName'] ?? ''));
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+        if ($names) {
+            return implode(' + ', $names);
+        }
+    }
+
+    $fromAddress = clevoExtractServiceNamesFromAddress($booking['Address_Details'] ?? '');
+    if ($fromAddress) {
+        return implode(' + ', $fromAddress);
+    }
+
+    return (string) ($booking['service_name'] ?? '');
+}
+
+function clevoBookingPayableAmount(array $booking): float
+{
+    if (array_key_exists('Payable_Amount', $booking) && $booking['Payable_Amount'] !== null && $booking['Payable_Amount'] !== '') {
+        return max(0, round((float) $booking['Payable_Amount'], 2));
+    }
+    return max(0, round((float) ($booking['Total_Price'] ?? 0) - (float) ($booking['Points_Discount'] ?? 0), 2));
+}
+
+function clevoPreviewPointsDiscount(mysqli $conn, int $userID, float $totalPrice, bool $usePoints): array
+{
+    if (!$usePoints || $totalPrice <= 0) {
+        return ['points' => 0.0, 'discount' => 0.0, 'payable' => max(0, round($totalPrice, 2))];
+    }
+
+    $balance = clevoGetLoyaltyPoints($conn, $userID);
+    $maxPointsForTotal = ceil($totalPrice * 40);
+    $points = min($balance, $maxPointsForTotal);
+    $discount = min($totalPrice, floor($points) / 40);
+    $payable = max(0, round($totalPrice - $discount, 2));
+
+    return ['points' => floor($points), 'discount' => round($discount, 2), 'payable' => $payable];
+}
+
+function clevoApplyPointsDiscount(mysqli $conn, int $bookingID, int $userID, float $totalPrice, bool $usePoints): array
+{
+    clevoEnsureBookingPaymentColumns($conn);
+    $preview = clevoPreviewPointsDiscount($conn, $userID, $totalPrice, $usePoints);
+    if ($preview['points'] > 0 && !clevoSpendLoyaltyPoints($conn, $userID, (float) $preview['points'])) {
+        throw new RuntimeException('insufficient_points');
+    }
+
+    $stmt = $conn->prepare("UPDATE booking SET Points_Used = ?, Points_Discount = ?, Payable_Amount = ? WHERE BookingID = ? AND UserID = ?");
+    $stmt->bind_param("dddii", $preview['points'], $preview['discount'], $preview['payable'], $bookingID, $userID);
+    $stmt->execute();
+    return $preview;
+}
+
 function clevoEnsureBookingWorkflowColumns(mysqli $conn): void
 {
     static $done = false;
@@ -108,7 +260,8 @@ function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason 
     }
 
     $method = (string) ($booking['Payment_Method'] ?? '');
-    $amount = round((float) ($booking['Total_Price'] ?? 0), 2);
+    $amount = clevoBookingPayableAmount($booking);
+    $pointsUsed = (float) ($booking['Points_Used'] ?? 0);
     $orderNumber = clevoBookingReference($booking, $bookingID);
     $result = ['refunded' => false, 'method' => $method, 'amount' => $amount, 'message' => 'no_payment'];
 
@@ -117,12 +270,12 @@ function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason 
         return ['refunded' => true, 'method' => $method, 'amount' => 0, 'message' => 'plan_restored'];
     }
 
-    if (in_array($method, ['visa', 'wallet'], true) && $amount > 0) {
+    if (in_array($method, ['visa', 'wallet'], true)) {
         $wallet = clevoEnsureWallet($conn, (int) $booking['UserID']);
         $walletID = (int) $wallet['WalletID'];
         $descEn = "Booking refund #$orderNumber";
 
-        if (!clevoBookingHasWalletTransaction($conn, $walletID, $descEn)) {
+        if ($amount > 0 && !clevoBookingHasWalletTransaction($conn, $walletID, $descEn)) {
             if (!clevoCreditWallet($conn, $walletID, $amount)) {
                 return ['refunded' => false, 'method' => $method, 'amount' => $amount, 'message' => 'wallet_refund_failed'];
             }
@@ -133,12 +286,15 @@ function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason 
             clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $descEn);
         }
 
+        if ($pointsUsed > 0) {
+            clevoAddLoyaltyPoints($conn, (int) $booking['UserID'], $pointsUsed);
+        }
         clevoReverseOwnerPayoutForBooking($conn, $booking);
         return ['refunded' => true, 'method' => $method, 'amount' => $amount, 'message' => 'wallet_refunded'];
     }
 
     if ($method === 'points') {
-        $points = (int) ceil($amount * 100);
+        $points = $pointsUsed > 0 ? $pointsUsed : (int) ceil((float) ($booking['Total_Price'] ?? 0) * 40);
         clevoAddLoyaltyPoints($conn, (int) $booking['UserID'], $points);
         clevoReverseOwnerPayoutForBooking($conn, $booking);
         return ['refunded' => true, 'method' => $method, 'amount' => $points, 'message' => 'points_refunded'];

@@ -1,7 +1,7 @@
 <?php
 session_start();
-include(__DIR__ . "/config.php");
-include(__DIR__ . "/booking-helpers.php");
+include_once(__DIR__ . "/config.php");
+include_once(__DIR__ . "/booking-helpers.php");
 
 if (!isset($_SESSION['userID'])) {
     header("Location: ../general/login.php");

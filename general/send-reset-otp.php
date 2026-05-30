@@ -1,9 +1,9 @@
 <?php
 session_start();
 
-include(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/config.php");
 
-require '../vendor/autoload.php';
+require_once '../vendor/autoload.php';
 
 include(__DIR__ . "/../Emails/reset_otp.php");
 

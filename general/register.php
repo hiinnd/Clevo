@@ -3,8 +3,8 @@ session_start();
 
 use PHPMailer\PHPMailer\PHPMailer;
 
-require '../vendor/autoload.php';
-include(__DIR__ . "/../includes/config.php");
+require_once '../vendor/autoload.php';
+include_once(__DIR__ . "/../includes/config.php");
 
 $error = "";
 $registration_success = false;

@@ -1,6 +1,6 @@
 <?php
 
-include(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/config.php");
 
 $token = trim((string) ($_GET['token'] ?? ''));
 

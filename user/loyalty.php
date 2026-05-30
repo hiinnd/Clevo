@@ -1,7 +1,7 @@
 <?php
 session_start();
-include(__DIR__ . "/../includes/config.php");
-include(__DIR__ . "/../includes/app-helpers.php");
+include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
@@ -12,7 +12,7 @@ $success = false;
 $userReferralCode = "CLEVO-USER-" . $userID;
 
 
-$earned_stmt = $conn->prepare("SELECT COALESCE(SUM(Total_Price), 0) * 10 AS earned_points FROM booking WHERE UserID = ? AND Status = 'Completed'");
+$earned_stmt = $conn->prepare("SELECT COALESCE(SUM(Total_Price), 0) AS earned_points FROM booking WHERE UserID = ? AND Status = 'Completed'");
 $earned_stmt->bind_param("i", $userID);
 $earned_stmt->execute();
 $earnedPoints = (int) floor((float) ($earned_stmt->get_result()->fetch_assoc()['earned_points'] ?? 0));
@@ -41,27 +41,28 @@ $currentPoints = clevoGetLoyaltyPoints($conn, (int)$userID);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
     clevo_require_csrf_token();
     $requiredPoints = intval($_POST['points_to_deduct']);
-    $rewardValue = $requiredPoints / 100; 
+    $rewardValue = $requiredPoints / 40; 
 
     if ($currentPoints >= $requiredPoints) {
         $conn->begin_transaction();
         try {
-            
-            $upd = $conn->prepare("UPDATE `loyalty` SET PointsBalance = PointsBalance - ? WHERE UserID = ?");
-            $upd->bind_param("ii", $requiredPoints, $userID);
-            $upd->execute();
+            $wallet = clevoEnsureWallet($conn, $userID);
+            if (!clevoSpendLoyaltyPoints($conn, $userID, $requiredPoints)) {
+                throw new RuntimeException('not_enough_points');
+            }
 
             
-            $upd_w = $conn->prepare("UPDATE `wallet` SET Balance = Balance + ? WHERE UserID = ?");
-            $upd_w->bind_param("di", $rewardValue, $userID);
+            $upd_w = $conn->prepare("UPDATE `wallet` SET Balance = Balance + ? WHERE WalletID = ?");
+            $walletID = (int) $wallet['WalletID'];
+            $upd_w->bind_param("di", $rewardValue, $walletID);
             $upd_w->execute();
 
             
             $desc_ar = "استبدال " . $requiredPoints . " نقطة مكافآت";
             $desc_en = "Redeemed " . $requiredPoints . " loyalty points";
             $ins_trans = $conn->prepare("INSERT INTO `wallet_transactions` (WalletID, Amount, TransactionType, Description_ar, Description_en) 
-                                        SELECT WalletID, ?, 'credit', ?, ? FROM `wallet` WHERE UserID = ?");
-            $ins_trans->bind_param("dssi", $rewardValue, $desc_ar, $desc_en, $userID);
+                                        VALUES (?, ?, 'credit', ?, ?)");
+            $ins_trans->bind_param("idss", $walletID, $rewardValue, $desc_ar, $desc_en);
             $ins_trans->execute();
 
             $conn->commit();
@@ -159,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 <div class="info-icon"><i class="fas fa-hand-holding-dollar"></i></div>
                 <div class="flex-grow-1">
                     <h6 class="mb-0 fw-bold text-custom-title" data-i18n="earn_1_t">استخدم خدماتنا</h6>
-                    <div class="text-custom-muted" data-i18n="earn_1_d">كل 1 دينار تصرفه = 10 نقاط Clevo</div>
+                    <div class="text-custom-muted" data-i18n="earn_1_d">كل 1 دينار تصرفه = 1 نقطة Clevo</div>
                 </div>
             </div>
             
@@ -176,19 +177,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
         <h6 class="mt-4 px-3 fw-black mb-3 text-custom-title" data-i18n="redeem_title">استبدل نقاطك برصيد</h6>
         <div class="px-2">
             <div class="glass reward-item shadow-sm">
-                <button class="btn-redeem shadow-sm" onclick="openRedeemModal(200)" data-i18n="btn_redeem">استبدال</button>
+                <button class="btn-redeem shadow-sm" onclick="openRedeemModal(40)" data-i18n="btn_redeem">استبدال</button>
                 <div class="flex-grow-1 text-end px-3">
-                    <h6 class="mb-0 fw-bold text-custom-title" data-i18n="reward_1_t">رصيد 2 دينار بالمحفظة</h6>
-                    <div class="text-custom-muted fw-bold">200 <span data-i18n="points_unit">نقطة</span></div>
+                    <h6 class="mb-0 fw-bold text-custom-title" data-i18n="reward_1_t">رصيد 1 دينار بالمحفظة</h6>
+                    <div class="text-custom-muted fw-bold">40 <span data-i18n="points_unit">نقطة</span></div>
                 </div>
                 <div class="reward-icon"><i class="fas fa-wallet"></i></div>
             </div>
 
             <div class="glass reward-item shadow-sm">
-                <button class="btn-redeem shadow-sm" onclick="openRedeemModal(500)" data-i18n="btn_redeem">استبدال</button>
+                <button class="btn-redeem shadow-sm" onclick="openRedeemModal(200)" data-i18n="btn_redeem">استبدال</button>
                 <div class="flex-grow-1 text-end px-3">
                     <h6 class="mb-0 fw-bold text-custom-title" data-i18n="reward_2_t">رصيد 5 دنانير بالمحفظة</h6>
-                    <div class="text-custom-muted fw-bold">500 <span data-i18n="points_unit">نقطة</span></div>
+                    <div class="text-custom-muted fw-bold">200 <span data-i18n="points_unit">نقطة</span></div>
                 </div>
                 <div class="reward-icon"><i class="fas fa-gift"></i></div>
             </div>
@@ -227,9 +228,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
             ar: {
                 loyalty_title: "نقاط Clevo", points_balance: "رصيدك الحالي", points_label: "Clevo Points",
                 redeem_title: "استبدل نقاطك برصيد", how_to_earn_title: "كيف تجمع النقاط؟",
-                earn_1_t: "استخدم خدماتنا", earn_1_d: "كل 1 دينار تصرفه = 10 نقاط Clevo",
+                earn_1_t: "استخدم خدماتنا", earn_1_d: "كل 1 دينار تصرفه = 1 نقطة Clevo",
                 earn_2_t: "دعوة الأصدقاء", earn_2_d: "احصل على 50 نقطة عند أول حجز لصديقك",
-                reward_1_t: "رصيد 2 دينار بالمحفظة", reward_2_t: "رصيد 5 دنانير بالمحفظة",
+                reward_1_t: "رصيد 1 دينار بالمحفظة", reward_2_t: "رصيد 5 دنانير بالمحفظة",
                 points_unit: "نقطة", btn_redeem: "استبدال", btn_confirm: "تأكيد", btn_cancel: "إلغاء",
                 redeem_confirm_t: "تأكيد تحويل النقاط لرصيد؟", redeem_success_msg: "تم تحويل النقاط بنجاح!",
                 not_enough_points: "عذراً، رصيدك غير كافٍ للاستبدال.", system_error: "حدث خطأ في النظام، يرجى المحاولة لاحقاً.",
@@ -238,9 +239,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
             en: {
                 loyalty_title: "Clevo Points", points_balance: "Your Balance", points_label: "Clevo Points",
                 redeem_title: "Redeem Points", how_to_earn_title: "How to earn points?",
-                earn_1_t: "Use our services", earn_1_d: "Every 1 JOD spent = 10 Clevo points",
+                earn_1_t: "Use our services", earn_1_d: "Every 1 JOD spent = 1 Clevo point",
                 earn_2_t: "Invite Friends", earn_2_d: "Get 50 points on friend's first booking",
-                reward_1_t: "2 JOD Wallet Credit", reward_2_t: "5 JOD Wallet Credit",
+                reward_1_t: "1 JOD Wallet Credit", reward_2_t: "5 JOD Wallet Credit",
                 points_unit: "Points", btn_redeem: "Redeem", btn_confirm: "Confirm", btn_cancel: "Cancel",
                 redeem_confirm_t: "Confirm points conversion?", redeem_success_msg: "Points redeemed successfully!",
                 not_enough_points: "Sorry, insufficient points.", system_error: "System error, please try again.",

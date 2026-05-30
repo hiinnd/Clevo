@@ -4,8 +4,8 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-include __DIR__ . '/../includes/config.php';
-include __DIR__ . '/../includes/booking-helpers.php';
+include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/booking-helpers.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'OPTIONS') {

@@ -1,8 +1,8 @@
 <?php
 session_start();
-include(__DIR__ . "/../includes/config.php");
-include(__DIR__ . "/../includes/booking-helpers.php");
-include(__DIR__ . "/../includes/app-helpers.php");
+include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/booking-helpers.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 cancelExpiredBookings($conn, (int) $userID);

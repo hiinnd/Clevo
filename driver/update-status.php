@@ -1,7 +1,7 @@
 <?php
 session_start();
-include __DIR__ . '/../includes/config.php';
-include __DIR__ . '/../includes/app-helpers.php';
+include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/app-helpers.php';
 
 $driver_id = (int) ($_SESSION['userID'] ?? 0);
 $driver_role = strtolower($_SESSION['role'] ?? $_SESSION['Role'] ?? '');

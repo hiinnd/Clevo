@@ -1,7 +1,7 @@
 <?php
 session_start();
-include __DIR__ . "/config.php";
-include __DIR__ . "/booking-helpers.php";
+include_once __DIR__ . "/config.php";
+include_once __DIR__ . "/booking-helpers.php";
 
 $userID = clevo_require_login("../general/login.php");
 cancelExpiredBookings($conn, $userID);

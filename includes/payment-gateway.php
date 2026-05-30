@@ -1,8 +1,8 @@
 <?php
 session_start();
-include(__DIR__ . "/config.php");
-include(__DIR__ . "/booking-helpers.php");
-include(__DIR__ . "/app-helpers.php");
+include_once(__DIR__ . "/config.php");
+include_once(__DIR__ . "/booking-helpers.php");
+include_once(__DIR__ . "/app-helpers.php");
 include_once(__DIR__ . "/plan-helpers.php");
 
 if (!isset($_SESSION['userID'])) {
@@ -15,6 +15,8 @@ $bookingID = (int) ($_GET['id'] ?? 0);
 $planID = (int) ($_GET['plan_id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
 clevoEnsurePlanColumns($conn);
+clevoEnsureBookingPaymentColumns($conn);
+$usePoints = ($_GET['use_points'] ?? '') === '1';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_visa_paid') {
     header('Content-Type: application/json; charset=utf-8');
@@ -28,11 +30,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
         echo json_encode(['status' => 'success']);
         exit;
     }
-    $method = 'visa';
-    $stmt = $conn->prepare("UPDATE booking SET Payment_Method = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
-    $stmt->bind_param("sii", $method, $bookingID, $userID);
-    $stmt->execute();
-    if ($stmt->affected_rows <= 0) {
+    $conn->begin_transaction();
+    try {
+        $bookingStmt = $conn->prepare("SELECT Total_Price FROM booking WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '') LIMIT 1 FOR UPDATE");
+        $bookingStmt->bind_param("ii", $bookingID, $userID);
+        $bookingStmt->execute();
+        $bookingForPay = $bookingStmt->get_result()->fetch_assoc();
+        if (!$bookingForPay) {
+            throw new RuntimeException('payment_expired');
+        }
+        clevoApplyPointsDiscount($conn, $bookingID, $userID, (float) $bookingForPay['Total_Price'], $usePoints);
+        $method = 'visa';
+        $stmt = $conn->prepare("UPDATE booking SET Payment_Method = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
+        $stmt->bind_param("sii", $method, $bookingID, $userID);
+        $stmt->execute();
+        if ($stmt->affected_rows <= 0) {
+            throw new RuntimeException('update_failed');
+        }
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
         echo json_encode(['status' => 'error']);
         exit;
     }
@@ -50,7 +67,8 @@ if ($bookingID > 0) {
         header("Location: ../user/booking-history.php");
         exit();
     }
-    $final_price = number_format((float) $booking['Total_Price'], 2);
+    $preview = clevoPreviewPointsDiscount($conn, $userID, (float) $booking['Total_Price'], $usePoints);
+    $final_price = number_format((float) $preview['payable'], 2);
 } elseif ($planID > 0) {
     $stmt = $conn->prepare("SELECT price, name_ar, name_en FROM plans WHERE id = ? AND is_active = 1 LIMIT 1");
     $stmt->bind_param("i", $planID);

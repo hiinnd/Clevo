@@ -28,6 +28,14 @@ if (!isset($_SESSION['userName']) && isset($_SESSION['user_name'])) {
 if (!isset($_SESSION['role']) && isset($_SESSION['user_role'])) {
     $_SESSION['role'] = $_SESSION['user_role'];
 }
+if (isset($_SESSION['role'])) {
+    $clevo_role = strtolower((string) $_SESSION['role']);
+    if ($clevo_role === 'admin') {
+        $_SESSION['role'] = 'Admin';
+    } elseif (in_array($clevo_role, ['owner', 'driver', 'customer', 'user'], true)) {
+        $_SESSION['role'] = $clevo_role;
+    }
+}
 
 
 function generate_csrf_token() {

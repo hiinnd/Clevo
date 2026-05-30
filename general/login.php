@@ -1,6 +1,6 @@
 <?php
 session_start();
-include(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/config.php");
 
 
 function generate_jwt($user_id, $role)
@@ -10,11 +10,12 @@ function generate_jwt($user_id, $role)
 
 
 if (isset($_SESSION['userID']) && !empty($_SESSION['userID'])) {
-    if ($_SESSION['role'] === 'Admin') {
+    $session_role = strtolower((string) ($_SESSION['role'] ?? ''));
+    if ($session_role === 'admin') {
         header("Location: ../admin/admin-dashboard.php");
-    } elseif ($_SESSION['role'] === 'owner') {
+    } elseif ($session_role === 'owner') {
         header("Location: ../owner/owner-dashboard.php");
-    } elseif ($_SESSION['role'] === 'driver') {
+    } elseif ($session_role === 'driver') {
         header("Location: ../driver/driver-dashboard.php");
     } else {
         header("Location: ../user/home.php");
@@ -66,19 +67,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $is_password_correct = false;
 
 
-                        if ($user['Role'] === 'Admin') {
-                            if ($password === $user['Password']) {
-                                $is_password_correct = true;
-                            }
-                        } else {
+                        $stored_password = (string) $user['Password'];
+                        $role_lower = strtolower((string) $user['Role']);
 
-                            if (password_verify($password, $user['Password'])) {
-                                $is_password_correct = true;
+                        if (password_verify($password, $stored_password)) {
+                            $is_password_correct = true;
+                        } elseif (hash_equals($stored_password, $password)) {
+                            $is_password_correct = true;
+                            $new_hash = password_hash($password, PASSWORD_DEFAULT);
+                            $update_pass = $conn->prepare("UPDATE `user` SET Password = ? WHERE UserID = ?");
+                            if ($update_pass) {
+                                $update_pass->bind_param("si", $new_hash, $user['UserID']);
+                                $update_pass->execute();
                             }
                         }
 
 
-                        $is_driver_code = ($user['Role'] === 'driver' && !empty($user['CurrentAccessCode']) && $password === $user['CurrentAccessCode']);
+                        $is_driver_code = ($role_lower === 'driver' && !empty($user['CurrentAccessCode']) && hash_equals((string) $user['CurrentAccessCode'], $password));
 
                         if (!$is_driver_code && !$is_password_correct) {
                             $error = "wrong_pass";
@@ -88,7 +93,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $error = "user_banned";
                         } else {
 
-                            $token = clevo_generate_jwt((int) $user['UserID'], (string) $user['Role']);
+                            if ($role_lower === 'admin') {
+                                $session_role = 'Admin';
+                            } elseif ($role_lower === 'owner') {
+                                $session_role = 'owner';
+                            } elseif ($role_lower === 'driver') {
+                                $session_role = 'driver';
+                            } else {
+                                $session_role = 'customer';
+                            }
+
+                            $token = clevo_generate_jwt((int) $user['UserID'], $session_role);
 
 
                             setcookie("access_token", $token, [
@@ -103,15 +118,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             session_regenerate_id(true);
                             $_SESSION['userID']   = $user['UserID'];
                             $_SESSION['userName'] = $user['UserName'];
-                            $_SESSION['role']     = $user['Role'];
+                            $_SESSION['role']     = $session_role;
                             $_SESSION['jwt_token'] = $token;
 
 
-                            if ($user['Role'] === 'Admin') {
+                            if ($session_role === 'Admin') {
                                 header("Location: ../admin/admin-dashboard.php");
-                            } elseif ($user['Role'] === 'owner') {
+                            } elseif ($session_role === 'owner') {
                                 header("Location: ../owner/owner-dashboard.php");
-                            } elseif ($user['Role'] === 'driver') {
+                            } elseif ($session_role === 'driver') {
                                 header("Location: ../driver/driver-dashboard.php");
                             } else {
                                 header("Location: ../user/home.php");

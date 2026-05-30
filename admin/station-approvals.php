@@ -4,11 +4,9 @@ session_start();
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require '../vendor/autoload.php';
-
-require '../vendor/autoload.php';
-include __DIR__ . '/../includes/config.php';
-include __DIR__ . '/../includes/app-helpers.php';
+require_once '../vendor/autoload.php';
+include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/app-helpers.php';
 
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {

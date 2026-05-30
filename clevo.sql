@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS `plans`;
 DROP TABLE IF EXISTS `notifications`;
 DROP TABLE IF EXISTS `loyalty`;
 DROP TABLE IF EXISTS `reviews`;
+DROP TABLE IF EXISTS `booking_services`;
 DROP TABLE IF EXISTS `booking`;
 DROP TABLE IF EXISTS `services`;
 DROP TABLE IF EXISTS `stations`;
@@ -120,6 +121,9 @@ CREATE TABLE `booking` (
   `Total_Price` decimal(10,2) DEFAULT NULL,
   `Admin_Commission` decimal(10,2) DEFAULT NULL,
   `Payment_Method` varchar(50) DEFAULT NULL,
+  `Points_Used` decimal(10,2) DEFAULT 0.00,
+  `Points_Discount` decimal(10,2) DEFAULT 0.00,
+  `Payable_Amount` decimal(10,2) DEFAULT NULL,
   `UserPlanID` int(11) DEFAULT NULL,
   `Plan_Washes_Used` tinyint(1) DEFAULT 0,
   `Accepted_At` datetime DEFAULT NULL,
@@ -134,6 +138,19 @@ CREATE TABLE `booking` (
   CONSTRAINT `booking_ibfk_2` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE CASCADE,
   CONSTRAINT `booking_ibfk_3` FOREIGN KEY (`ServiceID`) REFERENCES `services` (`ServiceID`) ON DELETE CASCADE,
   CONSTRAINT `booking_ibfk_4` FOREIGN KEY (`DriverID`) REFERENCES `user` (`UserID`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `booking_services` (
+  `BookingServiceID` int(11) NOT NULL AUTO_INCREMENT,
+  `BookingID` int(11) NOT NULL,
+  `ServiceID` int(11) DEFAULT NULL,
+  `ServiceName` varchar(255) DEFAULT NULL,
+  `Price` decimal(10,2) DEFAULT 0.00,
+  PRIMARY KEY (`BookingServiceID`),
+  KEY `BookingID` (`BookingID`),
+  KEY `ServiceID` (`ServiceID`),
+  CONSTRAINT `booking_services_booking_fk` FOREIGN KEY (`BookingID`) REFERENCES `booking` (`BookingID`) ON DELETE CASCADE,
+  CONSTRAINT `booking_services_service_fk` FOREIGN KEY (`ServiceID`) REFERENCES `services` (`ServiceID`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `reviews` (
