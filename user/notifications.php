@@ -18,13 +18,28 @@ $timeout_stmt->execute();
 
 
 
-$update_stmt = $conn->prepare("UPDATE `notifications` SET is_read = 1 WHERE (user_id = ? OR user_id IS NULL) AND is_read = 0");
-$update_stmt->bind_param("i", $userID);
-$update_stmt->execute();
+// Ensure optional `target_url` column exists before selecting it
+clevoEnsureNotificationsTargetColumn($conn);
+
+// Support marking a single notification as read via ?read=ID (used by JS fetch)
+if (isset($_GET['read']) && is_numeric($_GET['read'])) {
+    $notif_id = intval($_GET['read']);
+    $stmtRead = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR user_id IS NULL)");
+    $stmtRead->bind_param("ii", $notif_id, $userID);
+    $stmtRead->execute();
+    // If called via fetch, return a small JSON response
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'ok']);
+        exit;
+    }
+    header("Location: notifications.php");
+    exit;
+}
 
 
 
-$stmt = $conn->prepare("SELECT * FROM `notifications` WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC");
+$stmt = $conn->prepare("SELECT id, title, body, type, is_read, created_at, target_url FROM `notifications` WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
 $notifications = $stmt->get_result();
@@ -175,7 +190,7 @@ $notifications = $stmt->get_result();
                         $body_en = "You can now rate the service. Your order {$order_num} is completed.";
                     }
                 ?>
-                    <div class="glass noti-item shadow-sm">
+                    <div class="glass noti-item shadow-sm" data-id="<?= $noti['id'] ?>" data-target="<?= htmlspecialchars($noti['target_url'] ?? '') ?>" onclick="handleNotifClick(this)">
                         <div class="noti-icon <?= $typeClass ?>">
                             <i class="fas <?= $icon ?>"></i>
                         </div>
@@ -212,6 +227,21 @@ $notifications = $stmt->get_result();
     </div>
 
     <script>
+        function handleNotifClick(el) {
+            try {
+                const id = el.dataset.id;
+                const target = (el.dataset.target || '').trim();
+                if (target) {
+                    fetch('?read=' + encodeURIComponent(id), {credentials: 'same-origin'}).finally(() => {
+                        window.location.href = target;
+                    });
+                } else {
+                    location.href = '?read=' + encodeURIComponent(id);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
         const translations = {
             ar: {
                 noti_title: "الإشعارات", 

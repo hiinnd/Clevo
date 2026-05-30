@@ -21,12 +21,11 @@ if (isset($_GET['change_status'])) {
 }
 
 
-$today = date('Y-m-d');
 $today_stmt = $conn->prepare("SELECT COUNT(*) AS total
     FROM booking b
     JOIN stations s ON b.StationID = s.StationID
-    WHERE b.Booking_Date = ? AND s.UserID = ?");
-$today_stmt->bind_param("si", $today, $owner_id);
+    WHERE DATE(b.Booking_Date) = CURDATE() AND s.UserID = ?");
+$today_stmt->bind_param("i", $owner_id);
 $today_stmt->execute();
 $today_count = (int) ($today_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
@@ -43,8 +42,8 @@ $active_count = (int) ($active_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 $earnings_stmt = $conn->prepare("SELECT COALESCE(SUM(GREATEST(b.Total_Price - COALESCE(b.Admin_Commission, 0), 0)), 0) AS total
     FROM booking b
     JOIN stations s ON b.StationID = s.StationID
-    WHERE b.Booking_Date = ? AND b.Status = 'Completed' AND s.UserID = ?");
-$earnings_stmt->bind_param("si", $today, $owner_id);
+    WHERE DATE(b.Booking_Date) = CURDATE() AND b.Status = 'Completed' AND s.UserID = ?");
+$earnings_stmt->bind_param("i", $owner_id);
 $earnings_stmt->execute();
 $today_earnings = (float) ($earnings_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
@@ -250,7 +249,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                                 <div class="icon-shape"><i class="fas fa-spinner text-primary"></i></div>
                                 <div>
                                     <small class="fw-bold opacity-75" data-i18n="active_orders_label">نشط حالياً</small>
-                                    <h2 class="mb-0 fw-bold"><?php echo $active_count; ?></h2>
+                                    <h2 id="activeCount" class="mb-0 fw-bold"><?php echo $active_count; ?></h2>
                                 </div>
                             </div>
                         </div>
@@ -259,7 +258,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                                 <div class="icon-shape"><i class="fas fa-calendar-day text-info"></i></div>
                                 <div>
                                     <small class="fw-bold opacity-75" data-i18n="today_orders">طلبات اليوم</small>
-                                    <h2 class="mb-0 fw-bold"><?php echo $today_count; ?></h2>
+                                    <h2 id="todayCount" class="mb-0 fw-bold"><?php echo $today_count; ?></h2>
                                 </div>
                             </div>
                         </div>
@@ -268,7 +267,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                                 <div class="icon-shape"><i class="fas fa-coins text-success"></i></div>
                                 <div>
                                     <small class="fw-bold opacity-75" data-i18n="your_earnings">أرباح اليوم (JOD)</small>
-                                    <h2 class="mb-0 text-success fw-bold"><?php echo number_format($today_earnings, 2); ?></h2>
+                                    <h2 id="todayEarnings" class="mb-0 text-success fw-bold"><?php echo number_format($today_earnings, 2); ?></h2>
                                 </div>
                             </div>
                         </div>
@@ -363,6 +362,37 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                 owner_dash_title: "Owner Dashboard | Clevo", nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", welcome_back_owner: "Welcome back,", today_orders: "Today Orders", your_earnings: "Today Profit (JOD)", recent_orders: "Recent Orders", th_customer: "Customer", th_service: "Amount", th_status: "Status", th_action: "Date", view_all: "View All", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", active_orders_label: "Live Tasks", status_active: "System Active", status_busy: "Busy Now", status_closed: "Closed Now", status_label_active: "Active", status_label_busy: "Busy", status_label_closed: "Closed", nav_notifications: "Notifications", no_reviews_yet: "No reviews found", booking_pending: "Pending", booking_accepted: "Accepted", booking_arrived: "Driver arrived", booking_in_progress: "In progress", booking_pickup: "Pickup", booking_washing: "Washing", booking_returning: "Returning", booking_completed: "Completed"
             }
         };
+
+        async function fetchOwnerStats() {
+            try {
+                const res = await fetch('ajax_stats.php', { credentials: 'same-origin' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (document.getElementById('activeCount')) document.getElementById('activeCount').innerText = data.active_count;
+                if (document.getElementById('todayCount')) document.getElementById('todayCount').innerText = data.today_count;
+                if (document.getElementById('todayEarnings')) document.getElementById('todayEarnings').innerText = parseFloat(data.today_earnings).toFixed(2);
+                const badge = document.querySelector('.notif-badge');
+                if (badge) {
+                    if (data.unread_count > 0) badge.innerText = data.unread_count;
+                    else badge.remove();
+                } else if (data.unread_count > 0) {
+                    const btn = document.querySelector('.notif-btn');
+                    if (btn) {
+                        const sp = document.createElement('span');
+                        sp.className = 'notif-badge';
+                        sp.innerText = data.unread_count;
+                        btn.appendChild(sp);
+                    }
+                }
+            } catch (e) {
+                console.error('fetchOwnerStats', e);
+            }
+        }
+
+        // poll every 12 seconds
+        setInterval(fetchOwnerStats, 12000);
+        // initial immediate refresh
+        fetchOwnerStats();
 
         function toggleLanguage() {
             const currentLang = localStorage.getItem('app_lang') || 'ar';

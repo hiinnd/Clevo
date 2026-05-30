@@ -31,6 +31,24 @@ function clevoEnsureTrackingColumns(mysqli $conn): void
     $conn->query("ALTER TABLE booking MODIFY Status ENUM('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled','Cancelled_Timeout','Completed') DEFAULT 'Pending'");
 }
 
+function clevoEnsureNotificationsTargetColumn(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
+    if ($db === '') return;
+
+    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'target_url' LIMIT 1");
+    $stmt->bind_param("s", $db);
+    $stmt->execute();
+    $exists = $stmt->get_result()->fetch_assoc();
+    if (!$exists) {
+        $conn->query("ALTER TABLE notifications ADD COLUMN target_url VARCHAR(255) DEFAULT NULL AFTER body");
+    }
+}
+
 function clevoStationImageUrl(?string $image): string
 {
     $image = trim((string) $image);
@@ -66,18 +84,18 @@ function clevoEnsureWallet(mysqli $conn, int $userID): array
     return $wallet;
 }
 
-function clevoGetLoyaltyPoints(mysqli $conn, int $userID): int
+function clevoGetLoyaltyPoints(mysqli $conn, int $userID): float
 {
     $stmt = $conn->prepare("SELECT COALESCE(SUM(PointsBalance), 0) AS PointsBalance FROM loyalty WHERE UserID = ?");
     $stmt->bind_param("i", $userID);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
-    return (int) ($row['PointsBalance'] ?? 0);
+    return (float) ($row['PointsBalance'] ?? 0.0);
 }
 
-function clevoAddLoyaltyPoints(mysqli $conn, int $userID, int $points): void
+function clevoAddLoyaltyPoints(mysqli $conn, int $userID, float $points): void
 {
-    if ($points <= 0) {
+    if ($points <= 0.0) {
         return;
     }
 
@@ -88,19 +106,19 @@ function clevoAddLoyaltyPoints(mysqli $conn, int $userID, int $points): void
 
     if ($row) {
         $update = $conn->prepare("UPDATE loyalty SET PointsBalance = PointsBalance + ? WHERE LoyaltyID = ?");
-        $update->bind_param("ii", $points, $row['LoyaltyID']);
+        $update->bind_param("di", $points, $row['LoyaltyID']);
         $update->execute();
         return;
     }
 
     $insert = $conn->prepare("INSERT INTO loyalty (UserID, PointsBalance) VALUES (?, ?)");
-    $insert->bind_param("ii", $userID, $points);
+    $insert->bind_param("id", $userID, $points);
     $insert->execute();
 }
 
-function clevoSpendLoyaltyPoints(mysqli $conn, int $userID, int $points): bool
+function clevoSpendLoyaltyPoints(mysqli $conn, int $userID, float $points): bool
 {
-    if ($points <= 0 || clevoGetLoyaltyPoints($conn, $userID) < $points) {
+    if ($points <= 0.0 || clevoGetLoyaltyPoints($conn, $userID) < $points) {
         return false;
     }
 
@@ -111,12 +129,13 @@ function clevoSpendLoyaltyPoints(mysqli $conn, int $userID, int $points): bool
     $rows = $stmt->get_result();
 
     while ($row = $rows->fetch_assoc()) {
-        $deduct = min($remaining, (int) $row['PointsBalance']);
+        $balance = (float) $row['PointsBalance'];
+        $deduct = min($remaining, $balance);
         $update = $conn->prepare("UPDATE loyalty SET PointsBalance = PointsBalance - ? WHERE LoyaltyID = ?");
-        $update->bind_param("ii", $deduct, $row['LoyaltyID']);
+        $update->bind_param("di", $deduct, $row['LoyaltyID']);
         $update->execute();
         $remaining -= $deduct;
-        if ($remaining <= 0) {
+        if ($remaining <= 0.0) {
             return true;
         }
     }
@@ -164,7 +183,7 @@ function clevoRecordWalletTransaction(mysqli $conn, int $walletID, float $amount
     return $stmt->execute();
 }
 
-function clevoCreateNotification(mysqli $conn, int $userID, string $title, string $body, string $type = 'info'): bool
+function clevoCreateNotification(mysqli $conn, int $userID, string $title, string $body, string $type = 'info', ?string $targetUrl = null): bool
 {
     if ($userID <= 0) {
         return false;
@@ -175,7 +194,18 @@ function clevoCreateNotification(mysqli $conn, int $userID, string $title, strin
         $type = 'info';
     }
 
+    // Ensure optional column exists (adds it once if missing)
+    clevoEnsureNotificationsTargetColumn($conn);
+
+    if ($targetUrl !== null) {
+        $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, body, type, target_url) VALUES (?, ?, ?, ?, ?)");
+        if (!$stmt) return false;
+        $stmt->bind_param("issss", $userID, $title, $body, $type, $targetUrl);
+        return $stmt->execute();
+    }
+
     $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
+    if (!$stmt) return false;
     $stmt->bind_param("isss", $userID, $title, $body, $type);
     return $stmt->execute();
 }

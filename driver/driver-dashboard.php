@@ -67,8 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $notice->execute();
             $meta = $notice->get_result()->fetch_assoc();
             if ($meta) {
-                if ($status === 'Completed' && ($beforeRow['Status'] ?? '') !== 'Completed') {
-                    clevoAddLoyaltyPoints($conn, (int) $meta['UserID'], (int) floor(((float) ($beforeRow['Total_Price'] ?? 0)) * 10));
+                    if ($status === 'Completed' && ($beforeRow['Status'] ?? '') !== 'Completed') {
+                    // Award loyalty points: 1 JOD spent = 1 point (allow decimals)
+                    clevoAddLoyaltyPoints($conn, (int) $meta['UserID'], (float) ($beforeRow['Total_Price'] ?? 0.0));
                     if (($beforeRow['Payment_Method'] ?? '') === 'plan') {
                         clevoCreditOwnerForBooking($conn, $order_id);
                     }
@@ -80,11 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 $body = "تم تحديث حالة طلبك #" . ($meta['Order_Number'] ?: $order_id) . " إلى: " . $status;
                 $type = $status === 'Completed' ? 'success' : 'info';
                 foreach ([(int)$meta['UserID'], (int)$meta['OwnerID']] as $notifyUser) {
-                    if ($notifyUser > 0) {
-                        $ins = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
-                        $ins->bind_param("isss", $notifyUser, $title, $body, $type);
-                        $ins->execute();
-                    }
+                    if ($notifyUser <= 0) continue;
+                    // customer -> order details, owner -> incoming orders
+                    $target = $notifyUser === (int)$meta['UserID'] ? 'order-details.php?id=' . $order_id : 'incoming-orders.php';
+                    clevoCreateNotification($conn, $notifyUser, $title, $body, $type, $target);
                 }
             }
         }
@@ -102,9 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         
         $update_status = mysqli_query($conn, "UPDATE booking SET Status = 'Arrived' WHERE BookingID = '$order_id'");
         $msg = "الكابتن وصل لموقعك الآن للطلب #$order_num";
-        $insert_notif = mysqli_query($conn, "INSERT INTO notifications (user_id, title, body, type) VALUES ('$customer_id', 'وصول السائق', '$msg', 'success')");
+        clevoCreateNotification($conn, (int)$customer_id, 'وصول السائق', $msg, 'success', 'order-details.php?id=' . $order_id);
 
-        echo json_encode(['status' => ($update_status && $insert_notif) ? 'success' : 'error']);
+        echo json_encode(['status' => $update_status ? 'success' : 'error']);
         exit;
     }
 

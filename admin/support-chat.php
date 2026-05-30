@@ -59,9 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
                 $notif_title = "رد جديد من الدعم الفني";
                 $notif_body = "قام المسؤول بالرد على تذكرتك بخصوص: " . $check_ticket['subject'];
                 
-                $notif_stmt = $conn->prepare("INSERT INTO notifications (user_id, title, body, type, is_read, created_at) VALUES (?, ?, ?, 'info', 0, NOW())");
-                $notif_stmt->bind_param("iss", $u_id, $notif_title, $notif_body);
-                $notif_stmt->execute();
+                // Notify user and provide a link to the support page
+                clevoCreateNotification($conn, (int)$u_id, $notif_title, $notif_body, 'info', 'support.php');
             }
             
             $success_sent = true;

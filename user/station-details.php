@@ -140,9 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             $planNote = $paymentMethod === 'plan' ? " الدفع من باقة العميل." : "";
             $body = "وصلك طلب #$orderNumber لخدمات " . implode(' + ', $serviceNames) . " بتاريخ $bookingDate الساعة $bookingTime." . $planNote;
             $type = "info";
-            $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
-            $notice->bind_param("isss", $ownerID, $title, $body, $type);
-            $notice->execute();
+            clevoCreateNotification($conn, $ownerID, $title, $body, $type, 'incoming-orders.php');
         }
 
         $conn->commit();

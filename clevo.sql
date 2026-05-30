@@ -150,7 +150,7 @@ CREATE TABLE `reviews` (
 CREATE TABLE `loyalty` (
   `LoyaltyID` int(11) NOT NULL AUTO_INCREMENT,
   `UserID` int(11) NOT NULL,
-  `PointsBalance` int(11) DEFAULT 0,
+  `PointsBalance` decimal(10,2) DEFAULT 0.00,
   `LastUpdated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`LoyaltyID`),
   KEY `UserID` (`UserID`),
@@ -162,6 +162,7 @@ CREATE TABLE `notifications` (
   `user_id` int(11) DEFAULT NULL,
   `title` varchar(255) NOT NULL,
   `body` text DEFAULT NULL,
+  `target_url` varchar(255) DEFAULT NULL,
   `type` enum('info','success','warning','danger') DEFAULT 'info',
   `is_read` tinyint(1) DEFAULT 0,
   `created_at` datetime DEFAULT current_timestamp(),

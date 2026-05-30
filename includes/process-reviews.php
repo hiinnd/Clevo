@@ -1,6 +1,7 @@
 <?php
 session_start();
-include '../config.php';
+include __DIR__ . '/config.php';
+include __DIR__ . '/app-helpers.php';
 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'submit_reply') {
@@ -14,9 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         $user_data = mysqli_fetch_assoc($user_query);
         $customer_id = $user_data['UserID'];
 
-        $sql_notify = "INSERT INTO notifications (user_id, title, body, type) 
-                       VALUES ('$customer_id', 'رد جديد على تقييمك', 'قام صاحب الخدمة بالرد على تعليقك.', 'info')";
-        mysqli_query($conn, $sql_notify);
+        $notif_title = 'رد جديد على تقييمك';
+        $notif_body = 'قام صاحب الخدمة بالرد على تعليقك.';
+        clevoCreateNotification($conn, (int)$customer_id, $notif_title, $notif_body, 'info', 'booking-history.php');
 
         echo json_encode(['status' => 'success']);
     } else {

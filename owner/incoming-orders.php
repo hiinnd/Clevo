@@ -187,8 +187,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $update->bind_param("ii", $order_id, $owner_id);
         if ($update->execute()) {
             $customer_id = (int) $order_data['UserID'];
-            $points = (int) floor(((float) $order_data['Total_Price']) * 10);
-            clevoAddLoyaltyPoints($conn, $customer_id, $points);
+            // Award points equal to the total price (1 JOD = 1 point)
+            clevoAddLoyaltyPoints($conn, $customer_id, (float) ($order_data['Total_Price'] ?? 0.0));
             if ($order_data['Payment_Method'] === 'plan') {
                 clevoCreditOwnerForBooking($conn, $order_id);
             }

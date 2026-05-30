@@ -5,6 +5,9 @@ include __DIR__ . '/../includes/app-helpers.php';
 
 $owner_id = clevo_require_role('owner');
 
+// Ensure notifications table has the optional `target_url` column before querying it
+clevoEnsureNotificationsTargetColumn($conn);
+
 
 $stmtUser = $conn->prepare("SELECT ProfilePic, UserName FROM user WHERE UserID = ?");
 $stmtUser->bind_param("i", $owner_id);
@@ -37,7 +40,7 @@ $unreadStmt->execute();
 $unread_count = (int) ($unreadStmt->get_result()->fetch_assoc()['unread'] ?? 0);
 
 
-$query = "SELECT n.id, n.title, n.body as message, n.type, n.is_read, n.created_at, s.Name AS station_name
+$query = "SELECT n.id, n.title, n.body as message, n.type, n.is_read, n.created_at, n.target_url, s.Name AS station_name
     FROM notifications n
     LEFT JOIN stations s ON s.UserID = n.user_id
     WHERE n.user_id = ?
@@ -131,7 +134,7 @@ $notifications = $stmt->get_result();
             <?php if($notifications->num_rows > 0): ?>
                 <?php while($row = $notifications->fetch_assoc()): ?>
                     <div class="notif-card <?php echo ($row['is_read'] == 0) ? 'unread' : ''; ?>" 
-                         onclick="location.href='?read=<?php echo $row['id']; ?>'">
+                         data-id="<?= $row['id'] ?>" data-target="<?= htmlspecialchars($row['target_url'] ?? '') ?>" onclick="handleNotifClick(this)">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="d-flex gap-3 text-start">
                                 <div class="mt-1 text-primary"><i class="fas fa-circle-info"></i></div>
@@ -211,6 +214,22 @@ $notifications = $stmt->get_result();
             return data[0].map(item => item[0]).join('');
         } catch (e) {
             return text; // في حال حدوث خطأ بالشبكة يعود النص الأصلي لسلامة التطبيق
+        }
+    }
+
+    function handleNotifClick(el) {
+        try {
+            const id = el.dataset.id;
+            const target = (el.dataset.target || '').trim();
+            if (target) {
+                fetch('?read=' + encodeURIComponent(id), {credentials: 'same-origin'}).finally(() => {
+                    window.location.href = target;
+                });
+            } else {
+                location.href = '?read=' + encodeURIComponent(id);
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 

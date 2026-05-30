@@ -1,5 +1,6 @@
 <?php
 include_once __DIR__ . "/plan-helpers.php";
+include_once __DIR__ . "/app-helpers.php";
 
 function clevoEnsureBookingWorkflowColumns(mysqli $conn): void
 {
@@ -188,16 +189,16 @@ function clevoCancelBookingForUser(mysqli $conn, int $bookingID, int $userID): a
         $orderNumber = clevoBookingReference($booking, $bookingID);
         $ownerID = (int) ($booking['OwnerID'] ?? 0);
         if ($ownerID > 0) {
-            clevoCreateNotification($conn, $ownerID, 'تم إلغاء الحجز', "قام العميل بإلغاء الطلب #$orderNumber.", 'warning');
+            clevoCreateNotification($conn, $ownerID, 'تم إلغاء الحجز', "قام العميل بإلغاء الطلب #$orderNumber.", 'warning', 'incoming-orders.php');
         }
         if ((int) ($booking['DriverID'] ?? 0) > 0) {
-            clevoCreateNotification($conn, (int) $booking['DriverID'], 'تم إلغاء المهمة', "تم إلغاء الطلب #$orderNumber من قبل العميل.", 'warning');
+            clevoCreateNotification($conn, (int) $booking['DriverID'], 'تم إلغاء المهمة', "تم إلغاء الطلب #$orderNumber من قبل العميل.", 'warning', 'driver-dashboard.php');
         }
 
         $userBody = ($refund['refunded'] ?? false)
             ? "تم إلغاء طلبك #$orderNumber وحفظ المبلغ/الرصيد المستحق في حسابك."
             : "تم إلغاء طلبك #$orderNumber بنجاح.";
-        clevoCreateNotification($conn, $userID, 'تم إلغاء الحجز', $userBody, 'success');
+        clevoCreateNotification($conn, $userID, 'تم إلغاء الحجز', $userBody, 'success', 'order-details.php?id=' . $bookingID);
 
         $conn->commit();
         return ['status' => 'success', 'message' => 'cancelled', 'refund' => $refund];
@@ -272,7 +273,7 @@ function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID
             clevoCreateNotification($conn, $ownerID, 'تم تعديل موعد الحجز', "تم تعديل موعد الطلب #$orderNumber إلى {$slot['date']} الساعة {$slot['time']}. يرجى مراجعة الطلب من جديد.", 'info');
         }
         if ((int) ($booking['DriverID'] ?? 0) > 0) {
-            clevoCreateNotification($conn, (int) $booking['DriverID'], 'تم تعديل موعد المهمة', "تم تعديل موعد الطلب #$orderNumber، وسيتم تأكيده من المحطة من جديد.", 'info');
+            clevoCreateNotification($conn, (int) $booking['DriverID'], 'تم تعديل موعد المهمة', "تم تعديل موعد الطلب #{$orderNumber}، وسيتم تأكيده من المحطة من جديد.", 'info');
         }
         clevoCreateNotification($conn, $userID, 'تم تعديل موعد الحجز', "تم حفظ الموعد الجديد للطلب #$orderNumber مع الحفاظ على طريقة الدفع والمستحقات.", 'success');
 
@@ -319,9 +320,7 @@ function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
             $title = "انتهت مهلة الطلب";
             $body = "لم يتم الرد على طلبك #$orderNumber خلال 10 دقائق. يمكنك حجز محطة أخرى الآن.";
             $type = "danger";
-            $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
-            $notice->bind_param("isss", $customerID, $title, $body, $type);
-            $notice->execute();
+            clevoCreateNotification($conn, $customerID, $title, $body, $type, 'order-details.php?id=' . $bookingID);
         }
     }
 
@@ -358,9 +357,7 @@ function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
             $title = "تم إلغاء الطلب";
             $body = "تم إلغاء طلبك #$orderNumber لأن الدفع لم يكتمل خلال 10 دقائق بعد الموافقة.";
             $type = "danger";
-            $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
-            $notice->bind_param("isss", $customerID, $title, $body, $type);
-            $notice->execute();
+            clevoCreateNotification($conn, $customerID, $title, $body, $type, 'order-details.php?id=' . $bookingID);
         }
     }
 }

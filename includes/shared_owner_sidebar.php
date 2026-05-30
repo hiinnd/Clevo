@@ -1,10 +1,10 @@
 <?php
-// Shared owner sidebar — include this in owner pages
+
 $__owner_cur = basename($_SERVER['PHP_SELF'] ?? '');
 function owner_act($p) { global $__owner_cur; return $__owner_cur === $p ? 'active' : ''; }
 ?>
 <style>
-/* Owner-specific sidebar overrides to ensure consistent, mobile-friendly layout */
+
 .owner-sidebar{width:260px;background:var(--bg-sidebar,#0f172a);padding:30px 15px;position:sticky;top:0;min-height:100vh;display:flex;flex-direction:column;transition:all .3s ease}
 .owner-sidebar .nav-link{color:rgba(255,255,255,.9)!important;padding:12px;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;text-decoration:none;transition:.15s;font-size:.95rem;white-space:nowrap}
 .owner-sidebar .nav-link:hover,.owner-sidebar .nav-link.active{background:var(--accent,#007bff);color:#fff!important}

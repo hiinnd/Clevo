@@ -70,9 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $title = "تقييم جديد";
                 $body = "وصلك تقييم جديد على الطلب #" . ($owner['Order_Number'] ?: $bookingID);
                 $type = "info";
-                $notice = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
-                $notice->bind_param("isss", $owner['OwnerID'], $title, $body, $type);
-                $notice->execute();
+                clevoCreateNotification($conn, (int)$owner['OwnerID'], $title, $body, $type, 'incoming-orders.php');
             }
         }
 

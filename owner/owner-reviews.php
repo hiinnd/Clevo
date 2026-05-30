@@ -16,14 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     
     if ($update->execute() && $update->affected_rows > 0) {
         
-        $user_query = mysqli_query($conn, "SELECT b.UserID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = '$review_id'");
+        $user_query = mysqli_query($conn, "SELECT b.UserID, b.BookingID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = '$review_id'");
         $user_data = mysqli_fetch_assoc($user_query);
         $customer_id = $user_data['UserID'];
+        $booking_ref = $user_data['BookingID'] ?? null;
 
-        
-        $sql_notify = "INSERT INTO notifications (user_id, title, body, type) 
-                       VALUES ('$customer_id', 'رد جديد من الإدارة', 'قام صاحب المغسلة بالرد على تقييمك الأخير.', 'info')";
-        mysqli_query($conn, $sql_notify);
+        $notif_title = 'رد جديد من الإدارة';
+        $notif_body = 'قام صاحب المغسلة بالرد على تقييمك الأخير.';
+        $target = $booking_ref ? 'order-details.php?id=' . (int)$booking_ref : 'booking-history.php';
+        clevoCreateNotification($conn, (int)$customer_id, $notif_title, $notif_body, 'info', $target);
 
         echo json_encode(['status' => 'success']);
     } else {
