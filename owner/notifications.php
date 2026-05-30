@@ -110,27 +110,7 @@ $notifications = $stmt->get_result();
 </script>
 
 <div class="main-wrapper">
-    <nav class="sidebar shadow text-center">
-        <div class="d-flex gap-2 justify-content-center mb-4">
-            <button onclick="toggleGlobalTheme()" class="btn-ctrl"><i id="themeIcon" class="fas fa-moon"></i></button>
-            <button onclick="toggleLanguage()" class="btn-ctrl"><span id="langBtnText" class="fw-bold">EN</span></button>
-        </div>
-        <h4 class="fw-bold mb-4 text-primary">CLEVO</h4>
-        <div class="nav flex-column flex-grow-1">
-            <a href="owner-dashboard.php" class="nav-link"><i class="fas fa-th-large"></i> <span data-i18n="nav_main">الرئيسية</span></a>
-            <a href="incoming-orders.php" class="nav-link"><i class="fas fa-shopping-cart"></i> <span data-i18n="nav_orders">الطلبات</span></a>
-            <a href="add-station.php" class="nav-link"><i class="fas fa-store"></i> <span data-i18n="add_st_page_title">إعداد المغسلة</span></a>
-            <a href="manage-services.php" class="nav-link"><i class="fas fa-concierge-bell"></i> <span data-i18n="services_list">الخدمات</span></a>
-            <a href="manage-drivers.php" class="nav-link"><i class="fas fa-users"></i> <span data-i18n="drivers_page_title">طاقم العمل</span></a>
-            <a href="owner-reviews.php" class="nav-link"><i class="fas fa-star"></i> <span data-i18n="recent_reviews">التقييمات</span></a>
-            <a href="owner-wallet.php" class="nav-link"><i class="fas fa-wallet"></i> <span data-i18n="serv_wallet">المحفظة</span></a>
-            <a href="notifications.php" class="nav-link active"><i class="fas fa-bell"></i> <span data-i18n="nav_notifications">الإشعارات</span></a>
-        </div>
-        <div class="mt-auto">
-            <hr class="text-white opacity-25 my-3">
-            <a href="javascript:void(0)" onclick="confirmLogout()" class="nav-link text-danger"><i class="fas fa-sign-out-alt"></i> <span data-i18n="nav_logout">تسجيل الخروج</span></a>
-        </div>
-    </nav>
+    <?php include __DIR__ . '/../includes/shared_owner_sidebar.php'; ?>
 
     <div class="content-area">
         <div class="orders-header">
