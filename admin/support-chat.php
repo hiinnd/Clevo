@@ -2,6 +2,7 @@
 session_start(); 
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
+include_once __DIR__ . '/../includes/support-helpers.php';
 
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
@@ -12,6 +13,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
 
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
+clevoEnsureSupportMessagesTable($conn);
+clevoCleanupExpiredSupportChats($conn);
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
@@ -50,8 +53,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
         $stmt->bind_param("si", $reply_msg, $t_id);
         
         if($stmt->execute()) {
-            
-            $check_ticket = $conn->query("SELECT user_id, is_guest, subject FROM support_tickets WHERE id = $t_id")->fetch_assoc();
+            clevoAddSupportMessage($conn, $t_id, 'admin', (int) $admin_id, $reply_msg);
+            $check_stmt = $conn->prepare("SELECT user_id, is_guest, subject FROM support_tickets WHERE id = ? LIMIT 1");
+            $check_stmt->bind_param("i", $t_id);
+            $check_stmt->execute();
+            $check_ticket = $check_stmt->get_result()->fetch_assoc();
             
             
             if ($check_ticket && $check_ticket['is_guest'] == 0 && !empty($check_ticket['user_id'])) {
@@ -59,8 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
                 $notif_title = "رد جديد من الدعم الفني";
                 $notif_body = "قام المسؤول بالرد على تذكرتك بخصوص: " . $check_ticket['subject'];
                 
-                // Notify user and provide a link to the support page
-                clevoCreateNotification($conn, (int)$u_id, $notif_title, $notif_body, 'info', 'support.php');
+                $notif_title = "رد جديد من الدعم الفني";
+                $notif_body = "قام المسؤول بالرد على تذكرتك بخصوص: " . $check_ticket['subject'];
+                clevoCreateNotification($conn, (int)$u_id, $notif_title, $notif_body, 'info', 'support.php?ticket_id=' . $t_id);
             }
             
             $success_sent = true;

@@ -39,10 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quick
 }
 
 
-$query = "SELECT b.*, s.Name as station_name, serv.Name as service_name, b.Service_Location, b.DriverID
+$query = "SELECT b.*, s.Name as station_name, serv.Name as service_name, b.Service_Location, b.DriverID,
+                 r.Rating, r.Comment, r.Owner_Reply
           FROM `booking` b
           JOIN `stations` s ON b.StationID = s.StationID
           JOIN `services` serv ON b.ServiceID = serv.ServiceID
+          LEFT JOIN `reviews` r ON r.BookingID = b.BookingID
           WHERE b.UserID = ? 
           ORDER BY b.Booking_Date DESC, b.Booking_Time DESC";
 
@@ -256,6 +258,24 @@ $csrf_token = generate_csrf_token();
             color: var(--card-text-main);
             opacity: 0.6;
         }
+
+        .owner-reply-preview {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(14, 165, 233, 0.12);
+            border: 1px solid rgba(14, 165, 233, 0.24);
+            color: var(--card-text-main);
+        }
+
+        .owner-reply-preview strong {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 0.82rem;
+            color: var(--accent);
+        }
     </style>
 </head>
 
@@ -287,6 +307,12 @@ $csrf_token = generate_csrf_token();
                                 <small class="opacity-75 d-block mb-2">
                                     <i class="far fa-calendar-alt me-1"></i> <?= $row['Booking_Date'] ?> | <?= $row['Booking_Time'] ?>
                                 </small>
+                                <?php if (!empty($row['Owner_Reply'])): ?>
+                                    <div class="owner-reply-preview">
+                                        <strong><i class="fas fa-reply"></i><span data-i18n="owner_reply_label">رد صاحب المغسلة</span></strong>
+                                        <div class="small"><?= nl2br(e($row['Owner_Reply'])) ?></div>
+                                    </div>
+                                <?php endif; ?>
 
                                 <a href="order-details.php?id=<?= $row['BookingID'] ?>" class="btn-track shadow-sm">
                                     <i class="fas fa-info-circle"></i> <span data-i18n="btn_details">تفاصيل الطلب</span>
@@ -369,7 +395,8 @@ $csrf_token = generate_csrf_token();
                 rate_service: "تقييم الخدمة",
                 rate_placeholder: "اكتب ملاحظتك...",
                 btn_save_rate: "حفظ التقييم",
-                paid_from_plan: "من الباقة"
+                paid_from_plan: "من الباقة",
+                owner_reply_label: "رد صاحب المغسلة"
             },
             en: {
                 history_page_title: "Booking History | Clevo",
@@ -386,7 +413,8 @@ $csrf_token = generate_csrf_token();
                 rate_service: "Rate Service",
                 rate_placeholder: "Write your comment...",
                 btn_save_rate: "Save Rating",
-                paid_from_plan: "From plan"
+                paid_from_plan: "From plan",
+                owner_reply_label: "Station owner reply"
             }
         };
         const csrfToken = <?= json_encode($csrf_token) ?>;

@@ -35,7 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
 
 
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
-$admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
+$user_data = $res_pic->fetch_assoc();
+$admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
@@ -229,7 +230,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             min-height: 100vh;
         }
 
-        /* Sidebar الأدمن الثابت والمحمي بالكامل */
+        /* حماية هندسية وتجاوب كامل للسايدبار الجانبي */
         .admin-sidebar {
             background: var(--bg-sidebar);
             color: white;
@@ -305,7 +306,6 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             margin-left: 0;
         }
 
-        /* Main Content & Header Setup המوحد تماماً بالنص ومكان وحجم السهم الأزرق */
         .admin-main-content {
             flex: 1;
             overflow-x: hidden;
@@ -365,22 +365,12 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             border: 1px solid var(--border-color);
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 991px) {
             .main-row {
                 flex-direction: column;
             }
-
-            .admin-sidebar {
-                height: auto;
-                width: 100%;
-                position: relative;
-                padding: 15px;
-            }
-
-            .nav-link {
-                margin-bottom: 0;
-                justify-content: center;
-                font-size: 0.8rem;
+            .admin-main-content {
+                padding-bottom: 100px !important;
             }
         }
     </style>
@@ -434,21 +424,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
         </div>
     </div>
 
-    <div class="modal fade" id="logoutModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content text-center p-4 shadow-lg border-0">
-                <div class="modal-body p-2">
-                    <div class="text-danger mb-3"><i class="fas fa-sign-out-alt fa-3x"></i></div>
-                    <h5 class="fw-bold mb-2" data-i18n="logout_title">تأكيد الخروج</h5>
-                    <p class="text-muted-custom small mb-4" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
-                    <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
-                        <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- تم حذف الهيكل القديم لـ logoutModal المتكرر من هنا لمنع التضارب، والاعتماد الكلي على منيو الـ Sidebar المركزي للسيستم -->
 
     <div class="modal fade" id="docModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -531,10 +507,6 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
         function translateDynamicText(text, lang) {
             if (lang === 'ar') return text;
             return text.replace("قام", "The user").replace("بتقديم طلب تسجيل محطة", "has submitted a station registration request").replace("يرجى مراجعة", "Please review");
-        }
-
-        function confirmLogout() {
-            new bootstrap.Modal(document.getElementById('logoutModal')).show();
         }
 
         function viewDoc(src) {

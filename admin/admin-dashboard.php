@@ -123,6 +123,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
+        /* تحسين التجاوب وضمان استقرار العرض الهندسي على كل الشاشات */
         .admin-sidebar { 
             background: var(--bg-sidebar); 
             color: white; 
@@ -141,7 +142,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
         .admin-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-blue); transition: 0.3s; }
         .upload-overlay { position: absolute; bottom: 0; right: 0; background: var(--accent-blue); color: white; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; border: 2px solid var(--bg-sidebar); }
 
-        @media (min-width: 768px) {
+        @media (min-width: 992px) {
             [dir="rtl"] .admin-sidebar { order: 1; }
             [dir="rtl"] .admin-main-content { order: 2; }
             [dir="ltr"] .admin-sidebar { order: 1; }
@@ -169,11 +170,9 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
 
         .modal-content { background-color: var(--bg-card) !important; color: var(--text-main) !important; border-radius: 25px; border: 1px solid var(--border-color); }
 
-        @media (max-width: 768px) {
+        @media (max-width: 991px) {
             .main-row { flex-direction: column; }
-            .admin-sidebar { height: auto; width: 100%; position: relative; padding: 15px; }
-            .sidebar-nav-container { display: flex; flex-wrap: wrap; gap: 5px; }
-            .nav-link { margin-bottom: 0; flex: 1 1 auto; justify-content: center; font-size: 0.8rem; }
+            .admin-main-content { padding: 20px 15px 100px 15px; } /* توفير مساحة لشريط الموبايل السفلي للسايدبار */
         }
     </style>
 </head>
@@ -191,7 +190,12 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                         <p class="small mb-0 opacity-75"><span data-i18n="hello">أهلاً</span> <span class="u-name-raw text-primary fw-bold"><?php echo htmlspecialchars($admin_name); ?></span></p>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <a href="notifications.php" class="btn-ctrl-circle position-relative"><i class="fas fa-bell"></i><span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;"><?php echo $unread_count; ?></span></a>
+                        <a href="notifications.php" class="btn-ctrl-circle position-relative">
+                            <i class="fas fa-bell"></i>
+                            <?php if ($unread_count > 0): ?>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;"><?php echo $unread_count; ?></span>
+                            <?php endif; ?>
+                        </a>
                         <button onclick="toggleGlobalTheme()" class="btn-ctrl-circle"><i id="adminThemeIcon" class="fas fa-moon"></i></button>
                         <button onclick="toggleLanguage()" class="btn-ctrl-circle fw-bold"><span id="adminLangText">EN</span></button>
                     </div>
@@ -291,20 +295,6 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
         </div>
     </div>
 
-    <div class="modal fade" id="logoutModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content text-center p-4 shadow-lg">
-                <div class="text-danger mb-3"><i class="fas fa-sign-out-alt fa-3x"></i></div>
-                <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
-                <p class="text-muted-custom" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
-                <div class="d-grid gap-2 mt-4">
-                    <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
-                    <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
@@ -361,8 +351,6 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
             document.getElementById('adminLangText').innerText = lang === 'ar' ? 'EN' : 'AR';
             if(theme === 'light') document.getElementById('adminThemeIcon').className = 'fas fa-sun';
         };
-
-        function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
 
         function toggleLanguage() {
             const newLang = (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'en' : 'ar';

@@ -2,13 +2,19 @@
 
 session_start();
 include_once __DIR__ . '/../includes/config.php'; 
+include_once __DIR__ . '/../includes/app-helpers.php'; 
 $owner_id = clevo_require_role('owner', '../general/login.php');
 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'submit_reply') {
+    header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
-    $review_id = mysqli_real_escape_string($conn, $_POST['review_id']);
-    $reply_text = mysqli_real_escape_string($conn, $_POST['reply_text']);
+    $review_id = (int) ($_POST['review_id'] ?? 0);
+    $reply_text = trim((string) ($_POST['reply_text'] ?? ''));
+    if ($review_id <= 0 || $reply_text === '') {
+        echo json_encode(['status' => 'error', 'message' => 'invalid_reply'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
     
     
     $update = $conn->prepare("UPDATE reviews r JOIN booking b ON r.BookingID = b.BookingID JOIN stations s ON b.StationID = s.StationID SET r.Owner_Reply = ? WHERE r.ReviewID = ? AND s.UserID = ?");
@@ -16,19 +22,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     
     if ($update->execute() && $update->affected_rows > 0) {
         
-        $user_query = mysqli_query($conn, "SELECT b.UserID, b.BookingID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = '$review_id'");
-        $user_data = mysqli_fetch_assoc($user_query);
-        $customer_id = $user_data['UserID'];
+        $user_lookup = $conn->prepare("SELECT b.UserID, b.BookingID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = ? LIMIT 1");
+        $user_lookup->bind_param("i", $review_id);
+        $user_lookup->execute();
+        $user_data = $user_lookup->get_result()->fetch_assoc();
+        $customer_id = (int) ($user_data['UserID'] ?? 0);
         $booking_ref = $user_data['BookingID'] ?? null;
 
         $notif_title = 'رد جديد من الإدارة';
         $notif_body = 'قام صاحب المغسلة بالرد على تقييمك الأخير.';
+        $notif_title = 'رد جديد من صاحب المغسلة';
+        $notif_body = 'قام صاحب المغسلة بالرد على تقييمك الأخير. افتح تفاصيل الطلب لقراءة الرد.';
         $target = $booking_ref ? 'order-details.php?id=' . (int)$booking_ref : 'booking-history.php';
-        clevoCreateNotification($conn, (int)$customer_id, $notif_title, $notif_body, 'info', $target);
+        if ($customer_id > 0) {
+            clevoCreateNotification($conn, $customer_id, $notif_title, $notif_body, 'info', $target);
+        }
 
-        echo json_encode(['status' => 'success']);
+        echo json_encode(['status' => 'success'], JSON_UNESCAPED_UNICODE);
     } else {
-        echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)]);
+        echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }

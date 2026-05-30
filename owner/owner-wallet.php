@@ -2,17 +2,73 @@
 
 session_start();
 include_once __DIR__ . '/../includes/config.php'; 
+include_once __DIR__ . '/../includes/app-helpers.php'; 
 
 
 $userID = clevo_require_role('owner', '../general/login.php');
-$balance = 0.00;
+$balanceValue = 0.00;
+$balance = '0.00';
 $transactions = [];
 $monthly_profit = 0.00;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withdraw_balance') {
+    header('Content-Type: application/json; charset=utf-8');
+    clevo_require_csrf_token(true);
+
+    $wallet = clevoEnsureWallet($conn, (int) $userID);
+    $walletID = (int) ($wallet['WalletID'] ?? 0);
+    $amount = (float) ($wallet['Balance'] ?? 0);
+
+    if ($walletID <= 0 || $amount <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'empty_balance'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $conn->begin_transaction();
+    $debited = clevoDebitWallet($conn, $walletID, $amount);
+    $recorded = $debited && clevoRecordWalletTransaction(
+        $conn,
+        $walletID,
+        $amount,
+        'debit',
+        'طلب سحب أرباح',
+        'Owner withdrawal request'
+    );
+
+    if ($debited && $recorded) {
+        $admins = $conn->query("SELECT UserID FROM user WHERE LOWER(Role) = 'admin'");
+        while ($admins && $admin = $admins->fetch_assoc()) {
+            clevoCreateNotification(
+                $conn,
+                (int) $admin['UserID'],
+                'طلب سحب أرباح',
+                'وصل طلب سحب أرباح من صاحب مغسلة بقيمة ' . number_format($amount, 2) . ' JOD.',
+                'info',
+                'financial-reports.php'
+            );
+        }
+        clevoCreateNotification(
+            $conn,
+            (int) $userID,
+            'تم إرسال طلب السحب',
+            'تم تسجيل طلب سحب الأرباح بقيمة ' . number_format($amount, 2) . ' JOD وسيتم مراجعته من الإدارة.',
+            'success',
+            'owner-wallet.php'
+        );
+        $conn->commit();
+        echo json_encode(['status' => 'success', 'amount' => $amount], JSON_UNESCAPED_UNICODE);
+    } else {
+        $conn->rollback();
+        echo json_encode(['status' => 'error', 'message' => 'withdraw_failed'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 
 if ($userID > 0) {
     $wallet_query = mysqli_query($conn, "SELECT Balance FROM wallet WHERE UserID = '$userID' LIMIT 1");
     if ($row = mysqli_fetch_assoc($wallet_query)) {
-        $balance = number_format($row['Balance'], 2);
+        $balanceValue = (float) $row['Balance'];
+        $balance = number_format($balanceValue, 2);
     }
     $tx_query = mysqli_query($conn, "SELECT wt.* FROM wallet_transactions wt JOIN wallet w ON wt.WalletID = w.WalletID WHERE w.UserID = '$userID' ORDER BY wt.CreatedAt DESC LIMIT 10");
     while ($tx_query && $tx = mysqli_fetch_assoc($tx_query)) {
@@ -112,7 +168,7 @@ if ($userID > 0) {
                     <div class="wallet-card text-center mb-4 shadow-sm">
                         <small class="d-block mb-2 opacity-75 fw-bold" style="color: white !important;" data-i18n="available_balance">الرصيد المتاح للسحب</small>
                         <h1 class="mb-4 fw-bold" style="color: white !important; font-size: 2.8rem;"><?php echo $balance; ?> JOD</h1>
-                        <button class="btn btn-warning rounded-pill px-5 fw-bold shadow-sm" onclick="showM('withdrawModal')" data-i18n="btn_withdraw">سحب الأرباح</button>
+                        <button class="btn btn-warning rounded-pill px-5 fw-bold shadow-sm" onclick="showM('withdrawModal')" data-i18n="btn_withdraw" <?= $balanceValue <= 0 ? 'disabled' : '' ?>>سحب الأرباح</button>
                     </div>
 
                     <div class="row g-3 mb-4 text-center">
@@ -165,7 +221,7 @@ if ($userID > 0) {
                     <h6 class="fw-bold mb-2" data-i18n="confirm_withdraw_title">تأكيد سحب الأرباح</h6>
                     <p class="text-muted-custom small mb-4" data-i18n="confirm_withdraw_msg">هل تريد سحب الرصيد المتاح لحسابك؟</p>
                     <div class="d-grid gap-2">
-                        <button class="btn btn-primary rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_withdraw_now">نعم، سحب الآن</button>
+                        <button class="btn btn-primary rounded-pill py-2 fw-bold" id="confirmWithdrawBtn" data-i18n="btn_withdraw_now">نعم، سحب الآن</button>
                         <button class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>
@@ -190,10 +246,41 @@ if ($userID > 0) {
             }
         };
 
+        const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
         const showM = (id) => new bootstrap.Modal(document.getElementById(id)).show();
         function confirmLogout() { showM('logoutModal'); }
         function toggleLanguage() { localStorage.setItem('app_lang', (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'en' : 'ar'); location.reload(); }
         function toggleGlobalTheme() { localStorage.setItem('global_theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); location.reload(); }
+
+        function submitWithdrawal(btn) {
+            const lang = localStorage.getItem('app_lang') || 'ar';
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            const params = new URLSearchParams();
+            params.append('action', 'withdraw_balance');
+            params.append('csrf_token', csrfToken);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params.toString()
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(lang === 'ar' ? 'تم إرسال طلب السحب للإدارة وتسجيله في المحفظة.' : 'Withdrawal request was sent to admin and recorded in your wallet.');
+                    location.reload();
+                    return;
+                }
+                alert(lang === 'ar' ? 'لا يوجد رصيد متاح للسحب أو تعذر تنفيذ الطلب.' : 'No available balance or withdrawal failed.');
+            })
+            .catch(() => alert(lang === 'ar' ? 'تعذر تنفيذ الطلب.' : 'Request failed.'))
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            });
+        }
 
         window.onload = () => {
             const lang = localStorage.getItem('app_lang') || 'ar';
@@ -219,6 +306,10 @@ if ($userID > 0) {
             if(langBtnText) langBtnText.innerText = isRtl ? 'EN' : 'AR';
             const icon = document.getElementById('themeIcon');
             if(icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            const withdrawBtn = document.getElementById('confirmWithdrawBtn');
+            if (withdrawBtn) {
+                withdrawBtn.addEventListener('click', () => submitWithdrawal(withdrawBtn));
+            }
         };
     </script>
     <script src="../assets/lamea.js"></script>

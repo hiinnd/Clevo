@@ -685,7 +685,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                     <section class="panel">
                         <h3 class="panel-title">
                             <i class="fas fa-reply text-primary"></i>
-                            <span class="lang-node" data-ar="رد صاحب المحطة" data-en="Station Owner Reply">رد صاحب المحطة</span>
+                            <span class="lang-node" data-ar="رد صاحب المغسلة" data-en="Station Owner Reply">رد صاحب المغسلة</span>
                         </h3>
                         <p class="message-box"><?= nl2br(e($order['Owner_Reply'])) ?></p>
                     </section>

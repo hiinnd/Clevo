@@ -28,7 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
 
 
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
-$admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
+$user_data = $res_pic->fetch_assoc();
+$admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
@@ -99,8 +100,6 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
-       
-        .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .admin-sidebar { background: var(--bg-sidebar); color: white; padding: 20px 15px; position: sticky; top: 0; height: 100vh; z-index: 1000; width: 260px; display: flex; flex-direction: column; overflow: visible; }
         .admin-pic-container { position: relative; display: inline-block; margin-bottom: 10px; cursor: pointer; }
         .admin-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-blue); transition: 0.3s; }
@@ -108,9 +107,6 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         
         .nav-link { color: #ffffff !important; padding: 12px 15px; border-radius: 12px; margin-bottom: 5px; display: flex; align-items: center; text-decoration: none; font-weight: 600; transition: 0.3s; font-size: 0.9rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent-blue); color: white !important; }
-        [dir="rtl"] .nav-link i { margin-left: 10px; }
-        [dir="ltr"] .nav-link i { margin-right: 10px; }
-
         
         .admin-main-content { flex: 1; overflow-x: hidden; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
@@ -119,7 +115,6 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         .stat-card { background: var(--bg-card); border-radius: 24px; padding: 25px; border: 1px solid var(--border-color); height: 100%; transition: 0.3s; color: var(--text-main); }
         
         .chart-box, .table-container { background-color: var(--box-bg) !important; border-radius: 24px; padding: 25px; margin-top: 20px; border: 1px solid var(--border-color); }
-        
         
         .custom-table { background-color: transparent !important; color: var(--text-main) !important; }
         .custom-table th { color: var(--text-muted) !important; background-color: transparent !important; border-bottom: 1px solid var(--border-color) !important; }
@@ -134,10 +129,9 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         .modal-content { border-radius: 25px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
         .modal-sm-custom { max-width: 350px; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 991px) {
             .main-row { flex-direction: column; }
-            .admin-sidebar { height: auto; width: 100%; position: relative; padding: 15px; }
-            .nav-link { margin-bottom: 0; justify-content: center; font-size: 0.8rem; }
+            .admin-main-content { padding-bottom: 100px !important; }
         }
     </style>
 </head>
@@ -173,7 +167,7 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
                             <div class="stat-card shadow-sm text-center" style="border-inline-start: 5px solid #fd7e14 !important;">
                                 <small class="opacity-75 d-block" data-i18n="net_profit">صافي أرباحك (10%)</small>
                                 <h2 class="fw-bold mt-1" style="color: #fd7e14 !important;"><?php echo number_format($net_profit, 2); ?> <small class="fs-6">JOD</small></h2>
-                                <p class="small mb-0 opacity-75"><span data-i18n="your_earnings">أرباحكِ يا</span> <span class="u-name-display fw-bold text-primary">...</span></p>
+                                <p class="small mb-0 opacity-75"><span data-i18n="your_earnings">أرباحكِ يا</span> <span class="u-name-display fw-bold text-primary"><?php echo htmlspecialchars($admin_name); ?></span></p>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -241,21 +235,7 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         </div>
     </div>
 
-    <div class="modal fade" id="logoutModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content text-center p-4 shadow-lg border-0">
-                <div class="modal-body p-2">
-                    <div class="text-danger mb-3"><i class="fas fa-sign-out-alt fa-3x"></i></div>
-                    <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
-                    <p class="small opacity-75 mb-4" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
-                    <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
-                        <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- تم حذف الهيكل القديم لـ logoutModal من هنا لمنع التضارب، والاعتماد الكلي على منيو الـ Sidebar المركزي للسيستم -->
 
     <div class="modal fade" id="exportModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm modal-sm-custom">
@@ -295,7 +275,6 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
         };
 
         function openExportModal() { new bootstrap.Modal(document.getElementById('exportModal')).show(); }
-        function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
         function exportToExcel() { const table = document.getElementById("historyTable"); const wb = XLSX.utils.table_to_book(table, { sheet: "Clevo_Finances" }); XLSX.writeFile(wb, "Clevo_Financial_Report.xlsx"); bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide(); }
 
         function applySettings() {

@@ -26,7 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
 }
 
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
-$admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
+$user_data = $res_pic->fetch_assoc();
+$admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
@@ -93,7 +94,6 @@ $blacklist_res = $conn->query("
 
         .admin-main-content { flex: 1; overflow-x: hidden; padding: 0; }
         
-        /* الهيدر الموحد المتناسق هندسياً بنسبة 100% مع صفحة أول سبورت */
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-btn-back { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; transition: 0.3s; }
 
@@ -114,10 +114,9 @@ $blacklist_res = $conn->query("
         .u-name-display { color: var(--accent-blue) !important; }
         .modal-body p { color: var(--text-main) !important; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 991px) {
             .main-row { flex-direction: column; }
-            .admin-sidebar { height: auto; width: 100%; position: relative; padding: 15px; }
-            .nav-link { margin-bottom: 0; justify-content: center; font-size: 0.8rem; }
+            .admin-main-content { padding-bottom: 100px !important; }
         }
     </style>
 </head>
@@ -189,21 +188,7 @@ $blacklist_res = $conn->query("
         </div>
     </div>
 
-    <div class="modal fade" id="logoutModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content text-center p-4 shadow-lg border-0">
-                <div class="modal-body p-2">
-                    <div class="text-danger mb-3"><i class="fas fa-sign-out-alt fa-3x"></i></div>
-                    <h5 class="fw-bold mb-2" data-i18n="logout_title">تأكيد الخروج</h5>
-                    <p class="small mb-4 opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
-                    <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
-                        <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- تم حذف الهيكل القديم لـ logoutModal المتكرر من هنا لمنع التضارب، والاعتماد الكلي على منيو الـ Sidebar المركزي للسيستم -->
 
     <div class="modal fade" id="unbanModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -230,7 +215,6 @@ $blacklist_res = $conn->query("
             en: { security_header_title: "Security Center", banned_devices_label: "Banned Devices", devices_unit: "Devices", security_alert_title: "Active Security System", security_alert_msg: "Devices are monitored to ensure payments and compliance,", blacklist_title: "Blacklist Management", th_device_id: "ID", th_user: "User", th_status: "Status", th_action: "Action", status_banned: "Banned", btn_unban: "Unban", no_banned: "No bans found", nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", nav_reports: "Reports", nav_plans: "Plans", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel" }
         };
 
-        function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
         function askUnban(id, name) { document.getElementById('targetName').innerText = name; document.getElementById('modalUserId').value = id; new bootstrap.Modal(document.getElementById('unbanModal')).show(); }
 
         window.onload = function() {
@@ -244,7 +228,7 @@ $blacklist_res = $conn->query("
             
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const k = el.getAttribute('data-i18n');
-                if (translations[lang][k]) el.innerText = translations[lang][k];
+                if (translations[lang] && translations[lang][k]) el.innerText = translations[lang][k];
             });
             const backIcon = document.getElementById('backIcon');
             if (backIcon) backIcon.className = isRtl ? 'fas fa-arrow-right' : 'fas fa-arrow-left';

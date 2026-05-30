@@ -23,15 +23,15 @@ $active_count = (int) ($active_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 $today_stmt = $conn->prepare("SELECT COUNT(*) AS total
     FROM booking b
     JOIN stations s ON b.StationID = s.StationID
-    WHERE DATE(b.Booking_Date) = CURDATE() AND s.UserID = ?");
+    WHERE DATE(b.created_at) = CURDATE() AND s.UserID = ?");
 $today_stmt->bind_param("i", $owner_id);
 $today_stmt->execute();
 $today_count = (int) ($today_stmt->get_result()->fetch_assoc()['total'] ?? 0);
 
-$earnings_stmt = $conn->prepare("SELECT COALESCE(SUM(GREATEST(b.Total_Price - COALESCE(b.Admin_Commission, 0), 0)), 0) AS total
-    FROM booking b
-    JOIN stations s ON b.StationID = s.StationID
-    WHERE DATE(b.Booking_Date) = CURDATE() AND b.Status = 'Completed' AND s.UserID = ?");
+$earnings_stmt = $conn->prepare("SELECT COALESCE(SUM(wt.Amount), 0) AS total
+    FROM wallet_transactions wt
+    JOIN wallet w ON wt.WalletID = w.WalletID
+    WHERE w.UserID = ? AND wt.TransactionType = 'credit' AND DATE(wt.CreatedAt) = CURDATE()");
 $earnings_stmt->bind_param("i", $owner_id);
 $earnings_stmt->execute();
 $today_earnings = (float) ($earnings_stmt->get_result()->fetch_assoc()['total'] ?? 0);
