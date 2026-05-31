@@ -8,18 +8,14 @@ if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'Admin') {
     exit();
 }
 
-
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
-    
     if (!isset($_POST['csrf_token']) || !validate_csrf_token($_POST['csrf_token'])) {
         die("CSRF token validation failed.");
     }
     $file = $_FILES['admin_pic_upload'];
-    
     
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
     $max_size = 2 * 1024 * 1024; 
@@ -29,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        
         $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
         $stmt->bind_param("si", $newName, $admin_id);
         if ($stmt->execute()) {
@@ -39,20 +34,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-
 $res_stations = $conn->query("SELECT COUNT(*) as total FROM stations WHERE admin_status = 'approved'");
 $total_stations = $res_stations->fetch_assoc()['total'] ?? 0;
 
-
 $res_users = $conn->query("SELECT COUNT(*) as total FROM `user` WHERE Role = 'customer'");
 $total_users = $res_users->fetch_assoc()['total'] ?? 0;
-
 
 $res_pending_bookings = $conn->query("SELECT COUNT(*) as total FROM booking WHERE Status = 'Pending'");
 $pending_bookings_count = $res_pending_bookings->fetch_assoc()['total'] ?? 0;
@@ -62,10 +53,8 @@ $pending_stations_count = $res_pending_stations->fetch_assoc()['total'] ?? 0;
 
 $total_pending = $pending_bookings_count + $pending_stations_count;
 
-
 $res_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE DATE(created_at) = CURDATE()");
 $total_profit = $res_profit->fetch_assoc()['total'] ?? 0;
-
 
 $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name 
                              FROM support_tickets st 
@@ -73,27 +62,25 @@ $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name
                              WHERE st.id IN (SELECT MAX(id) FROM support_tickets GROUP BY COALESCE(user_id, user_name)) 
                              ORDER BY st.id DESC LIMIT 5");
 
-
-$res_un_notif = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE is_read = 0");
+# جلب الإشعارات غير المقروءة الموجهة للأدمن الحالي أو العامة للأدمنز
+$stmt_notif = $conn->prepare("SELECT COUNT(*) as total FROM notifications WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
+$stmt_notif->bind_param("i", $admin_id);
+$stmt_notif->execute();
+$res_un_notif = $stmt_notif->get_result();
 $unread_count = $res_un_notif->fetch_assoc()['total'] ?? 0;
-
-
+$stmt_notif->close();
 
 $res_most_service = $conn->query("SELECT s.Name as ServiceName, COUNT(b.ServiceID) as count FROM booking b JOIN services s ON b.ServiceID = s.ServiceID GROUP BY b.ServiceID ORDER BY count DESC LIMIT 1");
 $most_service = ($res_most_service) ? $res_most_service->fetch_assoc() : null;
 
-
 $res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
 $monthly_profit = $res_monthly_profit->fetch_assoc()['total'] ?? 0;
-
 
 $res_avg_rating = $conn->query("SELECT AVG(Rating) as avg_rating FROM reviews");
 $avg_rating = $res_avg_rating->fetch_assoc()['avg_rating'] ?? 0;
 
-
 $res_daily_bookings = $conn->query("SELECT COUNT(*) as total FROM booking WHERE DATE(created_at) = CURDATE()");
 $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
-
 ?>
 
 <!DOCTYPE html>
@@ -123,7 +110,6 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
-        /* تحسين التجاوب وضمان استقرار العرض الهندسي على كل الشاشات */
         .admin-sidebar { 
             background: var(--bg-sidebar); 
             color: white; 
@@ -172,7 +158,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
 
         @media (max-width: 991px) {
             .main-row { flex-direction: column; }
-            .admin-main-content { padding: 20px 15px 100px 15px; } /* توفير مساحة لشريط الموبايل السفلي للسايدبار */
+            .admin-main-content { padding: 20px 15px 100px 15px; }
         }
     </style>
 </head>
@@ -190,10 +176,13 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                         <p class="small mb-0 opacity-75"><span data-i18n="hello">أهلاً</span> <span class="u-name-raw text-primary fw-bold"><?php echo htmlspecialchars($admin_name); ?></span></p>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
+                        <!-- زر الإشعارات مربوط بصفحة الإشعارات ويعرض الرقم الحقيقي بدقة -->
                         <a href="notifications.php" class="btn-ctrl-circle position-relative">
                             <i class="fas fa-bell"></i>
                             <?php if ($unread_count > 0): ?>
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;"><?php echo $unread_count; ?></span>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;">
+                                    <?php echo $unread_count > 99 ? '99+' : $unread_count; ?>
+                                </span>
                             <?php endif; ?>
                         </a>
                         <button onclick="toggleGlobalTheme()" class="btn-ctrl-circle"><i id="adminThemeIcon" class="fas fa-moon"></i></button>
@@ -277,7 +266,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                                         <td>
                                             <?php if($ticket['status'] == 'New'): ?>
                                                 <span class="badge bg-danger rounded-pill px-3" data-i18n="status_new">جديد</span>
-                                            <?php else: ?>
+                                            </<?php else: ?>
                                                 <span class="badge bg-secondary rounded-pill px-3" data-i18n="status_replied">تم الرد</span>
                                             <?php endif; ?>
                                         </td>

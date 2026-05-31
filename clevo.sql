@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   UNIQUE KEY `VerificationToken` (`VerificationToken`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci AUTO_INCREMENT=3;
 
--- NOTE: sample users below set `Password` to a SHA2 placeholder; change these during setup.
+-- الحسابات الافتراضية للوحة التحكم (لم يتم حذفها أو تعديلها)
 INSERT INTO `user`
 (`UserID`, `UserName`, `ProfilePic`, `Email`, `Password`, `PhoneNumber`, `CarName`, `Role`, `AccountStatus`, `VerificationFile`, `VerificationToken`, `DeviceID`, `CurrentAccessCode`, `StationID`, `Last_Login`)
 VALUES
@@ -102,6 +102,39 @@ CREATE TABLE `services` (
   CONSTRAINT `services_ibfk_1` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE `plans` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name_ar` varchar(255) DEFAULT NULL,
+  `name_en` varchar(255) DEFAULT NULL,
+  `price` decimal(10,2) DEFAULT 0.00,
+  `duration` int(11) DEFAULT 1,
+  `duration_type` enum('day','month','year') DEFAULT 'month',
+  `wash_count` int(11) DEFAULT 0,
+  `description_ar` text DEFAULT NULL,
+  `description_en` text DEFAULT NULL,
+  `included_services_ar` text DEFAULT NULL,
+  `included_services_en` text DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `user_plans` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `plan_id` int(11) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `status` enum('active','expired','cancelled') DEFAULT 'active',
+  `remaining_washes` int(11) DEFAULT 0,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `plan_id` (`plan_id`),
+  CONSTRAINT `user_plans_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
+  CONSTRAINT `user_plans_ibfk_2` FOREIGN KEY (`plan_id`) REFERENCES `plans` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE `booking` (
   `BookingID` int(11) NOT NULL AUTO_INCREMENT,
   `Order_Number` varchar(20) DEFAULT NULL,
@@ -134,10 +167,12 @@ CREATE TABLE `booking` (
   KEY `StationID` (`StationID`),
   KEY `ServiceID` (`ServiceID`),
   KEY `DriverID` (`DriverID`),
+  KEY `UserPlanID` (`UserPlanID`),
   CONSTRAINT `booking_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
   CONSTRAINT `booking_ibfk_2` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE CASCADE,
   CONSTRAINT `booking_ibfk_3` FOREIGN KEY (`ServiceID`) REFERENCES `services` (`ServiceID`) ON DELETE CASCADE,
-  CONSTRAINT `booking_ibfk_4` FOREIGN KEY (`DriverID`) REFERENCES `user` (`UserID`) ON DELETE SET NULL
+  CONSTRAINT `booking_ibfk_4` FOREIGN KEY (`DriverID`) REFERENCES `user` (`UserID`) ON DELETE SET NULL,
+  CONSTRAINT `booking_ibfk_5` FOREIGN KEY (`UserPlanID`) REFERENCES `user_plans` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `booking_services` (
@@ -177,6 +212,7 @@ CREATE TABLE `loyalty` (
 CREATE TABLE `notifications` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) DEFAULT NULL,
+  `target_role` varchar(50) DEFAULT NULL, -- الحقل المضاف لربط برمجة الإشعارات والتحقق من صلاحيات المشاهدة
   `title` varchar(255) NOT NULL,
   `body` text DEFAULT NULL,
   `target_url` varchar(255) DEFAULT NULL,
@@ -186,39 +222,6 @@ CREATE TABLE `notifications` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-CREATE TABLE `plans` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name_ar` varchar(255) DEFAULT NULL,
-  `name_en` varchar(255) DEFAULT NULL,
-  `price` decimal(10,2) DEFAULT 0.00,
-  `duration` int(11) DEFAULT 1,
-  `duration_type` enum('day','month','year') DEFAULT 'month',
-  `wash_count` int(11) DEFAULT 0,
-  `description_ar` text DEFAULT NULL,
-  `description_en` text DEFAULT NULL,
-  `included_services_ar` text DEFAULT NULL,
-  `included_services_en` text DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` datetime DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-CREATE TABLE `user_plans` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `plan_id` int(11) DEFAULT NULL,
-  `start_date` date DEFAULT NULL,
-  `end_date` date DEFAULT NULL,
-  `status` enum('active','expired','cancelled') DEFAULT 'active',
-  `remaining_washes` int(11) DEFAULT 0,
-  `created_at` datetime DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`),
-  KEY `plan_id` (`plan_id`),
-  CONSTRAINT `user_plans_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
-  CONSTRAINT `user_plans_ibfk_2` FOREIGN KEY (`plan_id`) REFERENCES `plans` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `support_tickets` (
