@@ -3,12 +3,10 @@ session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
-
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
     header("Location: ../general/login.php");
     exit();
 }
-
 
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
@@ -26,25 +24,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-
 $res_gmv = $conn->query("SELECT SUM(Total_Price) as total FROM booking");
 $total_gmv = $res_gmv->fetch_assoc()['total'] ?? 0;
-
 
 $res_net = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking");
 $net_profit = $res_net->fetch_assoc()['total'] ?? 0;
 
-
 $res_count = $conn->query("SELECT COUNT(*) as total FROM booking WHERE Status = 'Completed'");
 $completed_orders = $res_count->fetch_assoc()['total'] ?? 0;
 
-
+// جلب أعلى المحطات دخلاً مع إيجاد أعلى قيمة لحساب النسبة المئوية بدقة
 $top_stations_query = "
     SELECT s.Name, SUM(b.Total_Price) as revenue 
     FROM stations s 
@@ -52,8 +46,17 @@ $top_stations_query = "
     GROUP BY s.StationID 
     ORDER BY revenue DESC 
     LIMIT 3";
-$top_stations = $conn->query($top_stations_query);
-
+$top_stations_res = $conn->query($top_stations_query);
+$top_stations = [];
+$max_revenue = 1; 
+if($top_stations_res) {
+    while($row = $top_stations_res->fetch_assoc()) {
+        $top_stations[] = $row;
+        if($row['revenue'] > $max_revenue) {
+            $max_revenue = $row['revenue'];
+        }
+    }
+}
 
 $history_query = "
     SELECT b.Booking_Date, u.UserName, b.Total_Price, b.Admin_Commission, b.Status 
@@ -63,10 +66,17 @@ $history_query = "
     LIMIT 10";
 $history_res = $conn->query($history_query);
 
-
+// جلب تحليلات الأيام والترتيب الصحيح للمخطط
+$days_map = ['Saturday' => 0, 'Sunday' => 1, 'Monday' => 2, 'Tuesday' => 3, 'Wednesday' => 4, 'Thursday' => 5, 'Friday' => 6];
+$chart_values = [0, 0, 0, 0, 0, 0, 0];
 $weekly_res = $conn->query("SELECT DAYNAME(created_at) as day, SUM(Total_Price) as total FROM booking GROUP BY DAYNAME(created_at)");
-$weekly_data = [];
-while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
+if($weekly_res) {
+    while($w = $weekly_res->fetch_assoc()){
+        if(isset($days_map[$w['day']])) {
+            $chart_values[$days_map[$w['day']]] = (float)$w['total'];
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -188,15 +198,22 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
                         <div class="col-lg-4">
                             <div class="chart-box shadow-sm text-start">
                                 <h6 class="mb-4 fw-bold" data-i18n="top_stations">أعلى المحطات دخلاً</h6>
-                                <?php if($top_stations): while($st = $top_stations->fetch_assoc()): ?>
+                                <?php if(!empty($top_stations)): foreach($top_stations as $st): 
+                                    // حساب النسبة الحركية لشريط التقدم بناءً على المبيعات الفعلية
+                                    $percentage = ($st['revenue'] / $max_revenue) * 100;
+                                ?>
                                     <div class="mb-4">
                                         <div class="d-flex justify-content-between small mb-1">
                                             <span><?php echo htmlspecialchars($st['Name']); ?></span>
                                             <span class="fw-bold"><?php echo number_format($st['revenue'], 2); ?> JOD</span>
                                         </div>
-                                        <div class="progress progress-custom"><div class="progress-bar bg-primary" style="width: 75%"></div></div>
+                                        <div class="progress progress-custom">
+                                            <div class="progress-bar bg-primary" style="width: <?php echo $percentage; ?>%"></div>
+                                        </div>
                                     </div>
-                                <?php endwhile; endif; ?>
+                                <?php endforeach; else: ?>
+                                    <p class="small opacity-50 text-center py-3">No data available</p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -225,6 +242,8 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
                                             <td><span class="badge bg-success rounded-pill px-3"><?php echo $row['Status']; ?></span></td>
                                         </tr>
                                         <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="5" class="text-center py-3 opacity-50">No operations found</td></tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
@@ -234,8 +253,6 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
             </main>
         </div>
     </div>
-
-    <!-- تم حذف الهيكل القديم لـ logoutModal من هنا لمنع التضارب، والاعتماد الكلي على منيو الـ Sidebar المركزي للسيستم -->
 
     <div class="modal fade" id="exportModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm modal-sm-custom">
@@ -259,7 +276,7 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
                 total_gmv: "إجمالي المبيعات (GMV)", net_profit: "صافي أرباحك (10%)", your_earnings: "أرباحكِ يا", completed_orders: "الطلبات المكتملة",
                 weekly_analysis: "تحليل المبيعات الأسبوعي", top_stations: "أعلى المحطات دخلاً", payment_history_title: "سجل العمليات الأخير",
                 th_date: "التاريخ", th_customer: "الزبون", th_value: "القيمة", th_commission: "عمولة", th_status: "الحالة",
-                nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_security: "الأمان", nav_reports: "التقارير", nav_plans: "الخطط", nav_notifications: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج",
+                nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_security: "الأمان", nav_reports: "التقارير", nav_plans: "الخطط", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج",
                 export_confirm_title: "تصدير التقارير", export_confirm_msg: "تصدير البيانات كملف Excel؟", btn_confirm_export: "تأكيد", btn_cancel: "إلغاء",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج"
             },
@@ -268,7 +285,7 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
                 total_gmv: "Total Sales (GMV)", net_profit: "Net Profit (10%)", your_earnings: "Your Earnings,", completed_orders: "Completed Orders",
                 weekly_analysis: "Weekly Sales Analysis", top_stations: "Top Earning Stations", payment_history_title: "Recent Transactions",
                 th_date: "Date", th_customer: "Customer", th_value: "Value", th_commission: "Comm.", th_status: "Status",
-                nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", nav_reports: "Reports", nav_plans: "Plans", nav_notifications: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout",
+                nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", nav_reports: "Reports", nav_plans: "Plans", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout",
                 export_confirm_title: "Export Reports", export_confirm_msg: "Export current data as Excel?", btn_confirm_export: "Confirm", btn_cancel: "Cancel",
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Logout"
             }
@@ -294,11 +311,14 @@ while($w = $weekly_res->fetch_assoc()){ $weekly_data[$w['day']] = $w['total']; }
             document.getElementById('backIcon').className = isRtl ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
             document.querySelectorAll('.u-name-display').forEach(el => el.innerText = "<?php echo htmlspecialchars($admin_name); ?>");
 
+            // ربط مصفوفة الداتا بيس الحقيقية بالرسم البياني
+            const realChartData = <?php echo json_encode($chart_values); ?>;
+
             new Chart(document.getElementById('revenueChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: isRtl ? ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"] : ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"],
-                    datasets: [{ label: 'Revenue', data: [50, 80, 150, 120, 190, 250, 300], borderColor: '#60a5fa', tension: 0.4, fill: true, backgroundColor: 'rgba(96, 165, 250, 0.1)' }]
+                    datasets: [{ label: 'Revenue', data: realChartData, borderColor: '#60a5fa', tension: 0.4, fill: true, backgroundColor: 'rgba(96, 165, 250, 0.1)' }]
                 },
                 options: { 
                     responsive: true, maintainAspectRatio: false, 

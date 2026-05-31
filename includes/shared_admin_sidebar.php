@@ -4,10 +4,8 @@ if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'Admin') {
     exit();
 }
 
-
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     if (!isset($_POST['csrf_token']) || !validate_csrf_token($_POST['csrf_token'])) {
@@ -31,18 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     }
 }
 
-
 $res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
 $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
 <style>
-
 .custom-cancel-btn {
     background-color: rgba(255, 255, 255, 0.08) !important;
     color: var(--text-main, #ffffff) !important;
@@ -54,13 +49,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
     color: var(--text-main, #ffffff) !important;
 }
 
-
+/* حل مشكلة بياض السايد بار عبر التثبيت المطلق على الشاشات الكبيرة */
 .admin-sidebar {
     background: var(--bg-sidebar, #000000);
     color: white;
     padding: 20px 15px;
-    position: sticky;
+    position: fixed;
     top: 0;
+    bottom: 0;
     height: 100vh;
     z-index: 1050;
     width: 260px;
@@ -69,10 +65,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
     transition: all 0.3s ease;
 }
 
+/* إضافة محاذاة تعويضية للمحتوى الرئيسي لكي لا يختفي خلف السايدبار الثابت */
+@media (min-width: 992px) {
+    [dir="rtl"] .admin-main-content {
+        margin-right: 260px !important;
+        margin-left: 0 !important;
+    }
+    [dir="ltr"] .admin-main-content {
+        margin-left: 260px !important;
+        margin-right: 0 !important;
+    }
+}
+
 .mobile-logout-btn {
     display: none !important;
 }
-
 
 @media (max-width: 991px) {
     .admin-sidebar {
@@ -91,7 +98,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
         border-radius: 20px 20px 0 0 !important;
     }
     
-   
     .admin-sidebar .text-center.mb-4, 
     .admin-sidebar hr, 
     .admin-sidebar .mt-auto {
@@ -134,7 +140,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     }
 }
 </style>
-
 
 <nav class="admin-sidebar shadow">
     <div class="text-center mb-4">
@@ -193,7 +198,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <script>
 function confirmLogout() {
-    
     const myModal = new bootstrap.Modal(document.getElementById('logoutModal'));
     myModal.show();
 }
