@@ -25,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
         $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
         $stmt->bind_param("si", $newName, $admin_id);
         if ($stmt->execute()) {
-            
             header("Location: " . $_SERVER['PHP_SELF'] . "?upload=success");
             exit();
         }
@@ -42,8 +41,8 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
-<!-- ستايل إضافي مخصص لزر الإلغاء والمودال ليتوافق مع الدارك مود بشكل كامل -->
 <style>
+
 .custom-cancel-btn {
     background-color: rgba(255, 255, 255, 0.08) !important;
     color: var(--text-main, #ffffff) !important;
@@ -54,9 +53,89 @@ $current_page = basename($_SERVER['PHP_SELF']);
     background-color: rgba(255, 255, 255, 0.18) !important;
     color: var(--text-main, #ffffff) !important;
 }
+
+
+.admin-sidebar {
+    background: var(--bg-sidebar, #000000);
+    color: white;
+    padding: 20px 15px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    z-index: 1050;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.mobile-logout-btn {
+    display: none !important;
+}
+
+
+@media (max-width: 991px) {
+    .admin-sidebar {
+        position: fixed !important;
+        bottom: 0 !important;
+        top: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: 70px !important;
+        flex-direction: row !important;
+        padding: 0 5px !important;
+        justify-content: space-around !important;
+        align-items: center !important;
+        box-shadow: 0 -5px 25px rgba(0,0,0,0.4) !important;
+        border-radius: 20px 20px 0 0 !important;
+    }
+    
+   
+    .admin-sidebar .text-center.mb-4, 
+    .admin-sidebar hr, 
+    .admin-sidebar .mt-auto {
+        display: none !important;
+    }
+    
+    .sidebar-nav-container {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .sidebar-nav-container .nav {
+        flex-direction: row !important;
+        justify-content: space-around !important;
+        width: 100% !important;
+    }
+    
+    .nav-link {
+        padding: 8px 10px !important;
+        margin-bottom: 0 !important;
+        border-radius: 12px !important;
+        font-size: 0.7rem !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 2px !important;
+        justify-content: center !important;
+    }
+    
+    .nav-link i {
+        margin: 0 !important;
+        font-size: 1.2rem !important;
+    }
+    
+    .nav-link span {
+        font-size: 0.65rem !important;
+    }
+    
+    .mobile-logout-btn {
+        display: flex !important;
+    }
+}
 </style>
 
-<!-- هيكل الـ Sidebar الجمالي -->
+
 <nav class="admin-sidebar shadow">
     <div class="text-center mb-4">
         <form id="adminPicForm" method="POST" enctype="multipart/form-data">
@@ -78,7 +157,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <a href="financial-reports.php" class="nav-link <?php echo ($current_page == 'financial-reports.php') ? 'active' : ''; ?>"><i class="fas fa-chart-pie"></i> <span data-i18n="nav_reports">التقارير</span></a>
             <a href="manage-plans.php" class="nav-link <?php echo ($current_page == 'manage-plans.php') ? 'active' : ''; ?>"><i class="fas fa-tags"></i> <span data-i18n="nav_plans">الخطط</span></a>
             <a href="notifications.php" class="nav-link <?php echo ($current_page == 'notifications.php') ? 'active' : ''; ?>"><i class="fas fa-bell"></i> <span data-i18n="nav_notif">الإشعارات</span></a>
-            <a href="all-support-chats.php" class="nav-link <?php echo ($current_page == 'all-support-chats.php') ? 'active' : ''; ?>"><i class="fas fa-comments"></i> <span data-i18n="nav_support_chat">دردشة الدعم</span></a>
+            <a href="all-support-chats.php" class="nav-link <?php echo ($current_page == 'all-support-chats.php') ? 'active' : ''; ?>"><i class="fas fa-comments"></i> <span data-i18n="nav_support_chat">الدعم</span></a>
+           
+            <a href="javascript:void(0)" onclick="confirmLogout()" class="nav-link text-danger mobile-logout-btn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="nav_logout">خروج</span></a>
         </div>
     </div>
 
@@ -90,8 +171,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
 </nav>
 
-<!-- مودال تأكيد الخروج المرفق تلقائياً مع السايد بار (معدل ليدعم الدارك مود بوضوح كامل) -->
-<div class="modal fade" id="logoutModal" tabindex="-1">
+<div class="modal fade" id="logoutModal" tabindex="-1" style="z-index: 2050;">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content text-center p-4 shadow-lg" style="background-color: var(--bg-card, #1e293b) !important; color: var(--text-main, #ffffff) !important; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1);">
             
@@ -110,3 +190,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </div>
     </div>
 </div>
+
+<script>
+function confirmLogout() {
+    
+    const myModal = new bootstrap.Modal(document.getElementById('logoutModal'));
+    myModal.show();
+}
+</script>
