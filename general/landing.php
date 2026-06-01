@@ -1,4 +1,4 @@
-<?php 
+<?php
 session_start();
 include_once __DIR__ . '/../includes/config.php';
 
@@ -35,6 +35,7 @@ $user_role = $_SESSION['role'] ?? 'User';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 
     <style>
         :root {
@@ -60,7 +61,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             transition: 0.3s ease;
         }
 
-        /* --- Navbar Logic --- */
+        
         .navbar {
             transition: 0.4s;
             padding: 15px 0;
@@ -140,7 +141,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             text-decoration: none !important;
         }
 
-        /* --- Hero --- */
+        
         .main-hero {
             height: 100vh;
             min-height: 600px;
@@ -165,9 +166,8 @@ $user_role = $_SESSION['role'] ?? 'User';
             margin-bottom: 20px;
         }
 
-        /* --- Services & Stations --- */
-        #services,
-        #stations-section {
+     
+        #services {
             background-color: var(--section-bg);
             padding: 80px 0;
         }
@@ -206,7 +206,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             color: var(--text-color);
         }
 
-        /* --- CTA Banner --- */
+       
         .cta-banner {
             border-top: 2px solid rgba(255, 255, 255, 0.1);
             background: linear-gradient(rgba(0, 30, 60, 0.85), rgba(0, 30, 60, 0.85)), url('../assets/Images/wash.jpg') center/cover fixed !important;
@@ -362,10 +362,6 @@ $user_role = $_SESSION['role'] ?? 'User';
             border: 2px solid #fff;
         }
 
-        .chat-header bg-primary {
-            background-color: var(--primary-blue) !important;
-        }
-
         .chat-body {
             flex: 1;
             padding: 15px;
@@ -431,11 +427,6 @@ $user_role = $_SESSION['role'] ?? 'User';
             transition: 0.2s;
         }
 
-        .voice-btn {
-            background: #f1f3f5;
-            color: #555;
-        }
-
         .send-btn {
             background: var(--primary-blue);
             color: #fff;
@@ -453,7 +444,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             }
         }
 
-        /* Modal Theme Adjustments */
+       
         .modal-content {
             background-color: var(--card-bg);
             color: var(--text-color);
@@ -461,37 +452,105 @@ $user_role = $_SESSION['role'] ?? 'User';
             border: none;
         }
 
+       
+
         @media (max-width: 991.98px) {
+           
+            .navbar-collapse {
+                background: rgba(10, 15, 28, 0.98);
+                border-radius: 20px;
+                padding: 25px;
+                margin-top: 20px;
+                position: absolute; 
+                top: 100%;
+                left: 0;
+                width: 100%;
+                text-align: center;
+                flex-direction: column !important;
+                display: none !important; 
+                z-index: 1000;
+            }
+
+            .navbar-collapse.show {
+                display: flex !important; 
+            }
+
             .navbar-nav {
                 position: static;
                 transform: none;
                 margin: 20px 0;
             }
 
-            .navbar-collapse {
-                background: rgba(10, 15, 28, 0.98);
-                border-radius: 20px;
-                padding: 25px;
-                margin-top: 20px;
-                flex-direction: column !important;
-            }
-
             .header-controls-wrapper {
                 justify-content: center !important;
+                width: 100%;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid rgba(255,255,255,0.1);
+            }
+
+            
+            .hero-logo {
+                width: 120px !important; 
+            }
+
+            .main-hero p.lead {
+                font-size: 1rem !important; 
+                padding: 0 15px;
+            }
+
+            
+            #services, #stations-layout-wrapper {
+                padding: 40px 0;
+            }
+
+            
+            .service-card {
+                margin: 0 10px; 
+            }
+            
+            .service-card img {
+                height: 180px; 
             }
         }
 
-        /* قسم المحطات المضاف */
-        #stations-section {
-            display: none;
-            padding: 80px 0;
+        @media (max-width: 576px) {
+            
+            .dropdown-menu {
+                width: 100%;
+                text-align: center !important;
+                right: 0 !important;
+                left: 0 !important;
+            }
+        }
+
+      
+        #stations-layout-wrapper {
+            display: none; 
+            width: 100%;
+            height: auto;
+            position: relative; 
+            z-index: 1; 
+            overflow: hidden; 
             background-color: var(--section-bg);
+            margin-top: -100vh; 
+            padding-top: calc(80px + 60px); 
+        }
+
+        #stations-layout-wrapper.active {
+            display: block; 
+            margin-top: 0; 
+        }
+        
+        #stations-section {
+            padding: 0 !important; 
         }
     </style>
 </head>
 
 <body>
     <script>
+        
         (function() {
             const savedTheme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
@@ -537,7 +596,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                                 <ul class="dropdown-menu dropdown-menu-dark rounded-3 shadow border-0 mt-2 text-end">
                                     <li>
                                         <?php
-                                        
+                                        // تحديد رابط لوحة التحكم حسب الدور
                                         $current_role = isset($_SESSION['role']) ? trim($_SESSION['role']) : 'User';
 
                                         if (strcasecmp($current_role, 'Admin') === 0) {
@@ -609,20 +668,22 @@ $user_role = $_SESSION['role'] ?? 'User';
         </div>
     </section>
 
-    <section id="stations-section" class="py-5">
-        <div class="container">
-            <div class="mb-5 text-center">
-                <h2 class="fw-bold display-6 theme-text" id="station-title-display"></h2>
-                <p class="theme-muted" data-i18n="station_subtitle">المحطات التي توفر هذه الخدمة</p>
-                <div class="bg-primary mx-auto mt-2 rounded-pill" style="width: 60px; height: 4px;"></div>
-            </div>
-            <div class="row g-4 px-2" id="stations-container">
+    <div id="stations-layout-wrapper">
+        <section id="stations-section" class="py-5">
+            <div class="container">
+                <div class="mb-5 text-center">
+                    <h2 class="fw-bold display-6 theme-text" id="station-title-display"></h2>
+                    <p class="theme-muted" data-i18n="station_subtitle">المحطات التي توفر هذه الخدمة</p>
+                    <div class="bg-primary mx-auto mt-2 rounded-pill" style="width: 60px; height: 4px;"></div>
                 </div>
-            <div class="text-center mt-5">
-                <button class="btn btn-primary rounded-pill px-4 fw-bold" onclick="hideStations()" data-i18n="back_btn">العودة للخدمات</button>
+                <div class="row g-4 px-2" id="stations-container">
+                    </div>
+                <div class="text-center mt-5">
+                    <button class="btn btn-primary rounded-pill px-4 fw-bold" onclick="hideStations()" data-i18n="back_btn">العودة للخدمات</button>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
+    </div>
 
     <section class="cta-banner">
         <div class="container">
@@ -684,10 +745,12 @@ $user_role = $_SESSION['role'] ?? 'User';
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
         const isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
         const stations = <?php echo json_encode($stations); ?>;
 
+       
         const translations = {
             ar: {
                 nav_services: "خدماتنا",
@@ -775,58 +838,84 @@ $user_role = $_SESSION['role'] ?? 'User';
             }
         };
 
+       
         function showStations(serviceKey) {
             const lang = localStorage.getItem('app_lang') || 'ar';
             const serviceTitle = translations[lang][serviceKey];
 
+            
             document.getElementById('main-hero').style.display = 'none';
             document.getElementById('services').style.display = 'none';
-            document.querySelector('.navbar-nav').style.setProperty('display', 'none', 'important');
-            document.querySelector('.header-controls-wrapper').style.setProperty('display', 'none', 'important');
+            
+           
+            const navbarCollapse = document.getElementById('navbarNav');
+            if (navbarCollapse && window.innerWidth < 992) {
+                const bsCollapse = new bootstrap.Collapse(navbarCollapse, { toggle: false });
+                bsCollapse.hide();
+            }
 
-            const section = document.getElementById('stations-section');
-            section.style.display = 'block';
+          
+            const sectionWrapper = document.getElementById('stations-layout-wrapper');
+            sectionWrapper.classList.add('active'); 
+
             document.getElementById('station-title-display').innerText = serviceTitle;
 
             const container = document.getElementById('stations-container');
-            container.innerHTML = '';
+            container.innerHTML = ''; 
 
+            
             const filteredStations = stations.filter(st => {
                 if (serviceKey === 'ser_1_t' && st.ServiceName.includes('شامل')) return true;
                 if (serviceKey === 'ser_2_t' && st.ServiceName.includes('داخلي')) return true;
                 if (serviceKey === 'ser_3_t' && st.ServiceName.includes('خارجي')) return true;
                 if (serviceKey === 'ser_4_t' && st.ServiceName.includes('زيت')) return true;
+                
                 return false;
             });
 
-            filteredStations.forEach(st => {
-                container.innerHTML += `
-                    <div class="col-12 col-md-4">
-                        <div class="service-card p-4">
-                           <i class="fas fa-car-side text-primary mb-3" style="font-size: 4rem;"></i>
-                            <h5 class="fw-bold theme-text">${st.StationName}</h5>
-                            <p class="theme-muted small">متوفر الآن - خدمة سريعة</p>
-                            <button class="btn btn-primary w-100 rounded-pill mt-3 fw-bold" onclick="attemptBooking(${st.StationID})">
-                                ${translations[lang].book_btn}
-                            </button>
+            
+            if (filteredStations.length === 0) {
+                 container.innerHTML = `<div class="col-12 text-center py-5 theme-muted">لا تتوفر محطات لهذه الخدمة حالياً.</div>`;
+            } else {
+                filteredStations.forEach(st => {
+                    container.innerHTML += `
+                        <div class="col-12 col-md-4">
+                            <div class="service-card p-4">
+                               <i class="fas fa-car-side text-primary mb-3" style="font-size: 4rem;"></i>
+                                <h5 class="fw-bold theme-text">${st.StationName}</h5>
+                                <p class="theme-muted small">متوفر الآن - خدمة سريعة</p>
+                                <button class="btn btn-primary w-100 rounded-pill mt-3 fw-bold" onclick="attemptBooking(${st.StationID})">
+                                    ${translations[lang].book_btn}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
+            
+           
             window.scrollTo(0, 0);
         }
 
+        
         function hideStations() {
-            document.getElementById('stations-section').style.display = 'none';
+            
+            const sectionWrapper = document.getElementById('stations-layout-wrapper');
+            sectionWrapper.classList.remove('active'); 
+
+           
             document.getElementById('main-hero').style.display = 'flex';
             document.getElementById('services').style.display = 'block';
-            document.querySelector('.navbar-nav').style.display = 'flex';
-            document.querySelector('.header-controls-wrapper').style.display = 'flex';
+            
+            
+            location.hash = "#services";
         }
 
+        
         function attemptBooking(stationId) {
             const lang = localStorage.getItem('app_lang') || 'ar';
             if (!isLoggedIn) {
+                
                 showModal(
                     translations[lang].modal_alert,
                     translations[lang].modal_msg,
@@ -834,10 +923,12 @@ $user_role = $_SESSION['role'] ?? 'User';
                      <button class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">${translations[lang].ok_btn}</button>`
                 );
             } else {
+                
                 location.href = `../user/station-details.php?id=${stationId}`;
             }
         }
 
+        
         function showModal(title, msg, buttons) {
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('modalMessage').innerText = msg;
@@ -846,30 +937,9 @@ $user_role = $_SESSION['role'] ?? 'User';
             myModal.show();
         }
 
-        function toggleChatWindow() {
-            const win = document.getElementById('chatWindow');
-            win.style.display = (win.style.display === 'flex' ? 'none' : 'flex');
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const body = document.getElementById('chatBody');
-            if (input.value.trim() !== "") {
-                const userMsg = document.createElement('div');
-                userMsg.className = 'msg-bubble user-msg';
-                userMsg.innerText = input.value;
-                body.appendChild(userMsg);
-                input.value = "";
-                body.scrollTop = body.scrollHeight;
-                setTimeout(() => {
-                    const botMsg = document.createElement('div');
-                    botMsg.className = 'msg-bubble bot-msg';
-                    botMsg.innerText = "شكراً لتواصلك معنا، سيقوم أحد موظفينا بالرد عليك قريباً.";
-                    body.appendChild(botMsg);
-                    body.scrollTop = body.scrollHeight;
-                }, 1000);
-            }
-        }
+    
+        function toggleChatWindow() {}
+        function sendMessage() {}
 
         function toggleLanguage() {
             const currentLang = localStorage.getItem('app_lang') || 'ar';
@@ -892,6 +962,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             if (icon) icon.className = (theme === 'dark' ? 'fas fa-sun fs-6' : 'fas fa-moon fs-6');
         }
 
+       
         window.onload = () => {
             const savedTheme = localStorage.getItem('global_theme') || 'light';
             updateThemeIcon(savedTheme);
