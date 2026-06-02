@@ -151,9 +151,9 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title data-i18n="dash_page_title">Wash Go | الرئيسية</title>
+    <title data-i18n="dash_page_title">Clevo | الرئيسية</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -1092,13 +1092,13 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                 <div>
 
-                    <span class="status-pill <?= $activeOrderStatusClass ?>">
+                    <span class="status-pill <?= $activeOrderStatusClass ?>" data-order-status="<?= htmlspecialchars($pending_booking['Status']) ?>">
 
                         <?= htmlspecialchars($activeOrderStatusLabels[$pending_booking['Status']] ?? $pending_booking['Status']) ?>
 
                     </span>
 
-                    <h6 class="fw-bold mt-2 mb-1"><?= htmlspecialchars($pending_booking['service_name']) ?></h6>
+                    <h6 class="fw-bold mt-2 mb-1" data-service-name="<?= htmlspecialchars($pending_booking['service_name']) ?>"><?= htmlspecialchars($pending_booking['service_name']) ?></h6>
 
                     <p class="small opacity-75 mb-1"><?= htmlspecialchars($pending_booking['station_name']) ?> | #<?= htmlspecialchars($pending_booking['Order_Number']) ?></p>
 
@@ -1110,7 +1110,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                             <i class="fas fa-hourglass-half"></i>
 
-                            <span>إلغاء تلقائي بعد</span>
+                            <span data-i18n="auto_cancel_after">إلغاء تلقائي بعد</span>
 
                             <span id="timerText">--:--</span>
 
@@ -1122,7 +1122,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                             <i class="fas fa-credit-card"></i>
 
-                            <span>مهلة الدفع</span>
+                            <span data-i18n="payment_deadline">مهلة الدفع</span>
 
                             <span id="timerText">--:--</span>
 
@@ -1134,7 +1134,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                 <?php if ($pending_booking['Status'] === 'Accepted' && empty($pending_booking['Payment_Method'])): ?>
 
-                    <a class="order-next-btn" href="../includes/payment-method.php?id=<?= (int) $pending_booking['BookingID'] ?>"><i class="fas fa-credit-card"></i> الدفع</a>
+                    <a class="order-next-btn" href="../includes/payment-method.php?id=<?= (int) $pending_booking['BookingID'] ?>"><i class="fas fa-credit-card"></i> <span data-i18n="pay_now">الدفع</span></a>
 
 
 
@@ -1162,7 +1162,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
-                            تتبع السائق
+                            <span data-i18n="track_driver">تتبع السائق</span>
 
 
 
@@ -1265,6 +1265,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
 
     <script>
         const API_KEY = "fe43aec0ea2f78313d0d8a5887ba992b";
@@ -1540,6 +1541,85 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         }
 
 
+
+        updateWeatherUI = function(temp, condition, city) {
+            const isAr = (localStorage.getItem('app_lang') || 'ar') === 'ar';
+            const tempEl = document.getElementById('tempVal');
+            if (tempEl) tempEl.innerText = `${Math.round(temp)}°C`;
+
+            let message = '';
+            let tip = '';
+            if (isAr) {
+                if (condition === 'rain' || condition === 'drizzle') {
+                    message = `الجو ماطر في ${city}`;
+                    tip = 'يفضل تأجيل غسيل السيارة اليوم';
+                } else if (condition === 'clouds') {
+                    message = `أجواء غائمة في ${city}`;
+                    tip = 'يمكنك الغسيل لكن تأكد من الطقس';
+                } else if (condition === 'clear') {
+                    message = `الجو مشمس في ${city}`;
+                    tip = 'الطقس ممتاز لغسيل سيارتك';
+                } else if (temp <= 10) {
+                    message = `الجو بارد في ${city}`;
+                    tip = 'يفضل تأجيل الغسيل بسبب البرد';
+                } else {
+                    message = `الطقس معتدل في ${city}`;
+                    tip = 'وقت مناسب لغسيل السيارة';
+                }
+            } else {
+                if (condition === 'rain' || condition === 'drizzle') {
+                    message = `Rainy weather in ${city}`;
+                    tip = 'Better to postpone washing your car';
+                } else if (condition === 'clouds') {
+                    message = `Cloudy weather in ${city}`;
+                    tip = 'You can wash your car, but check the weather';
+                } else if (condition === 'clear') {
+                    message = `Sunny weather in ${city}`;
+                    tip = 'Perfect weather for a car wash';
+                } else if (temp <= 10) {
+                    message = `Cold weather in ${city}`;
+                    tip = 'Better to delay washing your car';
+                } else {
+                    message = `Mild weather in ${city}`;
+                    tip = 'Great time for a car wash';
+                }
+            }
+
+            const weatherText = document.getElementById('weatherText');
+            if (weatherText) {
+                weatherText.innerHTML = `
+                    <div class="weather-info">
+                        <span class="weather-main">${message}</span>
+                        <span class="weather-dot">✦</span>
+                        <span class="weather-tip">${tip}</span>
+                    </div>
+                `;
+            }
+
+            const icon = document.getElementById('weatherIcon');
+            if (!icon) return;
+            switch (condition) {
+                case 'clear':
+                    icon.className = 'fas fa-sun fa-2x';
+                    break;
+                case 'clouds':
+                    icon.className = 'fas fa-cloud fa-2x';
+                    break;
+                case 'rain':
+                case 'drizzle':
+                    icon.className = 'fas fa-cloud-rain fa-2x';
+                    break;
+                case 'thunderstorm':
+                    icon.className = 'fas fa-bolt fa-2x';
+                    break;
+                case 'snow':
+                    icon.className = 'fas fa-snowflake fa-2x';
+                    break;
+                default:
+                    icon.className = 'fas fa-cloud-sun fa-2x';
+            }
+            icon.style.color = '#0f172a';
+        };
 
         function fetchWeather() {
 
@@ -1842,6 +1922,66 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
+        Object.assign(translations.ar, {
+            dash_page_title: "Clevo | الرئيسية",
+            hello_weather: "مرحباً بك..",
+            loyalty_title: "نقاط الولاء",
+            save_every_wash: "غسيل احترافي بأسعار أوفر",
+            subscribe_now: "اشترك الآن",
+            washes_left: "غسلات متبقية",
+            our_services: "خدماتنا المميزة",
+            serv_book: "حجز",
+            serv_plans: "الباقات",
+            serv_history: "السجلات",
+            serv_wallet: "المحفظة",
+            serv_profile: "ملفي",
+            serv_support: "الدعم",
+            logout_confirm_title: "تأكيد الخروج",
+            logout_confirm_msg: "هل أنت متأكد من رغبتك في تسجيل الخروج؟",
+            btn_yes: "نعم، خروج",
+            btn_no: "إلغاء",
+            loc_title: "تفعيل الموقع",
+            loc_msg: "يرجى تفعيل الوصول للموقع لخدمتك بشكل أفضل.",
+            btn_allow: "سماح بالوصول",
+            btn_later: "لاحقاً",
+            serv_logout: "خروج",
+            paid_from_plan: "من الباقة",
+            auto_cancel_after: "إلغاء تلقائي بعد",
+            payment_deadline: "مهلة الدفع",
+            pay_now: "الدفع",
+            track_driver: "تتبع السائق"
+        });
+
+        Object.assign(translations.en, {
+            dash_page_title: "Clevo | Home",
+            save_every_wash: "Professional wash for less",
+            auto_cancel_after: "Auto-cancel after",
+            payment_deadline: "Payment deadline",
+            pay_now: "Pay",
+            track_driver: "Track Driver"
+        });
+
+        const orderStatusTranslations = {
+            ar: {
+                Pending: "بانتظار الموافقة",
+                Accepted: "تمت الموافقة",
+                Arrived: "وصل السائق",
+                "In Progress": "قيد التنفيذ",
+                Pickup: "قيد الاستلام",
+                Washing: "قيد الغسيل",
+                Returning: "قيد الإرجاع"
+            },
+            en: {
+                Pending: "Pending Approval",
+                Accepted: "Accepted",
+                Arrived: "Driver Arrived",
+                "In Progress": "In Progress",
+                Pickup: "Pickup in Progress",
+                Washing: "Washing",
+                Returning: "Returning"
+            }
+        };
+
         function applyTranslations(lang) {
 
             document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -1852,7 +1992,21 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             });
 
+            document.title = translations[lang]?.dash_page_title || document.title;
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+
+            const bootstrapLink = document.getElementById('bootstrap-css');
+            if (bootstrapLink) {
+                bootstrapLink.href = lang === 'ar'
+                    ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css"
+                    : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
+            }
+
+            document.querySelectorAll('[data-order-status]').forEach(el => {
+                const status = el.getAttribute('data-order-status');
+                el.innerText = orderStatusTranslations[lang]?.[status] || status;
+            });
 
             document.getElementById('langBtn').innerText = lang === 'ar' ? 'EN' : 'AR';
 
@@ -1905,6 +2059,9 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             localStorage.setItem('app_lang', next);
 
             applyTranslations(next);
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, next);
+            }
 
             fetchWeather();
 
@@ -1945,6 +2102,10 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             fetchWeather();
 
             runBookingTimer();
+
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, lang);
+            }
 
 
 

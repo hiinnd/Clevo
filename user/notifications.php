@@ -2,6 +2,7 @@
 session_start();
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
@@ -43,6 +44,62 @@ $stmt = $conn->prepare("SELECT id, title, body, type, is_read, created_at, targe
 $stmt->bind_param("i", $userID);
 $stmt->execute();
 $notifications = $stmt->get_result();
+
+function clevo_notification_contains(string $text, array $needles): bool
+{
+    foreach ($needles as $needle) {
+        if ($needle !== '' && str_contains($text, $needle)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function clevo_notification_variants(string $title, string $body): array
+{
+    $titleAr = $title;
+    $bodyAr = $body;
+    $titleEn = $title;
+    $bodyEn = $body;
+    preg_match('/#[A-Za-z0-9]+/', $title . ' ' . $body, $matches);
+    $orderNum = $matches[0] ?? '';
+
+    if (clevo_notification_contains($title, ['طلب جديد'])) {
+        $titleEn = 'New Order';
+    } elseif (clevo_notification_contains($title, ['تم قبول الطلب'])) {
+        $titleEn = 'Order Accepted';
+    } elseif (clevo_notification_contains($title, ['موعدك القادم'])) {
+        $titleEn = 'Upcoming Appointment';
+    } elseif (clevo_notification_contains($title, ['تم إلغاء الطلب'])) {
+        $titleEn = 'Order Cancelled';
+    } elseif (clevo_notification_contains($title, ['تم إنهاء الطلب'])) {
+        $titleEn = 'Order Completed';
+    } elseif (clevo_notification_contains($title, ['نشاط تجريبي'])) {
+        $titleEn = 'Demo Activity';
+    } elseif (clevo_notification_contains($title, ['رد', 'الدعم'])) {
+        $titleEn = 'Support Reply';
+    }
+
+    if (clevo_notification_contains($body, ['وصلك طلب'])) {
+        $bodyEn = trim("You received a new order $orderNum.");
+    } elseif (clevo_notification_contains($body, ['تم قبول طلبك'])) {
+        $bodyEn = trim("Your order $orderNum was accepted.");
+    } elseif (clevo_notification_contains($body, ['مقبول ومجدول'])) {
+        $bodyEn = trim("Your order $orderNum is accepted and scheduled.");
+    } elseif (clevo_notification_contains($body, ['وجاري الاستلام'])) {
+        $bodyEn = trim("Your order $orderNum was accepted and pickup is in progress.");
+    } elseif (clevo_notification_contains($body, ['الدفع لم يكتمل', 'لم يكتمل'])) {
+        $bodyEn = trim("Your order $orderNum was cancelled because payment was not completed on time.");
+    } elseif (clevo_notification_contains($body, ['يمكنك الآن تقييم الخدمة'])) {
+        $bodyEn = trim("You can now rate the service. Your order $orderNum is completed.");
+    } elseif (clevo_notification_contains($body, ['لم يتم الاستجابة'])) {
+        $bodyEn = 'Sorry, your request was not responded to. You can choose another station now.';
+    } elseif (clevo_notification_contains($body, ['تم تحميل بيانات تجريبية'])) {
+        $bodyEn = 'Demo data for Amman stations and bookings was loaded.';
+    }
+
+    return [$titleAr, $bodyAr, $titleEn, $bodyEn];
+}
 ?>
 
 <!DOCTYPE html>
@@ -51,7 +108,7 @@ $notifications = $stmt->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="noti_page_title">الإشعارات | Clevo</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -88,7 +145,12 @@ $notifications = $stmt->get_result();
         }
 
         .spacer-div { width: 40px; }
-        [dir="rtl"] .back-circle-btn { order: 1; } [dir="ltr"] .back-circle-btn { order: 1; }
+        [dir="rtl"] .back-circle-btn { order: 1; }
+        [dir="rtl"] .spacer-div { order: 3; }
+        [dir="rtl"] #backIcon { transform: rotate(0deg); }
+        [dir="ltr"] .back-circle-btn { order: 1; }
+        [dir="ltr"] .spacer-div { order: 3; }
+        [dir="ltr"] #backIcon { transform: rotate(180deg); }
         h4.text-white { order: 2; flex-grow: 1; text-align: center; }
 
         .noti-item { 
@@ -138,8 +200,6 @@ $notifications = $stmt->get_result();
         [dir="ltr"] .noti-item { text-align: left; }
         [dir="ltr"] .noti-icon { margin-inline-end: 0; margin-right: 15px; }
         
-        /* السهم للوراء في وضع الإنجليزية يلتف ليشير لليسار */
-        [dir="ltr"] #backIcon { transform: scaleX(-1); }
     </style>
 </head>
 <body>
@@ -162,33 +222,13 @@ $notifications = $stmt->get_result();
                     if($noti['type'] == 'success') $icon = "fa-check-circle";
                     if($noti['type'] == 'warning') $icon = "fa-gift"; 
                     if($noti['type'] == 'danger') $icon = "fa-times-circle";
-                    if($noti['type'] == 'info' && strpos($noti['title'], 'رد') !== false) $icon = "fa-headset";
+                    if($noti['type'] == 'info' && clevo_notification_contains((string) $noti['title'], ['رد', 'الدعم'])) $icon = "fa-headset";
 
-                    $title_ar = htmlspecialchars($noti['title']);
-                    $body_ar = htmlspecialchars($noti['body']);
-
-                    $title_en = $title_ar;
-                    $body_en = $body_ar;
-
-                    if (strpos($title_ar, 'تم إلغاء الطلب') !== false) $title_en = "Order Cancelled";
-                    if (strpos($title_ar, 'تم قبول الطلب') !== false) $title_en = "Order Accepted";
-                    if (strpos($title_ar, 'تم إنهاء الطلب') !== false) $title_en = "Order Completed";
-
-                    if (strpos($body_ar, 'لأن الدفع لم يكتمل') !== false) {
-                        preg_match('/#[A-Za-z0-9]+/', $body_ar, $matches);
-                        $order_num = isset($matches[0]) ? $matches[0] : '';
-                        $body_en = "Because payment was not completed within 10 minutes after approval, your order {$order_num} has been cancelled.";
-                    }
-                    if (strpos($body_ar, 'تم قبول طلبك بنجاح') !== false) {
-                        preg_match('/#[A-Za-z0-9]+/', $body_ar, $matches);
-                        $order_num = isset($matches[0]) ? $matches[0] : '';
-                        $body_en = "Your order {$order_num} was successfully accepted! The Captain is on the way to you.";
-                    }
-                    if (strpos($body_ar, 'يمكنك الآن تقييم الخدمة') !== false) {
-                        preg_match('/#[A-Za-z0-9]+/', $body_ar, $matches);
-                        $order_num = isset($matches[0]) ? $matches[0] : '';
-                        $body_en = "You can now rate the service. Your order {$order_num} is completed.";
-                    }
+                    [$titleRawAr, $bodyRawAr, $titleRawEn, $bodyRawEn] = clevo_notification_variants((string) $noti['title'], (string) $noti['body']);
+                    $title_ar = e($titleRawAr);
+                    $body_ar = e($bodyRawAr);
+                    $title_en = e($titleRawEn);
+                    $body_en = e($bodyRawEn);
                 ?>
                     <div class="glass noti-item shadow-sm" data-id="<?= $noti['id'] ?>" data-target="<?= htmlspecialchars($noti['target_url'] ?? '') ?>" onclick="handleNotifClick(this)">
                         <div class="noti-icon <?= $typeClass ?>">
@@ -198,7 +238,7 @@ $notifications = $stmt->get_result();
                             <h6 class="noti-title-text mb-1 small" data-db-ar="<?= $title_ar ?>" data-db-en="<?= $title_en ?>"><?= $title_ar ?></h6>
                             <p class="noti-body-text mb-0 small" data-db-ar="<?= $body_ar ?>" data-db-en="<?= $body_en ?>">
                                 <?php 
-                                    if ($isDanger && (strpos($noti['body'], 'لم يتم الاستجابة') !== false)) {
+                                    if ($isDanger && clevo_notification_contains((string) $noti['body'], ['لم يتم الاستجابة'])) {
                                         echo '<span data-i18n="no_response_msg">عذراً، لم يتم الاستجابة لطلبك، يمكنك اختيار محطة أخرى الآن</span>';
                                     } else {
                                         echo $body_ar;
@@ -220,7 +260,7 @@ $notifications = $stmt->get_result();
             <?php else: ?>
                 <div class="text-center py-5 opacity-75">
                     <i class="fas fa-bell-slash fa-4x mb-3" style="color: var(--text);"></i>
-                    <h6 class="fw-bold" data-i18n="no_noti" style="color: var(--text);">لا يوجد حجوزات حالياً</h6>
+                    <h6 class="fw-bold" data-i18n="no_noti" style="color: var(--text);">لا توجد إشعارات حالياً</h6>
                 </div>
             <?php endif; ?>
         </div>
@@ -244,8 +284,8 @@ $notifications = $stmt->get_result();
         }
         const translations = {
             ar: {
-                noti_title: "الإشعارات", 
-                no_noti: "لا يوجد إشعارات حالياً", 
+                noti_title: "الإشعارات",
+                no_noti: "لا توجد إشعارات حالياً",
                 noti_page_title: "الإشعارات | Clevo",
                 search_another: "البحث عن محطة أخرى",
                 no_response_msg: "عذراً، لم يتم الاستجابة لطلبك، يمكنك اختيار محطة أخرى الآن"
@@ -264,16 +304,14 @@ $notifications = $stmt->get_result();
             const theme = localStorage.getItem('global_theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            document.title = translations[lang].noti_page_title;
             
-            const bootstrapLink = document.querySelector('link[href*="bootstrap"]');
-            if(lang === 'en') {
-                if (bootstrapLink) {
-                    bootstrapLink.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
-                }
-            } else {
-                if (bootstrapLink) {
-                    bootstrapLink.href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css";
-                }
+            const bootstrapLink = document.getElementById('bootstrap-css');
+            if (bootstrapLink) {
+                bootstrapLink.href = lang === 'ar'
+                    ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css"
+                    : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
             }
 
             // ترجمة النصوص الثابتة

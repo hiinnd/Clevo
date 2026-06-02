@@ -93,8 +93,14 @@ function clevo_search_aliases(string $text): string {
         .glass { background: var(--glass); backdrop-filter: blur(15px); border: 1px solid var(--border); }
         .search-header { padding: 20px; display: flex; align-items: center; justify-content: space-between; position: relative; height: 140px; border-radius: 0 0 36px 36px; background: linear-gradient(135deg, var(--accent), #0284c7); margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .back-circle-btn { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; z-index: 10; }
-        [dir="ltr"] #backIcon { transform: scaleX(-1); }
-        h4.fw-black { flex-grow: 1; text-align: center; color: #fff !important; margin: 0; }
+        .spacer-div { width: 40px; }
+        [dir="rtl"] .back-circle-btn { order: 1; }
+        [dir="rtl"] .spacer-div { order: 3; }
+        [dir="rtl"] #backIcon { transform: rotate(0deg); }
+        [dir="ltr"] .back-circle-btn { order: 1; }
+        [dir="ltr"] .spacer-div { order: 3; }
+        [dir="ltr"] #backIcon { transform: rotate(180deg); }
+        h4.fw-black { order: 2; flex-grow: 1; text-align: center; color: #fff !important; margin: 0; }
         .search-container-box { padding: 0 15px; margin-top: -45px; z-index: 20; position: relative; }
         .search-input { border-radius: 999px; padding: 15px 25px; border: 1px solid var(--border); background: var(--glass) !important; color: var(--text) !important; width: 100%; outline: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         .tag-btn { background: var(--glass); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
@@ -128,7 +134,7 @@ function clevo_search_aliases(string $text): string {
 
 <body>
     <div class="search-header">
-        <div style="width: 40px;" class="d-none d-md-block"></div>
+        <div class="spacer-div d-none d-md-block"></div>
         <h4 class="fw-black" data-i18n="serv_book">البحث عن محطة</h4>
         <a href="home.php" class="back-circle-btn">
             <i class="fas fa-arrow-right" id="backIcon"></i>
@@ -203,7 +209,7 @@ function clevo_search_aliases(string $text): string {
                             <?php if (!empty($servicePreview)): ?>
                                 <div class="service-chips">
                                     <?php foreach ($servicePreview as $serviceName): ?>
-                                        <span class="service-chip"><?php echo htmlspecialchars($serviceName); ?></span>
+                                        <span class="service-chip" data-service-name="<?php echo htmlspecialchars($serviceName); ?>"><?php echo htmlspecialchars($serviceName); ?></span>
                                     <?php endforeach; ?>
                                     <?php if (count(array_filter(array_map('trim', explode('|', $serviceNames)))) > 3): ?>
                                         <span class="service-chip">+<?php echo count(array_filter(array_map('trim', explode('|', $serviceNames)))) - 3; ?></span>
@@ -246,6 +252,7 @@ function clevo_search_aliases(string $text): string {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         const translations = {
             ar: {
@@ -310,6 +317,7 @@ function clevo_search_aliases(string $text): string {
 
         let activeFilter = 'all';
         let userPosition = null;
+        const nearestVisibleLimit = 1;
 
         function lang() {
             return localStorage.getItem('app_lang') || 'ar';
@@ -329,6 +337,10 @@ function clevo_search_aliases(string $text): string {
         }
 
         function matchesFilter(item) {
+            if (activeFilter === 'nearest') {
+                const rank = parseInt(item.dataset.nearestRank || '0', 10);
+                return rank >= 1 && rank <= nearestVisibleLimit;
+            }
             if (activeFilter === 'station') return item.dataset.station === '1';
             if (activeFilter === 'home') return item.dataset.home === '1';
             if (activeFilter === 'pickup') return item.dataset.pickup === '1';
@@ -401,6 +413,25 @@ function clevo_search_aliases(string $text): string {
             return getDistance(userPosition.lat, userPosition.lon, lat, lon);
         }
 
+        function rankNearestStations() {
+            const items = getStationItems();
+            items.forEach(item => {
+                delete item.dataset.nearestRank;
+                delete item.dataset.distance;
+            });
+
+            const validItems = items.filter(item => getItemDistance(item) < Number.MAX_SAFE_INTEGER);
+            const activeValidItems = validItems.filter(item => item.dataset.status === 'Active');
+            const rankSource = activeValidItems.length ? activeValidItems : validItems;
+
+            rankSource
+                .sort((a, b) => getItemDistance(a) - getItemDistance(b))
+                .forEach((item, index) => {
+                    item.dataset.nearestRank = String(index + 1);
+                    item.dataset.distance = String(getItemDistance(item));
+                });
+        }
+
         function renderDistances() {
             getStationItems().forEach(item => {
                 const pill = item.querySelector('.distance-pill');
@@ -408,6 +439,9 @@ function clevo_search_aliases(string $text): string {
                 if (Number.isFinite(distance) && distance < Number.MAX_SAFE_INTEGER) {
                     pill.innerText = distance.toFixed(distance < 10 ? 1 : 0) + ' ' + tr('km');
                     pill.style.display = 'block';
+                } else {
+                    pill.innerText = '';
+                    pill.style.display = 'none';
                 }
             });
         }
@@ -424,6 +458,7 @@ function clevo_search_aliases(string $text): string {
                 document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 activeFilter = 'nearest';
+                rankNearestStations();
                 renderDistances();
                 applyFilters();
             }, () => {
@@ -455,6 +490,9 @@ function clevo_search_aliases(string $text): string {
                 if (val === 'Busy') el.innerText = translations[current].status_busy;
                 if (val === 'Closed') el.innerText = translations[current].status_closed;
             });
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, current);
+            }
             document.documentElement.dir = current === 'ar' ? 'rtl' : 'ltr';
             document.documentElement.lang = current;
             const bootstrapLink = document.getElementById('bootstrap-css');

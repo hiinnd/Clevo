@@ -74,7 +74,13 @@ if ($uID > 0) {
         .support-header { padding: 20px; display: flex; align-items: center; justify-content: space-between; height: 168px; border-radius: 0 0 36px 36px; background: linear-gradient(135deg, var(--accent), #0284c7); margin-bottom: 58px; }
         .back-circle-btn { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; background: rgba(255,255,255,.2); color: #fff; }
         .spacer-div { width: 40px; }
-        .support-title { flex: 1; text-align: center; color: white !important; margin: 0; font-weight: 900; }
+        [dir="rtl"] .back-circle-btn { order: 1; }
+        [dir="rtl"] .spacer-div { order: 3; }
+        [dir="rtl"] #backIcon { transform: rotate(0deg); }
+        [dir="ltr"] .back-circle-btn { order: 1; }
+        [dir="ltr"] .spacer-div { order: 3; }
+        [dir="ltr"] #backIcon { transform: rotate(180deg); }
+        .support-title { order: 2; flex: 1; text-align: center; color: white !important; margin: 0; font-weight: 900; }
         .support-card { padding: 22px; margin-top: -78px; position: relative; z-index: 20; }
         .form-control { border-radius: 14px; background: var(--glass) !important; border: 1px solid var(--border); color: var(--input-text) !important; padding: 12px; }
         .form-control::placeholder { color: var(--text); opacity: .6; }
@@ -228,7 +234,7 @@ if ($uID > 0) {
             document.getElementById('bootstrap-css').href = lang === 'ar'
                 ? 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css'
                 : 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';
-            if (lang !== 'ar') document.getElementById('backIcon').className = 'fas fa-arrow-left';
+            document.getElementById('backIcon').className = 'fas fa-arrow-right';
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];

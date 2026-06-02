@@ -161,8 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
                                 <label data-i18n="label_image">صورة الواجهة</label>
                                 <label for="stImage" class="custom-file-upload">
                                     <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
-                                    <p class="mb-0 fw-bold" id="fileName">اسحب الصورة أو اضغط هنا للاختيار</p>
-                                    <input type="file" name="stImage" id="stImage" hidden onchange="document.getElementById('fileName').innerText = this.files[0].name">
+                                    <p class="mb-0 fw-bold" id="fileName" data-i18n="file_upload_hint">اسحب الصورة أو اضغط هنا للاختيار</p>
+                                    <input type="file" name="stImage" id="stImage" accept="image/*" hidden onchange="setStationImageName(this)">
                                 </label>
                             </div>
 
@@ -217,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
         const translations = {
             ar: {
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_notifications: "الإشعارات", nav_logout: "خروج",
-                add_st_title: "إعداد بيانات المغسلة", label_name: "اسم المغسلة التجاري", label_location: "الموقع الجغرافي", label_open_time: "من ساعة", label_close_time: "إلى ساعة", label_image: "صورة الواجهة", save_btn: "حفظ البيانات ونشر المغسلة",
+                add_st_title: "إعداد بيانات المغسلة", label_name: "اسم المغسلة التجاري", label_location: "الموقع الجغرافي", label_open_time: "من ساعة", label_close_time: "إلى ساعة", label_image: "صورة الواجهة", file_upload_hint: "اسحب الصورة أو اضغط هنا للاختيار", save_btn: "حفظ البيانات ونشر المغسلة",
                 placeholder_name: "أدخل اسم المغسلة هنا", placeholder_location: "اضغط لاختيار وتأكيد موقعك على الخريطة", status_active_now: "نشط الآن", status_closed_now: "مغلق الآن",
                 map_help: "حرّك العلامة أو اضغط على الخريطة لتعديل موقع المحطة.", confirm_location_btn: "تأكيد الموقع الحالي", locating: "جاري تحديد موقعك...", location_fallback: "تم تحديد الموقع الجغرافي بنجاح",
                 location_denied: "لم يتم السماح بالموقع، حرّك العلامة يدوياً على الخريطة.",
@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
             },
             en: {
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_notifications: "Notifications", nav_logout: "Logout",
-                add_st_title: "Station Setup", label_name: "Station Name", label_location: "Location", label_open_time: "Open", label_close_time: "Close", label_image: "Cover Image", save_btn: "Save & Publish",
+                add_st_title: "Station Setup", label_name: "Station Name", label_location: "Location", label_open_time: "Open", label_close_time: "Close", label_image: "Cover Image", file_upload_hint: "Drag an image or click here to choose", save_btn: "Save & Publish",
                 placeholder_name: "Enter station name", placeholder_location: "Click to select and confirm your map location", status_active_now: "Active Now", status_closed_now: "Closed Now",
                 map_help: "Move the pin or tap the map to adjust the station location.", confirm_location_btn: "Confirm current location", locating: "Getting your location...", location_fallback: "Location selected successfully",
                 location_denied: "Location was not allowed. Move the pin manually on the map.",
@@ -327,12 +327,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
         function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
         function toggleLanguage() { localStorage.setItem('app_lang', (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'en' : 'ar'); location.reload(); }
         function toggleGlobalTheme() { localStorage.setItem('global_theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); location.reload(); }
+        function setStationImageName(input) {
+            const lang = localStorage.getItem('app_lang') || 'ar';
+            document.getElementById('fileName').innerText = input.files && input.files[0]
+                ? input.files[0].name
+                : translations[lang].file_upload_hint;
+        }
 
         window.onload = () => {
             const lang = localStorage.getItem('app_lang') || 'ar';
             const theme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('lang', lang);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.getElementById('bootstrap-css').href = lang === 'ar'
+                ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css"
+                : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (key.includes('[placeholder]')) {

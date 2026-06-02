@@ -62,7 +62,7 @@ $csrf_token = generate_csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="history_page_title">سجل الحجوزات | Clevo</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -303,7 +303,7 @@ $csrf_token = generate_csrf_token();
                         <div class="d-flex justify-content-between align-items-start">
                             <div style="flex: 1;">
                                 <h6 class="fw-bold mb-1"><?= htmlspecialchars($row['station_name']) ?></h6>
-                                <p class="small mb-2 opacity-75"><i class="fas fa-soap me-1"></i> <?= htmlspecialchars($row['service_name']) ?></p>
+                                <p class="small mb-2 opacity-75"><i class="fas fa-soap me-1"></i> <span data-service-name="<?= htmlspecialchars($row['service_name']) ?>"><?= htmlspecialchars($row['service_name']) ?></span></p>
                                 <small class="opacity-75 d-block mb-2">
                                     <i class="far fa-calendar-alt me-1"></i> <?= $row['Booking_Date'] ?> | <?= $row['Booking_Time'] ?>
                                 </small>
@@ -378,6 +378,7 @@ $csrf_token = generate_csrf_token();
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         const translations = {
             ar: {
@@ -515,6 +516,10 @@ $csrf_token = generate_csrf_token();
             const theme = localStorage.getItem('global_theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.setAttribute('lang', lang);
+            document.getElementById('bootstrap-css').href = lang === 'ar'
+                ? 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css'
+                : 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';
 
             // ترجمة النصوص العادية وثنائية العناوين
             document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -531,6 +536,9 @@ $csrf_token = generate_csrf_token();
             // تحديث عنوان الصفحة التلقائي
             if (translations[lang]['history_page_title']) {
                 document.title = translations[lang]['history_page_title'];
+            }
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, lang);
             }
         };
     </script>

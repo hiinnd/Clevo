@@ -612,6 +612,7 @@ $csrf_token = generate_csrf_token();
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         const allServices = <?= json_encode($all_services); ?>;
         const activePlan = <?= json_encode($activePlanPayload, JSON_UNESCAPED_UNICODE); ?>;
@@ -765,15 +766,18 @@ $csrf_token = generate_csrf_token();
                 container.innerHTML = `<p class="text-center opacity-50 py-3">${translations[lang].no_serv}</p>`;
             } else {
                 filtered.forEach(s => {
+                    const serviceDisplayName = window.clevoTranslateServiceName
+                        ? window.clevoTranslateServiceName(s.Name, lang)
+                        : s.Name;
                     const card = document.createElement('div');
                     card.className = 'item-card d-flex justify-content-between align-items-center shadow-sm';
-                    card.onclick = () => toggleServ(card, s.Name, parseFloat(s.Price), parseInt(s.ServiceID, 10));
+                    card.onclick = () => toggleServ(card, serviceDisplayName, parseFloat(s.Price), parseInt(s.ServiceID, 10));
 
                     const textWrap = document.createElement('div');
                     textWrap.className = 'text-start';
                     const title = document.createElement('h6');
                     title.className = 'mb-0 fw-bold';
-                    title.innerText = s.Name;
+                    title.innerText = serviceDisplayName;
                     const desc = document.createElement('small');
                     desc.className = 'opacity-75';
                     desc.innerText = s.Description || '';

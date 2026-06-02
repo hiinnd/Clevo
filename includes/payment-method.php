@@ -283,7 +283,7 @@ $csrf_token = generate_csrf_token();
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="service_label">الخدمة</span>
-                <span class="summary-value"><?= e($servicesSummary) ?></span>
+                <span class="summary-value" data-service-name="<?= e($servicesSummary) ?>"><?= e($servicesSummary) ?></span>
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="appointment_label">الموعد</span>
@@ -376,6 +376,7 @@ $csrf_token = generate_csrf_token();
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         const lang = localStorage.getItem('app_lang') || 'ar';
         const theme = localStorage.getItem('global_theme') || 'dark';
@@ -426,6 +427,9 @@ $csrf_token = generate_csrf_token();
 
             if (typeof applyTranslations === 'function') applyTranslations(lang);
             applyPaymentTranslations();
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, lang);
+            }
             if (lang !== 'ar') document.getElementById('backIcon').className = "fas fa-arrow-left";
         };
 

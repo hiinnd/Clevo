@@ -374,7 +374,7 @@ $userName = $_SESSION['userName'] ?? 'User';
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="service_label">الخدمة</span>
-                <span class="summary-value"><?= e($servicesSummary) ?></span>
+                <span class="summary-value" data-service-name="<?= e($servicesSummary) ?>"><?= e($servicesSummary) ?></span>
             </div>
             <div class="summary-row">
                 <span class="summary-label" data-i18n="appointment_label">الموعد</span>
@@ -450,6 +450,7 @@ $userName = $_SESSION['userName'] ?? 'User';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/translations.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         const csrfToken = <?= json_encode($csrf_token) ?>;
         const bookingID = <?= (int) $bookingID ?>;
@@ -669,6 +670,9 @@ $userName = $_SESSION['userName'] ?? 'User';
             document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
             if (typeof applyTranslations === 'function') applyTranslations(lang);
             applyLocalTranslations();
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, lang);
+            }
             if (!isRtl) document.getElementById('backIcon').className = "fas fa-arrow-left";
             localStorage.setItem('clevo_order_status', <?= json_encode($status) ?>);
         });

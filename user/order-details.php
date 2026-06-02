@@ -600,7 +600,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                 </div>
                 <h2 class="hero-title"><?= e($order['station_name'] ?? '-') ?></h2>
                 <p class="hero-subtitle">
-                    <span><i class="fas fa-soap"></i> <?= e($order['service_name'] ?? '-') ?></span>
+                    <span><i class="fas fa-soap"></i> <span data-service-name="<?= e($order['service_name'] ?? '-') ?>"><?= e($order['service_name'] ?? '-') ?></span></span>
                     <span><i class="fas <?= e($locationMeta['icon']) ?>"></i> <span data-location-label data-ar="<?= e($locationMeta['ar']) ?>" data-en="<?= e($locationMeta['en']) ?>"><?= e($locationMeta['ar']) ?></span></span>
                 </p>
             </div>
@@ -849,6 +849,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         let currentRating = <?= (int) $currentRating ?>;
         const csrfToken = <?= json_encode($csrf_token) ?>;
@@ -922,6 +923,9 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                 const value = node.getAttribute('data-placeholder-' + lang);
                 if (value) node.setAttribute('placeholder', value);
             });
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, lang);
+            }
         }
 
         function showStatus(type, title, body, afterClose) {

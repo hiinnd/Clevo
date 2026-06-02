@@ -112,7 +112,7 @@ $csrf_token = generate_csrf_token();
                 <h6 class="opacity-75 small"><?= htmlspecialchars($order['Booking_Date']) ?> | <?= htmlspecialchars($order['Booking_Time']) ?></h6>
             </div>
             <div class="price-row"><span class="opacity-75">المغسلة:</span><strong class="text-primary"><?= htmlspecialchars($order['station_name']) ?></strong></div>
-            <div class="price-row"><span class="opacity-75">نوع الخدمة:</span><strong><?= htmlspecialchars($order['service_name']) ?></strong></div>
+            <div class="price-row"><span class="opacity-75">نوع الخدمة:</span><strong data-service-name="<?= htmlspecialchars($order['service_name']) ?>"><?= htmlspecialchars($order['service_name']) ?></strong></div>
             <div class="price-row"><span class="opacity-75">المركبة:</span><strong><?= htmlspecialchars($order['CarName'] ?: '-') ?></strong></div>
             <div class="price-row"><span class="opacity-75">طريقة الخدمة:</span><strong><?= htmlspecialchars($order['Service_Location']) ?></strong></div>
             <hr class="my-3 opacity-25">
@@ -154,7 +154,13 @@ $csrf_token = generate_csrf_token();
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, localStorage.getItem('app_lang') || 'ar');
+            }
+        });
         let currentRating = <?= (int) ($order['Rating'] ?? 0) ?>;
         const csrfToken = <?= json_encode($csrf_token) ?>;
         const msgModal = new bootstrap.Modal(document.getElementById('msgModal'));

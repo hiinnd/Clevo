@@ -184,7 +184,7 @@ while($row = $services_res->fetch_assoc()){
                                 <?php foreach($db_services as $s): ?>
                                     <div class="service-item shadow-sm">
                                         <div class="text-start ms-3">
-                                            <h6 class="mb-0 fw-bold db-service-name"><?php echo htmlspecialchars($s['name_ar']); ?></h6>
+                                            <h6 class="mb-0 fw-bold db-service-name" data-service-name="<?php echo htmlspecialchars($s['name_ar']); ?>"><?php echo htmlspecialchars($s['name_ar']); ?></h6>
                                             <span class="text-success fw-bold small"><?php echo number_format($s['price'], 2); ?> JOD</span><br>
                                             <?php foreach($s['types'] as $t): ?>
                                                 <span class="type-badge me-1" data-i18n="<?php echo $t; ?>_service"></span>
@@ -237,6 +237,7 @@ while($row = $services_res->fetch_assoc()){
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
     <script>
         const translations = {
             ar: {
@@ -295,18 +296,6 @@ while($row = $services_res->fetch_assoc()){
             document.getElementById('cancelEditBtn').classList.add('d-none');
         }
 
-        // دالة الترجمة الفورية والذكية لنصوص الخدمات عند تحويل لغة العرض
-        async function translateServiceText(text) {
-            if (!text || !text.trim()) return text;
-            try {
-                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(text)}`);
-                const data = await res.json();
-                return data[0].map(item => item[0]).join('');
-            } catch (e) {
-                return text;
-            }
-        }
-
         window.onload = () => {
             const lang = localStorage.getItem('app_lang') || 'ar';
             const theme = localStorage.getItem('global_theme') || 'light';
@@ -322,17 +311,9 @@ while($row = $services_res->fetch_assoc()){
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
 
-            // الترجمة الفورية لأسماء الخدمات في واجهة الأونر عند قلب اللغة إلى الإنجليزية
-            document.querySelectorAll('.db-service-name').forEach(async (el) => {
-                const originalText = el.innerText.trim();
-                if (!isRtl) {
-                    // معالجة ترجمة سريعة للأسماء المألوفة لسرعة الاستجابة
-                    if (originalText.includes('غسيل شامل')) el.innerText = 'Full Wash';
-                    else if (originalText.includes('غيار زيت')) el.innerText = 'Oil Change';
-                    else if (originalText.includes('غسيل داخلي')) el.innerText = 'Interior Wash';
-                    else el.innerText = await translateServiceText(originalText);
-                }
-            });
+            if (window.clevoApplyServiceTranslations) {
+                window.clevoApplyServiceTranslations(document, lang);
+            }
 
             if(!isRtl) {
                 const bIcon = document.getElementById('backIcon');
