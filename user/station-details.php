@@ -265,10 +265,6 @@ $csrf_token = generate_csrf_token();
             left: 20px;
         }
 
-        [dir="ltr"] #backIcon {
-            transform: rotate(180deg);
-        }
-
         .item-card {
             background: var(--glass);
             border-radius: 20px;
@@ -370,10 +366,6 @@ $csrf_token = generate_csrf_token();
             height: 170px;
             min-height: 170px;
             z-index: 1;
-        }
-
-        [data-theme="dark"] #serviceLocationMap {
-            filter: brightness(0.7) invert(1) contrast(2.4) hue-rotate(190deg) saturate(0.45);
         }
 
         .map-confirm-row {
@@ -995,6 +987,8 @@ $csrf_token = generate_csrf_token();
             const theme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.setAttribute('lang', lang);
+            document.getElementById('backIcon').className = lang === 'ar' ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
