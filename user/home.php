@@ -119,7 +119,6 @@ if (!$user) {
     header("Location: login.php");
 
     exit();
-
 }
 
 
@@ -161,7 +160,6 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
-
         :root {
 
             --main-bg: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
@@ -191,24 +189,24 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             --main-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 
             --glass: rgba(30, 41, 59, 0.5);
-
             --text: #f1f5f9;
-
             --accent: #38bdf8;
-
             --modal-bg: #1e293b;
-
             --modal-text: #f1f5f9;
-
             --cancel-btn-bg: #334155;
-
             --cancel-btn-text: #f1f5f9;
-
             --cancel-btn-border: #475569;
-
         }
 
-
+        [data-theme="dark"] .weather-banner .weather-main,
+        [data-theme="dark"] .weather-banner .weather-tip,
+        [data-theme="dark"] .weather-banner .weather-dot,
+        [data-theme="dark"] #tempVal {
+            color: #0f172a !important;
+        }
+        [data-theme="dark"] .weather-banner * {
+    color: #0f172a !important;
+}
 
         body {
 
@@ -222,7 +220,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             margin: 0;
 
-            padding-bottom: 80px; /* يعطي مساحة مريحة تحت لمنع تداخل العناصر مع المساعد العائم */
+            padding-bottom: 80px;
+            /* يعطي مساحة مريحة تحت لمنع تداخل العناصر مع المساعد العائم */
 
         }
 
@@ -332,7 +331,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             align-items: center;
 
-            flex-wrap: nowrap; /* يمنع نزول الأزرار لسطر جديد */
+            flex-wrap: nowrap;
+            /* يمنع نزول الأزرار لسطر جديد */
 
         }
 
@@ -392,7 +392,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             width: auto;
 
-            white-space: nowrap; /* يمنع انكسار كلمة خروج */
+            white-space: nowrap;
+            /* يمنع انكسار كلمة خروج */
 
         }
 
@@ -464,13 +465,15 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
-        .top-widgets > a, 
+        .top-widgets>a,
 
-        .top-widgets > div {
+        .top-widgets>div {
 
-            flex: 1; /* توزيع المساحة بالتساوي 50% لكل بوكس */
+            flex: 1;
+            /* توزيع المساحة بالتساوي 50% لكل بوكس */
 
-            min-width: 0; /* منع الخروج عن الحاوية */
+            min-width: 0;
+            /* منع الخروج عن الحاوية */
 
         }
 
@@ -580,7 +583,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
         .car-promo-img {
 
-            width: 100px; /* حجم مناسب لمنع التضخم ومضايقة البوكس الثاني */
+            width: 100px;
+            /* حجم مناسب لمنع التضخم ومضايقة البوكس الثاني */
 
             max-width: 100%;
 
@@ -853,10 +857,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             background: #fef3c7;
 
             color: #92400e;
-
         }
-
-
 
         .status-accepted {
 
@@ -932,7 +933,9 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
         /* تنسيق خاص بـلامع العائم لضمان استقراره في زاوية مخصصة ومنع العجقة */
 
-        #lamea-container, .lamea-bot-icon, [src*="lamea"] {
+        #lamea-container,
+        .lamea-bot-icon,
+        [src*="lamea"] {
 
             position: fixed !important;
 
@@ -943,7 +946,6 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             z-index: 9999 !important;
 
         }
-
     </style>
 
 </head>
@@ -1265,7 +1267,6 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-
         const API_KEY = "fe43aec0ea2f78313d0d8a5887ba992b";
 
         const showM = (id) => new bootstrap.Modal(document.getElementById(id)).show();
@@ -1569,47 +1570,42 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
                         .then(r => r.json())
-
-
-
                         .then(data => {
 
+                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
 
+                                .then(r => r.json())
 
-                            let city = data.name;
+                                .then(loc => {
 
+                                    let city =
+                                        loc.address.suburb ||
+                                        loc.address.neighbourhood ||
+                                        loc.address.city_district ||
+                                        loc.address.village ||
+                                        loc.address.town ||
+                                        loc.address.city ||
+                                        data.name;
 
+                                    updateWeatherUI(
+                                        data.main.temp,
+                                        data.weather[0].main.toLowerCase(),
+                                        city
+                                    );
 
-                            if (
+                                })
 
-                                localStorage.getItem('app_lang') === 'ar' &&
+                                .catch(() => {
 
-                                city.toLowerCase() === 'amman'
+                                    updateWeatherUI(
+                                        data.main.temp,
+                                        data.weather[0].main.toLowerCase(),
+                                        data.name
+                                    );
 
-                            ) {
-
-                                city = 'عمان';
-
-                            }
-
-
-
-                            updateWeatherUI(
-
-                                data.main.temp,
-
-                                data.weather[0].main.toLowerCase(),
-
-                                city
-
-                            );
-
-
+                                });
 
                         });
-
-
-
                 });
 
 
@@ -1999,7 +1995,6 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             }, 2500);
 
         }
-
     </script>
 
     <script src="../assets/lamea.js"></script>
