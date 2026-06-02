@@ -13,6 +13,7 @@ if ($viewerID <= 0) {
 }
 
 $stmt = $conn->prepare("SELECT b.*, u.UserName AS customer_name,
+        d.UserName AS driver_name, d.PhoneNumber AS driver_phone,
         s.Name AS station_name, s.Location AS station_location, s.Lat AS station_lat, s.Lon AS station_lon
     FROM booking b
     JOIN user u ON b.UserID = u.UserID
@@ -66,7 +67,6 @@ if (
         }
         body { font-family: 'Cairo', sans-serif; background: var(--bg-body); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; margin: 0; }
         #map { flex-grow: 1; width: 100%; z-index: 1; border-bottom: 2px solid var(--border-color); }
-        [data-theme="dark"] #map { filter: brightness(0.72) invert(1) contrast(2.2) hue-rotate(190deg) saturate(0.45); }
         .top-nav { position: absolute; top: 20px; width: 100%; padding: 0 20px; z-index: 1000; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
         .top-nav > * { pointer-events: auto; }
         .circle-btn { background: var(--bg-panel); width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,.2); border: 1px solid var(--border-color); color: var(--text-main); text-decoration: none; }
@@ -76,6 +76,11 @@ if (
         .legend-row:last-child { margin-bottom: 0; }
         .legend-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
         .tracking-panel { background: var(--bg-panel); border-radius: 28px 28px 0 0; padding: 22px 18px; box-shadow: 0 -10px 40px rgba(0,0,0,.2); z-index: 100; backdrop-filter: blur(15px); }
+        .driver-contact-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 18px; padding: 12px 14px; margin-bottom: 16px; text-align: start; box-shadow: 0 8px 22px rgba(0,0,0,.08); }
+        .driver-contact-meta { min-width: 0; }
+        .driver-contact-label { color: var(--text-muted); font-size: .76rem; font-weight: 800; }
+        .driver-contact-name { color: var(--text-main); font-weight: 900; overflow-wrap: anywhere; }
+        .driver-call-btn { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #22c55e; color: #fff; text-decoration: none; box-shadow: 0 8px 18px rgba(34,197,94,.28); }
         .step-icon { width: 38px; height: 38px; background: var(--step-inactive); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; color: #94a3b8; transition: .25s; }
         .step-item { min-width: 58px; }
         .step-item.active .step-icon { background: #3b82f6; color: white; transform: scale(1.08); }
@@ -117,6 +122,24 @@ if (
     <div id="map"></div>
 
     <div class="tracking-panel text-center">
+        <?php if (!empty($order['DriverID']) && (!empty($order['driver_name']) || !empty($order['driver_phone']))): ?>
+            <div class="driver-contact-card">
+                <div class="driver-contact-meta">
+                    <div class="driver-contact-label" data-i18n="driver_contact">التواصل مع الدرايفر</div>
+                    <div class="driver-contact-name">
+                        <?= e($order['driver_name'] ?: '-') ?>
+                        <?php if (!empty($order['driver_phone'])): ?>
+                            <span class="text-muted small d-block"><?= e($order['driver_phone']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php if (!empty($order['driver_phone'])): ?>
+                    <a href="tel:<?= e($order['driver_phone']) ?>" class="driver-call-btn" aria-label="Call driver">
+                        <i class="fas fa-phone"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
         <div class="d-flex justify-content-between mb-4">
             <div class="step-item" id="step-Accepted"><div class="step-icon"><i class="fas fa-car"></i></div><span class="small fw-bold" data-i18n="step_pickup">تم القبول</span></div>
             <div class="step-item" id="step-In-Progress"><div class="step-icon"><i class="fas fa-route"></i></div><span class="small fw-bold" data-i18n="step_way">في الطريق</span></div>
@@ -149,7 +172,7 @@ if (
                 returning: 'السائق في طريق العودة إليك', to_customer: 'السائق متجه إلى موقعك',
                 to_station: 'السيارة في الطريق إلى المحطة', at_station: 'السيارة في المحطة للغسيل',
                 completed: 'تم إنهاء الطلب', loading_driver: 'جاري جلب موقع السائق...',
-                arrived_toast: 'وصل السائق للموقع!'
+                arrived_toast: 'وصل السائق للموقع!', driver_contact: 'التواصل مع الدرايفر'
             },
             en: {
                 tracking_title: 'Order Tracking', live_label: 'Live tracking', step_pickup: 'Accepted',
@@ -159,7 +182,7 @@ if (
                 returning: 'Driver is returning to you', to_customer: 'Driver is heading to your location',
                 to_station: 'Car is heading to the station', at_station: 'Car is at the station for washing',
                 completed: 'Order completed', loading_driver: 'Fetching driver location...',
-                arrived_toast: 'Driver arrived!'
+                arrived_toast: 'Driver arrived!', driver_contact: 'Contact driver'
             }
         };
         const t = key => (labels[lang] && labels[lang][key]) || key;

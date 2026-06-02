@@ -76,15 +76,12 @@
             width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             text-decoration: none; transition: 0.3s;
         }
-        [dir="ltr"] .ctrl-btn-circle { transform: rotate(180deg); }
         [dir="ltr"] .map-header { flex-direction: row-reverse; }
 
         /* حاوية الخريطة - أهم تعديل */
         #map-container { position: relative; width: 100%; height: 100vh; z-index: 1; }
         #map { width: 100%; height: 100%; }
 
-        [data-theme="dark"] .leaflet-tile { filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3); }
-        
         /* زر GPS */
         .locate-me-btn { 
             position: absolute; bottom: 240px; z-index: 1500; 
@@ -182,6 +179,7 @@
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('lang', lang);
             document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            document.getElementById('backIcon').className = lang === 'ar' ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
             if (typeof applyTranslations === 'function') applyTranslations(lang);
             
             // تحديث الخريطة بعد التحميل لضمان الظهور

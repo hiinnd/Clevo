@@ -748,6 +748,22 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                             <span class="detail-label"><i class="fas fa-phone"></i><span class="lang-node" data-ar="الهاتف" data-en="Phone">الهاتف</span></span>
                             <span class="detail-value"><?= e($order['PhoneNumber'] ?: '-') ?></span>
                         </div>
+                        <?php if (!empty($order['DriverID'])): ?>
+                            <div class="detail-row">
+                                <span class="detail-label"><i class="fas fa-id-card"></i><span class="lang-node" data-ar="الدرايفر" data-en="Driver">الدرايفر</span></span>
+                                <span class="detail-value"><?= e($order['driver_name'] ?: '-') ?></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label"><i class="fas fa-phone-volume"></i><span class="lang-node" data-ar="هاتف الدرايفر" data-en="Driver Phone">هاتف الدرايفر</span></span>
+                                <span class="detail-value">
+                                    <?php if (!empty($order['driver_phone'])): ?>
+                                        <a href="tel:<?= e($order['driver_phone']) ?>" class="text-decoration-none fw-bold"><?= e($order['driver_phone']) ?></a>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="divider"></div>
                     <a href="support.php?subject=<?= rawurlencode('مشكلة في الطلب #' . $orderNumber) ?>" class="btn-soft">
