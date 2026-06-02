@@ -253,6 +253,24 @@ $user_role = $_SESSION['role'] ?? 'User';
             border-radius: 20px;
         }
 
+        #stations-container .station-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 100%;
+        }
+
+        #stations-container .station-card img {
+            aspect-ratio: 16 / 9;
+            height: auto;
+            min-height: 190px;
+        }
+
+        #stations-container .station-card h5 {
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
         .theme-muted {
             color: var(--text-color);
             opacity: 0.7;
@@ -537,12 +555,17 @@ $user_role = $_SESSION['role'] ?? 'User';
                 margin: 20px 0;
             }
 
+            .navbar-nav .nav-link {
+                padding: 10px 15px !important;
+            }
+
             .header-controls-wrapper {
                 justify-content: center !important;
                 width: 100%;
                 margin-top: 15px;
                 padding-top: 15px;
                 border-top: 1px solid rgba(255,255,255,0.1);
+                flex-wrap: wrap;
             }
 
             
@@ -568,6 +591,10 @@ $user_role = $_SESSION['role'] ?? 'User';
             .service-card img {
                 height: 180px; 
             }
+
+            #stations-container .station-card img {
+                min-height: 170px;
+            }
         }
 
         @media (max-width: 576px) {
@@ -577,6 +604,18 @@ $user_role = $_SESSION['role'] ?? 'User';
                 text-align: center !important;
                 right: 0 !important;
                 left: 0 !important;
+            }
+
+            .navbar-logo {
+                width: 88px;
+            }
+
+            #stations-container .station-card {
+                margin: 0;
+            }
+
+            #stations-container .station-card img {
+                min-height: 155px;
             }
         }
 
@@ -596,6 +635,8 @@ $user_role = $_SESSION['role'] ?? 'User';
         #stations-layout-wrapper.active {
             display: block; 
             margin-top: 0; 
+            min-height: 100vh;
+            padding: 40px 0 80px;
         }
         
         #stations-section {
@@ -616,7 +657,7 @@ $user_role = $_SESSION['role'] ?? 'User';
         })();
     </script>
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-transparent position-absolute w-100">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-transparent position-absolute w-100" id="site-navbar">
         <div class="container">
             <a class="navbar-brand" href="home.php">
                 <img src="../assets/Images/Logo.png" alt="Clevo Logo" class="navbar-logo">
@@ -911,6 +952,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             
             document.getElementById('main-hero').style.display = 'none';
             document.getElementById('services').style.display = 'none';
+            document.getElementById('site-navbar').style.display = 'none';
             
            
             const navbarCollapse = document.getElementById('navbarNav');
@@ -944,8 +986,8 @@ $user_role = $_SESSION['role'] ?? 'User';
                         : (lang === 'ar' ? '\u0645\u062a\u0648\u0641\u0631\u0629 \u0627\u0644\u0622\u0646' : 'Available now');
 
                     container.innerHTML += `
-                        <div class="col-12 col-md-4">
-                            <div class="service-card p-3 text-start" onclick="attemptBooking(${st.StationID})" role="button" tabindex="0" onkeydown="if(event.key === 'Enter') attemptBooking(${st.StationID})">
+                        <div class="col-12 col-sm-6 col-xl-4">
+                            <div class="service-card station-card p-3 text-start" onclick="attemptBooking(${st.StationID})" role="button" tabindex="0" onkeydown="if(event.key === 'Enter') attemptBooking(${st.StationID})">
                                 <img src="${stationImage}" alt="${stationName}" class="mb-3">
                                 <div class="d-flex justify-content-between align-items-start gap-2">
                                     <h5 class="fw-bold theme-text mb-1">${stationName}</h5>
@@ -974,6 +1016,7 @@ $user_role = $_SESSION['role'] ?? 'User';
            
             document.getElementById('main-hero').style.display = 'flex';
             document.getElementById('services').style.display = 'block';
+            document.getElementById('site-navbar').style.display = '';
             
             
             location.hash = "#services";
