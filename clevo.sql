@@ -464,3 +464,4 @@ VALUES
 (3, NULL, 'Guest Visitor', 'user', 'Service areas', 'Do you support home wash in all Amman areas?', 'New', 1, '2026-06-01 22:10:00');
 
 COMMIT;
+ 
