@@ -1,21 +1,77 @@
 <?php
 session_start();
 include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/app-helpers.php';
 
 
 $stations_query = mysqli_query($conn, "
-    SELECT 
-        stations.StationID,
-        stations.Name AS StationName,
-        services.Name AS ServiceName
-    FROM stations
-    INNER JOIN services 
-        ON stations.StationID = services.StationID
+    SELECT
+        s.StationID,
+        s.Name AS StationName,
+        s.Location,
+        s.Image,
+        s.Rating,
+        s.Status,
+        s.Has_At_Station,
+        s.Has_Home_Service,
+        s.Has_Delivery,
+        GROUP_CONCAT(DISTINCT LOWER(serv.Name) SEPARATOR '|') AS ServiceNames,
+        MAX(COALESCE(serv.is_home, 0)) AS HasServiceHome,
+        MAX(COALESCE(serv.is_pickup, 0)) AS HasServicePickup
+    FROM stations s
+    LEFT JOIN services serv
+        ON s.StationID = serv.StationID
+    WHERE s.admin_status = 'approved'
+      AND s.Status = 'Active'
+    GROUP BY
+        s.StationID,
+        s.Name,
+        s.Location,
+        s.Image,
+        s.Rating,
+        s.Status,
+        s.Has_At_Station,
+        s.Has_Home_Service,
+        s.Has_Delivery
+    ORDER BY s.Rating DESC, s.StationID DESC
 ");
 
 $stations = [];
-while ($row = mysqli_fetch_assoc($stations_query)) {
-    $stations[] = $row;
+if ($stations_query) {
+    while ($row = mysqli_fetch_assoc($stations_query)) {
+        $serviceNames = (string) ($row['ServiceNames'] ?? '');
+        $categories = [];
+
+        if (preg_match('/full|complete|shamel|شامل/u', $serviceNames)) {
+            $categories[] = 'ser_1_t';
+        }
+        if (preg_match('/interior|inside|deep|داخلي/u', $serviceNames)) {
+            $categories[] = 'ser_2_t';
+        }
+        if (preg_match('/exterior|outside|polish|خارجي/u', $serviceNames)) {
+            $categories[] = 'ser_3_t';
+        }
+        if (preg_match('/oil|زيت/u', $serviceNames)) {
+            $categories[] = 'ser_4_t';
+        }
+        if ((int) ($row['Has_Home_Service'] ?? 0) === 1 || (int) ($row['HasServiceHome'] ?? 0) === 1) {
+            $categories[] = 'ser_5_t';
+        }
+        if ((int) ($row['Has_Delivery'] ?? 0) === 1 || (int) ($row['HasServicePickup'] ?? 0) === 1) {
+            $categories[] = 'ser_6_t';
+        }
+
+        $stations[] = [
+            'StationID' => (int) $row['StationID'],
+            'StationName' => $row['StationName'],
+            'Location' => $row['Location'],
+            'ImageUrl' => clevoStationImageUrl($row['Image'] ?? ''),
+            'Rating' => (float) ($row['Rating'] ?? 0),
+            'Status' => $row['Status'],
+            'ServiceNames' => $serviceNames,
+            'Categories' => array_values(array_unique($categories)),
+        ];
+    }
 }
 
 $is_logged_in = isset($_SESSION['userID']);
@@ -748,7 +804,7 @@ $user_role = $_SESSION['role'] ?? 'User';
     
     <script>
         const isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
-        const stations = <?php echo json_encode($stations); ?>;
+        const stations = <?php echo json_encode($stations, JSON_UNESCAPED_UNICODE); ?>;
 
        
         const translations = {
@@ -838,7 +894,16 @@ $user_role = $_SESSION['role'] ?? 'User';
             }
         };
 
-       
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
         function showStations(serviceKey) {
             const lang = localStorage.getItem('app_lang') || 'ar';
             const serviceTitle = translations[lang][serviceKey];
@@ -864,27 +929,31 @@ $user_role = $_SESSION['role'] ?? 'User';
             container.innerHTML = ''; 
 
             
-            const filteredStations = stations.filter(st => {
-                if (serviceKey === 'ser_1_t' && st.ServiceName.includes('شامل')) return true;
-                if (serviceKey === 'ser_2_t' && st.ServiceName.includes('داخلي')) return true;
-                if (serviceKey === 'ser_3_t' && st.ServiceName.includes('خارجي')) return true;
-                if (serviceKey === 'ser_4_t' && st.ServiceName.includes('زيت')) return true;
-                
-                return false;
-            });
+            const filteredStations = stations.filter(st => Array.isArray(st.Categories) && st.Categories.includes(serviceKey));
 
-            
             if (filteredStations.length === 0) {
-                 container.innerHTML = `<div class="col-12 text-center py-5 theme-muted">لا تتوفر محطات لهذه الخدمة حالياً.</div>`;
+                 container.innerHTML = `<div class="col-12 text-center py-5 theme-muted">\u0644\u0627 \u062a\u062a\u0648\u0641\u0631 \u0645\u062d\u0637\u0627\u062a \u0644\u0647\u0630\u0647 \u0627\u0644\u062e\u062f\u0645\u0629 \u062d\u0627\u0644\u064a\u0627.</div>`;
             } else {
                 filteredStations.forEach(st => {
+                    const stationName = escapeHtml(st.StationName);
+                    const stationLocation = escapeHtml(st.Location || '');
+                    const stationImage = escapeHtml(st.ImageUrl);
+                    const stationRating = Number(st.Rating || 0).toFixed(1);
+                    const statusText = st.Status === 'Busy'
+                        ? (lang === 'ar' ? '\u0645\u0634\u063a\u0648\u0644\u0629 \u062d\u0627\u0644\u064a\u0627' : 'Busy now')
+                        : (lang === 'ar' ? '\u0645\u062a\u0648\u0641\u0631\u0629 \u0627\u0644\u0622\u0646' : 'Available now');
+
                     container.innerHTML += `
                         <div class="col-12 col-md-4">
-                            <div class="service-card p-4">
-                               <i class="fas fa-car-side text-primary mb-3" style="font-size: 4rem;"></i>
-                                <h5 class="fw-bold theme-text">${st.StationName}</h5>
-                                <p class="theme-muted small">متوفر الآن - خدمة سريعة</p>
-                                <button class="btn btn-primary w-100 rounded-pill mt-3 fw-bold" onclick="attemptBooking(${st.StationID})">
+                            <div class="service-card p-3 text-start" onclick="attemptBooking(${st.StationID})" role="button" tabindex="0" onkeydown="if(event.key === 'Enter') attemptBooking(${st.StationID})">
+                                <img src="${stationImage}" alt="${stationName}" class="mb-3">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <h5 class="fw-bold theme-text mb-1">${stationName}</h5>
+                                    <span class="badge bg-primary-subtle text-primary"><i class="fas fa-star"></i> ${stationRating}</span>
+                                </div>
+                                <p class="theme-muted small mb-2"><i class="fas fa-location-dot text-primary me-1"></i>${stationLocation}</p>
+                                <p class="theme-muted small mb-0">${statusText}</p>
+                                <button class="btn btn-primary w-100 rounded-pill mt-3 fw-bold" onclick="event.stopPropagation(); attemptBooking(${st.StationID})">
                                     ${translations[lang].book_btn}
                                 </button>
                             </div>
@@ -893,7 +962,6 @@ $user_role = $_SESSION['role'] ?? 'User';
                 });
             }
             
-           
             window.scrollTo(0, 0);
         }
 
