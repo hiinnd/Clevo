@@ -53,16 +53,37 @@ function clevoStationImageUrl(?string $image): string
 {
     $image = trim((string) $image);
     if ($image === '' || $image === 'default_station.png') {
-        return '../assets/Images/carwash.png';
+        return '../assets/Images/stations/clevo-station-exterior.png';
     }
     if (preg_match('/^https?:\/\//i', $image)) {
         return $image;
     }
+
+    $generatedStationImages = [
+        'wash.jpg' => 'clevo-station-exterior.png',
+        'Car-Wash.jpg' => 'clevo-station-tunnel.png',
+        'Outside.jpg' => 'clevo-station-exterior.png',
+        'Inside.jpg' => 'clevo-station-detailing.png',
+        'AtHome.jpg' => 'clevo-station-home-service.png',
+        'Delivary.jpg' => 'clevo-station-home-service.png',
+        'OilChanges.jpg' => 'clevo-station-detailing.png',
+        'carwash.png' => 'clevo-station-tunnel.png',
+    ];
+    if (isset($generatedStationImages[$image])) {
+        return '../assets/Images/stations/' . rawurlencode($generatedStationImages[$image]);
+    }
+
     if (str_contains($image, '/')) {
         return '../' . ltrim($image, '/');
     }
     if (is_file(__DIR__ . '/../uploads/stations/' . $image)) {
         return '../uploads/stations/' . rawurlencode($image);
+    }
+    if (is_file(__DIR__ . '/../assets/Images/stations/' . $image)) {
+        return '../assets/Images/stations/' . rawurlencode($image);
+    }
+    if (is_file(__DIR__ . '/../assets/Images/' . $image)) {
+        return '../assets/Images/' . rawurlencode($image);
     }
     return '../assets/uploads/' . rawurlencode($image);
 }

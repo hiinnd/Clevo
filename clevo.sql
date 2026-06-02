@@ -1,6 +1,7 @@
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
+SET NAMES utf8mb4;
 
 CREATE DATABASE IF NOT EXISTS `clevo` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE `clevo`;
@@ -286,14 +287,14 @@ VALUES
 INSERT INTO `stations`
 (`StationID`, `UserID`, `Name`, `Location`, `Location_URL`, `Lat`, `Lon`, `PhoneNumber`, `Rating`, `Status`, `admin_status`, `CommercialRecordPath`, `Image`, `Has_At_Station`, `Has_Home_Service`, `Has_Delivery`, `OpeningTime`, `ClosingTime`)
 VALUES
-(1, 3, 'Clevo Abdoun Shine', 'Abdoun, Amman', 'https://maps.google.com/?q=31.9492,35.8756', 31.94920000, 35.87560000, '0792000001', 4.92, 'Active', 'approved', 'uploads/verification/verify_1777057576_69ebbf2832d5a.jpg', 'wash.jpg', 1, 1, 1, '08:00:00', '23:00:00'),
-(2, 4, 'Clevo Sweifieh Auto Spa', 'Sweifieh, Amman', 'https://maps.google.com/?q=31.9587,35.8619', 31.95870000, 35.86190000, '0792000002', 4.78, 'Active', 'approved', 'uploads/verification/verify_1777236018_69ee7832b1aea.jpg', 'Car-Wash.jpg', 1, 1, 0, '08:30:00', '22:30:00'),
-(3, 5, 'Clevo Khalda Wash Hub', 'Khalda, Amman', 'https://maps.google.com/?q=31.9990,35.8439', 31.99900000, 35.84390000, '0792000003', 4.84, 'Active', 'approved', 'uploads/verification/verify_1777761128_69f67b6881d76.png', 'Outside.jpg', 1, 1, 1, '07:30:00', '22:00:00'),
-(4, 6, 'Clevo Jubeiha Detail Center', 'Al Jubeiha, Amman', 'https://maps.google.com/?q=32.0245,35.8701', 32.02450000, 35.87010000, '0792000004', 4.69, 'Busy', 'approved', 'uploads/verification/verify_1777837475_69f7a5a3e88b9.png', 'Inside.jpg', 1, 0, 1, '09:00:00', '21:30:00'),
-(5, 7, 'Clevo Marj Al Hamam Care', 'Marj Al Hamam, Amman', 'https://maps.google.com/?q=31.9014,35.8427', 31.90140000, 35.84270000, '0792000005', 4.88, 'Active', 'approved', 'uploads/verification/verify_1777911605_69f8c735c50e5.jpeg', 'AtHome.jpg', 1, 1, 1, '08:00:00', '22:00:00'),
-(6, 8, 'Clevo Tabarbour Express', 'Tabarbour, Amman', 'https://maps.google.com/?q=31.9957,35.9458', 31.99570000, 35.94580000, '0792000006', 4.55, 'Active', 'approved', 'uploads/verification/verify_1777913378_69f8ce226a00e.png', 'Delivary.jpg', 1, 0, 1, '08:00:00', '23:30:00'),
-(7, 9, 'Clevo Tla Al Ali Premium', 'Tla Al Ali, Amman', 'https://maps.google.com/?q=31.9926,35.8613', 31.99260000, 35.86130000, '0792000007', 4.73, 'Active', 'approved', 'uploads/verification/verify_1777914335_69f8d1df41a99.png', 'OilChanges.jpg', 1, 1, 0, '08:30:00', '22:00:00'),
-(8, 10, 'Clevo Dabouq Elite Wash', 'Dabouq, Amman', 'https://maps.google.com/?q=31.9998,35.8069', 31.99980000, 35.80690000, '0792000008', 4.96, 'Active', 'approved', 'uploads/verification/verify_1777921083_69f8ec3b10513.jpeg', 'carwash.png', 1, 1, 1, '07:00:00', '23:00:00');
+(1, 3, 'Clevo Abdoun Shine', 'Abdoun, Amman', 'https://maps.google.com/?q=31.9492,35.8756', 31.94920000, 35.87560000, '0792000001', 4.92, 'Active', 'approved', 'uploads/verification/verify_1777057576_69ebbf2832d5a.jpg', 'clevo-station-exterior.png', 1, 1, 1, '08:00:00', '23:00:00'),
+(2, 4, 'Clevo Sweifieh Auto Spa', 'Sweifieh, Amman', 'https://maps.google.com/?q=31.9587,35.8619', 31.95870000, 35.86190000, '0792000002', 4.78, 'Active', 'approved', 'uploads/verification/verify_1777236018_69ee7832b1aea.jpg', 'clevo-station-tunnel.png', 1, 1, 0, '08:30:00', '22:30:00'),
+(3, 5, 'Clevo Khalda Wash Hub', 'Khalda, Amman', 'https://maps.google.com/?q=31.9990,35.8439', 31.99900000, 35.84390000, '0792000003', 4.84, 'Active', 'approved', 'uploads/verification/verify_1777761128_69f67b6881d76.png', 'clevo-station-exterior.png', 1, 1, 1, '07:30:00', '22:00:00'),
+(4, 6, 'Clevo Jubeiha Detail Center', 'Al Jubeiha, Amman', 'https://maps.google.com/?q=32.0245,35.8701', 32.02450000, 35.87010000, '0792000004', 4.69, 'Busy', 'approved', 'uploads/verification/verify_1777837475_69f7a5a3e88b9.png', 'clevo-station-detailing.png', 1, 0, 1, '09:00:00', '21:30:00'),
+(5, 7, 'Clevo Marj Al Hamam Care', 'Marj Al Hamam, Amman', 'https://maps.google.com/?q=31.9014,35.8427', 31.90140000, 35.84270000, '0792000005', 4.88, 'Active', 'approved', 'uploads/verification/verify_1777911605_69f8c735c50e5.jpeg', 'clevo-station-home-service.png', 1, 1, 1, '08:00:00', '22:00:00'),
+(6, 8, 'Clevo Tabarbour Express', 'Tabarbour, Amman', 'https://maps.google.com/?q=31.9957,35.9458', 31.99570000, 35.94580000, '0792000006', 4.55, 'Active', 'approved', 'uploads/verification/verify_1777913378_69f8ce226a00e.png', 'clevo-station-home-service.png', 1, 0, 1, '08:00:00', '23:30:00'),
+(7, 9, 'Clevo Tla Al Ali Premium', 'Tla Al Ali, Amman', 'https://maps.google.com/?q=31.9926,35.8613', 31.99260000, 35.86130000, '0792000007', 4.73, 'Active', 'approved', 'uploads/verification/verify_1777914335_69f8d1df41a99.png', 'clevo-station-detailing.png', 1, 1, 0, '08:30:00', '22:00:00'),
+(8, 10, 'Clevo Dabouq Elite Wash', 'Dabouq, Amman', 'https://maps.google.com/?q=31.9998,35.8069', 31.99980000, 35.80690000, '0792000008', 4.96, 'Active', 'approved', 'uploads/verification/verify_1777921083_69f8ec3b10513.jpeg', 'clevo-station-tunnel.png', 1, 1, 1, '07:00:00', '23:00:00');
 
 INSERT INTO `services`
 (`ServiceID`, `StationID`, `Name`, `Description`, `Price`, `Duration`, `is_station`, `is_home`, `is_pickup`)
