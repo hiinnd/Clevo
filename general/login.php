@@ -8,6 +8,20 @@ function generate_jwt($user_id, $role)
     return clevo_generate_jwt((int) $user_id, (string) $role);
 }
 
+function get_owner_station_admin_status(mysqli $conn, int $user_id): string
+{
+    $stmt = $conn->prepare("SELECT admin_status FROM stations WHERE UserID = ? ORDER BY StationID DESC LIMIT 1");
+    if (!$stmt) {
+        return '';
+    }
+
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $station = $stmt->get_result()->fetch_assoc();
+
+    return strtolower((string) ($station['admin_status'] ?? ''));
+}
+
 
 if (isset($_SESSION['userID']) && !empty($_SESSION['userID'])) {
     $session_role = strtolower((string) ($_SESSION['role'] ?? ''));
@@ -24,6 +38,7 @@ if (isset($_SESSION['userID']) && !empty($_SESSION['userID'])) {
 }
 
 $error = "";
+$pending_role = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['login_action']) && !validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -87,10 +102,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         if (!$is_driver_code && !$is_password_correct) {
                             $error = "wrong_pass";
-                        } elseif ($user['AccountStatus'] === 'pending') {
+                        } elseif ($user['AccountStatus'] === 'pending' && in_array($role_lower, ['owner', 'customer', 'user'], true)) {
                             $error = "pending_status";
+                            $pending_role = $role_lower === 'owner' ? 'owner' : 'user';
                         } elseif ($user['AccountStatus'] === 'rejected' || $user['Role'] === 'Banned') {
                             $error = "user_banned";
+                        } elseif ($role_lower === 'owner' && get_owner_station_admin_status($conn, (int) $user['UserID']) === 'pending') {
+                            $error = "pending_status";
+                            $pending_role = "owner";
                         } else {
 
                             if ($role_lower === 'admin') {
@@ -212,6 +231,7 @@ if (isset($_POST['reset_password_action'])) {
             --text-main: #111827;
             --input-border: #e5e7eb;
             --modal-bg: #ffffff;
+            --brand-blue-soft: rgba(0, 123, 255, 0.12);
         }
 
         [data-theme="dark"] {
@@ -220,6 +240,7 @@ if (isset($_POST['reset_password_action'])) {
             --text-main: #f9fafb;
             --input-border: #334155;
             --modal-bg: #1e293b;
+            --brand-blue-soft: rgba(37, 99, 235, 0.22);
         }
 
         body {
@@ -269,7 +290,36 @@ if (isset($_POST['reset_password_action'])) {
             background-color: var(--modal-bg);
             color: var(--text-main);
             border-radius: 25px;
-            border: none;
+            border: 1px solid var(--input-border);
+        }
+
+        .msg-status-icon {
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-blue-soft);
+            color: var(--brand-blue);
+        }
+
+        .msg-status-icon i {
+            font-size: 2rem;
+        }
+
+        .msg-status-icon.success {
+            background: rgba(25, 135, 84, 0.12);
+            color: #198754;
+        }
+
+        .msg-status-icon.error {
+            background: rgba(220, 53, 69, 0.12);
+            color: #dc3545;
+        }
+
+        #msgText {
+            line-height: 1.7;
         }
 
         .password-wrapper {
@@ -591,7 +641,7 @@ if (isset($_POST['reset_password_action'])) {
                 <div class="mb-3" id="msgIcon"></div>
                 <h5 class="fw-bold mb-2" id="msgTitle"></h5>
                 <p id="msgText" class="opacity-75"></p>
-                <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold" data-bs-dismiss="modal">OK</button>
+                <button type="button" class="btn btn-clevo rounded-pill px-5 fw-bold" data-bs-dismiss="modal" data-i18n="btn_ok">OK</button>
             </div>
         </div>
     </div>
@@ -623,10 +673,17 @@ if (isset($_POST['reset_password_action'])) {
                 create_account: "إنشاء حساب جديد",
                 user_not_found: "الحساب غير موجود",
                 pending_status: "بانتظار الموافقة",
+                login_failed_title: "\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644",
+                login_failed_body: "\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0623\u0648 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u063a\u064a\u0631 \u0635\u062d\u064a\u062d\u0629",
+                pending_owner_title: "\u0637\u0644\u0628 \u0635\u0627\u062d\u0628 \u0627\u0644\u0645\u062d\u0637\u0629 \u0642\u064a\u062f \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629",
+                pending_owner_body: "\u062d\u0633\u0627\u0628\u0643 \u0623\u0648 \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0645\u062d\u0637\u0629 \u0628\u0627\u0646\u062a\u0638\u0627\u0631 \u0645\u0648\u0627\u0641\u0642\u0629 \u0627\u0644\u0625\u062f\u0627\u0631\u0629. \u0633\u0646\u0628\u0644\u063a\u0643 \u0639\u0646\u062f \u062a\u0641\u0639\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644.",
+                pending_user_title: "\u062d\u0633\u0627\u0628\u0643 \u0642\u064a\u062f \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629",
+                pending_user_body: "\u062d\u0633\u0627\u0628\u0643 \u0628\u0627\u0646\u062a\u0638\u0627\u0631 \u0627\u0644\u062a\u0641\u0639\u064a\u0644 \u0623\u0648 \u0645\u0648\u0627\u0641\u0642\u0629 \u0627\u0644\u0625\u062f\u0627\u0631\u0629. \u064a\u0631\u062c\u0649 \u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u0628\u0631\u064a\u062f\u0643 \u0623\u0648 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0644\u0627\u062d\u0642\u0627.",
                 device_banned: "الجهاز محظور",
                 user_banned: "الحساب محظور",
                 invalid_phone_format: "رقم الهاتف يجب أن يبدأ بـ 07 ويتكون من 10 أرقام",
-                error_title: "تنبيه النظام"
+                error_title: "تنبيه النظام",
+                btn_ok: "\u062d\u0633\u0646\u0627"
             },
             en: {
                 login_title: "Login | Clevo",
@@ -651,17 +708,30 @@ if (isset($_POST['reset_password_action'])) {
                 create_account: "Create one",
                 user_not_found: "Account not found",
                 pending_status: "Pending approval",
+                login_failed_title: "Login Failed",
+                login_failed_body: "Wrong email or password",
+                pending_owner_title: "Station owner request is pending",
+                pending_owner_body: "Your account or station details are waiting for admin approval. We will notify you when access is activated.",
+                pending_user_title: "Your account is pending",
+                pending_user_body: "Your account is waiting for activation or admin approval. Please check your email or try again later.",
                 device_banned: "Device banned",
                 user_banned: "Account banned",
                 invalid_phone_format: "Phone must start with 07 and be 10 digits",
-                error_title: "System Alert"
+                error_title: "System Alert",
+                btn_ok: "OK"
             }
         };
 
         function showMessageModal(type, title, message) {
-            document.getElementById('msgIcon').innerHTML = type === 'success'
-                ? '<i class="fas fa-check-circle fa-4x text-success"></i>'
-                : '<i class="fas fa-times-circle fa-4x text-danger"></i>';
+            const iconMap = {
+                success: { tone: 'success', icon: 'fa-check-circle' },
+                pending: { tone: '', icon: 'fa-clock' },
+                error: { tone: 'error', icon: 'fa-times-circle' }
+            };
+            const config = iconMap[type] || iconMap.error;
+
+            document.getElementById('msgIcon').innerHTML =
+                `<span class="msg-status-icon ${config.tone}"><i class="fas ${config.icon}"></i></span>`;
             document.getElementById('msgTitle').innerText = title;
             document.getElementById('msgText').innerText = message;
             new bootstrap.Modal(document.getElementById('msgModal')).show();
@@ -897,27 +967,30 @@ if (isset($_POST['reset_password_action'])) {
                 });
         }
     </script>
-    <?php if ($error === "wrong_pass" || $error === "user_not_found") : ?>
+    <?php if (in_array($error, ["wrong_pass", "user_not_found", "pending_status"], true)) : ?>
         <script>
             window.addEventListener('load', () => {
 
                 const lang = localStorage.getItem('app_lang') || 'ar';
+                const errorKey = <?= json_encode($error) ?>;
+                const pendingRole = <?= json_encode($pending_role ?: 'user') ?>;
+                let modalType = 'error';
+                let title = translations[lang].error_title;
+                let message = translations[lang][errorKey] || errorKey;
 
-                document.getElementById('msgIcon').innerHTML =
-                    '<i class="fas fa-times-circle fa-4x text-danger"></i>';
+                if (errorKey === 'wrong_pass' || errorKey === 'user_not_found') {
+                    title = translations[lang].login_failed_title;
+                    message = translations[lang].login_failed_body;
+                }
 
-                document.getElementById('msgTitle').innerText =
-                    lang === 'ar' ?
-                    'فشل تسجيل الدخول' :
-                    'Login Failed';
+                if (errorKey === 'pending_status') {
+                    const roleKey = pendingRole === 'owner' ? 'owner' : 'user';
+                    modalType = 'pending';
+                    title = translations[lang][`pending_${roleKey}_title`];
+                    message = translations[lang][`pending_${roleKey}_body`];
+                }
 
-                document.getElementById('msgText').innerText =
-                    lang === 'ar' ?
-                    'البريد الإلكتروني أو كلمة المرور غير صحيحة' :
-                    'Wrong email or password';
-
-                const modal = new bootstrap.Modal(document.getElementById('msgModal'));
-                modal.show();
+                showMessageModal(modalType, title, message);
             });
         </script>
     <?php endif; ?>
