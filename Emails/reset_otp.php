@@ -31,22 +31,39 @@ function sendResetOTP($toEmail, $userName, $otp)
 
     <div style='max-width:600px;margin:auto;background:#ffffff;border-radius:30px;overflow:hidden;box-shadow:0 10px 35px rgba(0,0,0,0.08);'>
 
-        <div style='background:linear-gradient(135deg,#007bff,#2563eb);padding:45px 20px;text-align:center;'>
+       <div style='background:linear-gradient(135deg,#007bff,#2563eb);padding:10px;text-align:center;'>
 
-            <div style='width:90px;height:90px;background:#ffffff;border-radius:50%;margin:auto;line-height:90px;font-size:40px;color:#2563eb;font-weight:bold;'>
-                <img src='https://i.imgur.com/8QfXj5s.png' alt='Clevo Logo' style='width:50px;height:50px;vertical-align:middle;'>
-            </div>
+    <div style='width:70px;
+            height:70px;
+            background:#ffffff;
+            border-radius:50%;
+            margin:0 auto 15px;
+            text-align:center;
+            font-size:36px;
+            line-height:70px;'>
+🔒
+</div>
 
-            <h1 style='color:#ffffff;margin-top:25px;font-size:32px;font-weight:800;'>
-                Password Reset
-            </h1>
+    <h1 style='color:#ffffff;
+               margin:0;
+               font-size:30px;
+               font-weight:800;'>
 
-            <p style='color:#dbeafe;font-size:17px;margin-top:10px;'>
-                Verification Code
-            </p>
-        </div>
+        Password Reset
 
-        <div style='padding:45px 35px;text-align:center;color:#111827;'>
+    </h1>
+
+    <p style='color:#dbeafe;
+              font-size:15px;
+              margin:8px 0 0 0;'>
+
+        Verification Code
+
+    </p>
+
+</div>
+
+        <div style='padding:25px 35px 35px;text-align:center;color:#111827;'>
 
             <h2 style='margin-bottom:15px;font-size:26px;'>
                 Hello, {$userName}
@@ -59,11 +76,11 @@ function sendResetOTP($toEmail, $userName, $otp)
             <div style='background:#eff6ff;
                         border:2px dashed #2563eb;
                         border-radius:20px;
-                        padding:25px;
                         margin:30px auto;
-                        max-width:320px;'>
+                        max-width:240px;
+                        padding:18px;'>
 
-                <div style='font-size:42px;
+                <div style='font-size:36px;
                             letter-spacing:10px;
                             font-weight:bold;
                             color:#2563eb;'>
