@@ -312,6 +312,5 @@ if ($userID > 0) {
             }
         };
     </script>
-    <script src="../assets/lamea.js"></script>
 </body>
 </html>

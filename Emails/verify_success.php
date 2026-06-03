@@ -29,12 +29,14 @@
         }
 
         .box img {
-            width: 120px;
-            margin-bottom: 20px;
+            width: 180px;
+            height: auto;
+            display: block;
+            margin: 0 auto 20px;
         }
 
         .box h1 {
-            color: #28a745;
+            color: #007bff;
             margin-bottom: 15px;
         }
 
@@ -66,19 +68,16 @@
 
     <div class="box">
 
-        <img src="https://i.imgur.com/QAKdrNq.jpeg">
+        <img src="../assets/Images/Verify.png" alt="Verified Icon">
 
         <h1>
-            Account Verified ✅
+            Account Verified
         </h1>
 
         <p>
             Your account has been activated successfully.<br>
             You can now log in and explore our services.
         </p>
-
-        <div class="loader"></div>
-
     </div>
 
 </body>

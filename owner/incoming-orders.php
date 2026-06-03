@@ -586,7 +586,6 @@ $csrf_token = generate_csrf_token();
             }
         };
     </script>
-    <script src="../assets/lamea.js"></script>
 </body>
 </html>
 

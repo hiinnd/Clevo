@@ -363,6 +363,5 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
             if(icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         };
     </script>
-    <script src="../assets/lamea.js"></script>
 </body>
 </html>

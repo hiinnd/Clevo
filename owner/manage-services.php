@@ -325,7 +325,6 @@ while($row = $services_res->fetch_assoc()){
             if(themeIcon) themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         };
     </script>
-    <script src="../assets/lamea.js"></script>
 </body>
 </html>
 

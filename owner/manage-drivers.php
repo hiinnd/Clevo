@@ -364,6 +364,5 @@ if (isset($_POST['action'])) {
             renderDrivers();
         };
     </script>
-    <script src="../assets/lamea.js"></script>
 </body>
 </html>

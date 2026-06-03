@@ -278,6 +278,5 @@ $notifications = $stmt->get_result();
         }
     };
 </script>
-<script src="../assets/lamea.js"></script>
 </body>
 </html>
