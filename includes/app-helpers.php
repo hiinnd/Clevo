@@ -40,13 +40,64 @@ function clevoEnsureNotificationsTargetColumn(mysqli $conn): void
     $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
     if ($db === '') return;
 
-    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'target_url' LIMIT 1");
+    $columns = [];
+    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'notifications'");
     $stmt->bind_param("s", $db);
     $stmt->execute();
-    $exists = $stmt->get_result()->fetch_assoc();
-    if (!$exists) {
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $columns[$row['COLUMN_NAME']] = true;
+    }
+
+    if (!isset($columns['target_role'])) {
+        $conn->query("ALTER TABLE notifications ADD COLUMN target_role VARCHAR(50) DEFAULT NULL AFTER user_id");
+    }
+    if (!isset($columns['target_url'])) {
         $conn->query("ALTER TABLE notifications ADD COLUMN target_url VARCHAR(255) DEFAULT NULL AFTER body");
     }
+    if (!isset($columns['title_en'])) {
+        $conn->query("ALTER TABLE notifications ADD COLUMN title_en VARCHAR(255) DEFAULT NULL AFTER title");
+    }
+    if (!isset($columns['body_en'])) {
+        $conn->query("ALTER TABLE notifications ADD COLUMN body_en TEXT DEFAULT NULL AFTER body");
+    }
+}
+
+function clevoEnsureServiceLanguageColumns(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
+    if ($db === '') return;
+
+    $columns = [];
+    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'services'");
+    $stmt->bind_param("s", $db);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $columns[$row['COLUMN_NAME']] = true;
+    }
+
+    if (!isset($columns['Name_ar'])) {
+        $conn->query("ALTER TABLE services ADD COLUMN Name_ar VARCHAR(100) DEFAULT NULL AFTER Name");
+    }
+    if (!isset($columns['Name_en'])) {
+        $conn->query("ALTER TABLE services ADD COLUMN Name_en VARCHAR(100) DEFAULT NULL AFTER Name_ar");
+    }
+    if (!isset($columns['Description_ar'])) {
+        $conn->query("ALTER TABLE services ADD COLUMN Description_ar TEXT DEFAULT NULL AFTER Description");
+    }
+    if (!isset($columns['Description_en'])) {
+        $conn->query("ALTER TABLE services ADD COLUMN Description_en TEXT DEFAULT NULL AFTER Description_ar");
+    }
+
+    $conn->query("UPDATE services SET Name_ar = COALESCE(NULLIF(Name_ar, ''), Name) WHERE Name_ar IS NULL OR Name_ar = ''");
+    $conn->query("UPDATE services SET Name_en = COALESCE(NULLIF(Name_en, ''), Name) WHERE Name_en IS NULL OR Name_en = ''");
+    $conn->query("UPDATE services SET Description_ar = COALESCE(NULLIF(Description_ar, ''), Description) WHERE Description_ar IS NULL OR Description_ar = ''");
+    $conn->query("UPDATE services SET Description_en = COALESCE(NULLIF(Description_en, ''), Description) WHERE Description_en IS NULL OR Description_en = ''");
 }
 
 function clevoStationImageUrl(?string $image): string
@@ -204,7 +255,7 @@ function clevoRecordWalletTransaction(mysqli $conn, int $walletID, float $amount
     return $stmt->execute();
 }
 
-function clevoCreateNotification(mysqli $conn, int $userID, string $title, string $body, string $type = 'info', ?string $targetUrl = null): bool
+function clevoCreateNotification(mysqli $conn, int $userID, string $title, string $body, string $type = 'info', ?string $targetUrl = null, ?string $titleEn = null, ?string $bodyEn = null): bool
 {
     if ($userID <= 0) {
         return false;
@@ -215,19 +266,31 @@ function clevoCreateNotification(mysqli $conn, int $userID, string $title, strin
         $type = 'info';
     }
 
-    // Ensure optional column exists (adds it once if missing)
     clevoEnsureNotificationsTargetColumn($conn);
 
-    if ($targetUrl !== null) {
-        $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, body, type, target_url) VALUES (?, ?, ?, ?, ?)");
-        if (!$stmt) return false;
-        $stmt->bind_param("issss", $userID, $title, $body, $type, $targetUrl);
-        return $stmt->execute();
+    $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, title_en, body, body_en, type, target_url) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    if (!$stmt) return false;
+    $stmt->bind_param("issssss", $userID, $title, $titleEn, $body, $bodyEn, $type, $targetUrl);
+    return $stmt->execute();
+}
+
+function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $title, string $body, string $type = 'info', ?string $targetUrl = null, ?string $titleEn = null, ?string $bodyEn = null): bool
+{
+    $targetRole = trim($targetRole);
+    if ($targetRole === '') {
+        return false;
     }
 
-    $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)");
+    $allowed = ['info', 'success', 'warning', 'danger'];
+    if (!in_array($type, $allowed, true)) {
+        $type = 'info';
+    }
+
+    clevoEnsureNotificationsTargetColumn($conn);
+
+    $stmt = $conn->prepare("INSERT INTO notifications (user_id, target_role, title, title_en, body, body_en, type, target_url) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) return false;
-    $stmt->bind_param("isss", $userID, $title, $body, $type);
+    $stmt->bind_param("sssssss", $targetRole, $title, $titleEn, $body, $bodyEn, $type, $targetUrl);
     return $stmt->execute();
 }
 

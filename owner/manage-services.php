@@ -2,9 +2,11 @@
 
 session_start();
 include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/app-helpers.php';
 
 
 $owner_id = clevo_require_role('owner', '../general/login.php');
+clevoEnsureServiceLanguageColumns($conn);
 $station_query = $conn->query("SELECT StationID FROM stations WHERE UserID = $owner_id");
 $station_data = $station_query->fetch_assoc();
 $station_id = $station_data['StationID'] ?? 0;
@@ -21,7 +23,22 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_service_id'])){
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     clevo_require_csrf_token();
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
+    $name_ar = trim((string) ($_POST['name_ar'] ?? ''));
+    $name_en = trim((string) ($_POST['name_en'] ?? ''));
+    $description_ar = trim((string) ($_POST['description_ar'] ?? ''));
+    $description_en = trim((string) ($_POST['description_en'] ?? ''));
+    if ($name_ar === '') {
+        $name_ar = trim((string) ($_POST['service_name'] ?? $_POST['name'] ?? ''));
+    }
+    if ($name_en === '') {
+        $name_en = $name_ar;
+    }
+    if ($description_ar === '') {
+        $description_ar = trim((string) ($_POST['service_description'] ?? ''));
+    }
+    if ($description_en === '') {
+        $description_en = $description_ar;
+    }
     $price = floatval($_POST['price']);
     $edit_id = intval($_POST['edit_id']);
     
@@ -31,14 +48,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
 
     
     if($edit_id > 0){
-        $sql = "UPDATE services SET Name='$name', Price='$price', is_station='$is_station', is_home='$is_home', is_pickup='$is_pickup' 
-                WHERE ServiceID=$edit_id AND StationID=$station_id";
+        $stmt = $conn->prepare("UPDATE services SET Name = ?, Name_ar = ?, Name_en = ?, Description = ?, Description_ar = ?, Description_en = ?, Price = ?, is_station = ?, is_home = ?, is_pickup = ? WHERE ServiceID = ? AND StationID = ?");
+        $stmt->bind_param("ssssssdiiiii", $name_en, $name_ar, $name_en, $description_en, $description_ar, $description_en, $price, $is_station, $is_home, $is_pickup, $edit_id, $station_id);
     } else {
-        $sql = "INSERT INTO services (StationID, Name, Price, is_station, is_home, is_pickup) 
-                VALUES ('$station_id', '$name', '$price', '$is_station', '$is_home', '$is_pickup')";
+        $stmt = $conn->prepare("INSERT INTO services (StationID, Name, Name_ar, Name_en, Description, Description_ar, Description_en, Price, is_station, is_home, is_pickup) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("issssssdiii", $station_id, $name_en, $name_ar, $name_en, $description_en, $description_ar, $description_en, $price, $is_station, $is_home, $is_pickup);
     }
     
-    if($conn->query($sql)){
+    if($stmt && $stmt->execute()){
         header("Location: manage-services.php?msg=success");
         exit();
     }
@@ -50,7 +67,10 @@ $db_services = [];
 while($row = $services_res->fetch_assoc()){
     $db_services[] = [
         'id' => $row['ServiceID'],
-        'name_ar' => $row['Name'],
+        'name_ar' => $row['Name_ar'] ?: $row['Name'],
+        'name_en' => $row['Name_en'] ?: $row['Name'],
+        'description_ar' => $row['Description_ar'] ?: $row['Description'],
+        'description_en' => $row['Description_en'] ?: $row['Description'],
         'price' => $row['Price'],
         'types' => array_merge(
             $row['is_station'] ? ['station'] : [],
@@ -149,9 +169,17 @@ while($row = $services_res->fetch_assoc()){
                                 <form id="serviceForm" method="POST">
                                     <?= csrf_input(); ?>
                                     <input type="hidden" name="edit_id" id="editId" value="0">
+                                    <input type="hidden" name="name_ar" id="sNameAr">
+                                    <input type="hidden" name="name_en" id="sNameEn">
+                                    <input type="hidden" name="description_ar" id="sDescAr">
+                                    <input type="hidden" name="description_en" id="sDescEn">
                                     <div class="mb-3">
                                         <label class="small mb-1" data-i18n="service_name_label">اسم الخدمة</label>
-                                        <input type="text" name="name" id="sName" class="form-control" required>
+                                        <input type="text" name="service_name" id="sNameInput" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="small mb-1" data-i18n="service_description_label">وصف الخدمة</label>
+                                        <textarea name="service_description" id="sDescInput" class="form-control" rows="3" data-i18n-placeholder="service_description_placeholder"></textarea>
                                     </div>
                                     <div class="mb-3">
                                         <label class="small mb-1" data-i18n="service_price_label">السعر (JOD)</label>
@@ -184,7 +212,8 @@ while($row = $services_res->fetch_assoc()){
                                 <?php foreach($db_services as $s): ?>
                                     <div class="service-item shadow-sm">
                                         <div class="text-start ms-3">
-                                            <h6 class="mb-0 fw-bold db-service-name" data-service-name="<?php echo htmlspecialchars($s['name_ar']); ?>"><?php echo htmlspecialchars($s['name_ar']); ?></h6>
+                                            <h6 class="mb-0 fw-bold db-service-name" data-ar="<?php echo htmlspecialchars($s['name_ar']); ?>" data-en="<?php echo htmlspecialchars($s['name_en']); ?>"><?php echo htmlspecialchars($s['name_ar']); ?></h6>
+                                            <p class="mb-1 small opacity-75 db-service-desc" data-ar="<?php echo htmlspecialchars($s['description_ar']); ?>" data-en="<?php echo htmlspecialchars($s['description_en']); ?>"><?php echo htmlspecialchars($s['description_ar']); ?></p>
                                             <span class="text-success fw-bold small"><?php echo number_format($s['price'], 2); ?> JOD</span><br>
                                             <?php foreach($s['types'] as $t): ?>
                                                 <span class="type-badge me-1" data-i18n="<?php echo $t; ?>_service"></span>
@@ -236,27 +265,40 @@ while($row = $services_res->fetch_assoc()){
         </div>
     </div>
 
+    <div class="modal fade" id="serviceStatusModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content text-center p-4 shadow-lg border-0">
+                <div id="serviceStatusIcon" class="mb-3"></div>
+                <h5 id="serviceStatusTitle" class="fw-bold mb-2"></h5>
+                <p id="serviceStatusBody" class="small opacity-75 mb-3"></p>
+                <button type="button" class="btn btn-primary rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_ok">موافق</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/service-translations.js"></script>
     <script>
         const translations = {
             ar: {
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", nav_notifications: "الإشعارات",
-                manage_services_header: "إدارة الخدمات المتاحة", add_new_service: "إضافة خدمة جديدة", edit_service: "تعديل الخدمة", service_name_label: "اسم الخدمة", service_price_label: "السعر (JOD)",
+                manage_services_header: "إدارة الخدمات المتاحة", add_new_service: "إضافة خدمة جديدة", edit_service: "تعديل الخدمة", service_name_label: "اسم الخدمة", service_description_label: "وصف الخدمة", service_description_placeholder: "", service_price_label: "السعر (JOD)",
                 available_options: "خيارات تقديم الخدمة:", type_station: "في المحطة (Station)", type_home: "خدمة منزلية (At Home)", type_pickup: "استلام وتسليم (Pickup)",
                 home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", pickup_service: "استلام وتسليم",
                 btn_save_service: "حفظ الخدمة ونشرها", current_services_list: "قائمة خدماتك النشطة", btn_cancel: "إلغاء", btn_ok: "موافق",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج",
-                delete_service_title: "تأكيد حذف الخدمة", delete_service_msg: "هل أنت متأكد من حذف هذه الخدمة؟", btn_delete: "حذف"
+                delete_service_title: "تأكيد حذف الخدمة", delete_service_msg: "هل أنت متأكد من حذف هذه الخدمة؟", btn_delete: "حذف",
+                service_saved_title: "تم الحفظ", service_saved_body: "تم حفظ الخدمة بنجاح.", service_deleted_title: "تم الحذف", service_deleted_body: "تم حذف الخدمة بنجاح."
             },
             en: {
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
-                manage_services_header: "Services Management", add_new_service: "Add New Service", edit_service: "Edit Service", service_name_label: "Service Name", service_price_label: "Price (JOD)",
+                manage_services_header: "Services Management", add_new_service: "Add New Service", edit_service: "Edit Service", service_name_label: "Service Name", service_description_label: "Service Description", service_description_placeholder: "", service_price_label: "Price (JOD)",
                 available_options: "Delivery Options:", type_station: "At Station", type_home: "At Home Service", type_pickup: "Pickup & Delivery",
                 home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", pickup_service: "Pickup & Delivery",
                 btn_save_service: "Publish Service", current_services_list: "Active Services List", btn_cancel: "Cancel", btn_ok: "OK",
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout",
-                delete_service_title: "Delete Service", delete_service_msg: "Are you sure you want to delete this service?", btn_delete: "Delete"
+                delete_service_title: "Delete Service", delete_service_msg: "Are you sure you want to delete this service?", btn_delete: "Delete",
+                service_saved_title: "Saved", service_saved_body: "Service saved successfully.", service_deleted_title: "Deleted", service_deleted_body: "Service deleted successfully."
             }
         };
 
@@ -268,10 +310,35 @@ while($row = $services_res->fetch_assoc()){
             new bootstrap.Modal(document.getElementById('deleteServiceModal')).show();
         }
 
+        function syncServiceLanguageFields() {
+            const lang = localStorage.getItem('app_lang') || 'ar';
+            const payload = window.clevoServicePayloadFromInput
+                ? window.clevoServicePayloadFromInput(
+                    document.getElementById('sNameInput').value,
+                    document.getElementById('sDescInput').value,
+                    lang
+                )
+                : {
+                    name_ar: document.getElementById('sNameInput').value,
+                    name_en: document.getElementById('sNameInput').value,
+                    description_ar: document.getElementById('sDescInput').value,
+                    description_en: document.getElementById('sDescInput').value
+                };
+            document.getElementById('sNameAr').value = payload.name_ar || '';
+            document.getElementById('sNameEn').value = payload.name_en || payload.name_ar || '';
+            document.getElementById('sDescAr').value = payload.description_ar || '';
+            document.getElementById('sDescEn').value = payload.description_en || payload.description_ar || '';
+        }
+
         function editService(s) {
             const lang = localStorage.getItem('app_lang') || 'ar';
             document.getElementById('editId').value = s.id;
-            document.getElementById('sName').value = s.name_ar;
+            document.getElementById('sNameAr').value = s.name_ar || '';
+            document.getElementById('sNameEn').value = s.name_en || s.name_ar || '';
+            document.getElementById('sDescAr').value = s.description_ar || '';
+            document.getElementById('sDescEn').value = s.description_en || s.description_ar || '';
+            document.getElementById('sNameInput').value = lang === 'ar' ? (s.name_ar || s.name_en || '') : (s.name_en || s.name_ar || '');
+            document.getElementById('sDescInput').value = lang === 'ar' ? (s.description_ar || s.description_en || '') : (s.description_en || s.description_ar || '');
             document.getElementById('sPrice').value = s.price;
             document.getElementById('typeStation').checked = s.types.includes('station');
             document.getElementById('typeHome').checked = s.types.includes('home');
@@ -288,6 +355,10 @@ while($row = $services_res->fetch_assoc()){
             const lang = localStorage.getItem('app_lang') || 'ar';
             document.getElementById('serviceForm').reset();
             document.getElementById('editId').value = '0';
+            document.getElementById('sNameAr').value = '';
+            document.getElementById('sNameEn').value = '';
+            document.getElementById('sDescAr').value = '';
+            document.getElementById('sDescEn').value = '';
             
             const titleEl = document.getElementById('formTitle');
             titleEl.setAttribute('data-i18n', 'add_new_service');
@@ -295,6 +366,8 @@ while($row = $services_res->fetch_assoc()){
             
             document.getElementById('cancelEditBtn').classList.add('d-none');
         }
+
+        document.getElementById('serviceForm').addEventListener('submit', syncServiceLanguageFields);
 
         window.onload = () => {
             const lang = localStorage.getItem('app_lang') || 'ar';
@@ -310,10 +383,15 @@ while($row = $services_res->fetch_assoc()){
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang][key]) el.setAttribute('placeholder', translations[lang][key]);
+            });
 
-            if (window.clevoApplyServiceTranslations) {
-                window.clevoApplyServiceTranslations(document, lang);
-            }
+            document.querySelectorAll('.db-service-name, .db-service-desc').forEach(el => {
+                const localized = el.getAttribute(isRtl ? 'data-ar' : 'data-en') || el.getAttribute('data-ar') || el.textContent;
+                el.textContent = localized;
+            });
 
             if(!isRtl) {
                 const bIcon = document.getElementById('backIcon');
@@ -323,6 +401,15 @@ while($row = $services_res->fetch_assoc()){
             if(langBtn) langBtn.innerText = isRtl ? 'EN' : 'AR';
             const themeIcon = document.getElementById('themeIcon');
             if(themeIcon) themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+
+            const pageMsg = new URLSearchParams(window.location.search).get('msg');
+            if (pageMsg === 'success' || pageMsg === 'deleted') {
+                document.getElementById('serviceStatusIcon').innerHTML = '<i class="fas fa-check-circle text-success fa-4x"></i>';
+                document.getElementById('serviceStatusTitle').innerText = translations[lang][pageMsg === 'deleted' ? 'service_deleted_title' : 'service_saved_title'];
+                document.getElementById('serviceStatusBody').innerText = translations[lang][pageMsg === 'deleted' ? 'service_deleted_body' : 'service_saved_body'];
+                new bootstrap.Modal(document.getElementById('serviceStatusModal')).show();
+                history.replaceState(null, '', window.location.pathname);
+            }
         };
     </script>
 </body>

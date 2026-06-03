@@ -92,7 +92,11 @@ CREATE TABLE `services` (
   `ServiceID` int(11) NOT NULL AUTO_INCREMENT,
   `StationID` int(11) DEFAULT NULL,
   `Name` varchar(100) DEFAULT NULL,
+  `Name_ar` varchar(100) DEFAULT NULL,
+  `Name_en` varchar(100) DEFAULT NULL,
   `Description` text DEFAULT NULL,
+  `Description_ar` text DEFAULT NULL,
+  `Description_en` text DEFAULT NULL,
   `Price` decimal(10,2) DEFAULT NULL,
   `Duration` int(11) DEFAULT NULL,
   `is_station` tinyint(1) DEFAULT 1,
@@ -215,7 +219,9 @@ CREATE TABLE `notifications` (
   `user_id` int(11) DEFAULT NULL,
   `target_role` varchar(50) DEFAULT NULL, -- الحقل المضاف لربط برمجة الإشعارات والتحقق من صلاحيات المشاهدة
   `title` varchar(255) NOT NULL,
+  `title_en` varchar(255) DEFAULT NULL,
   `body` text DEFAULT NULL,
+  `body_en` text DEFAULT NULL,
   `target_url` varchar(255) DEFAULT NULL,
   `type` enum('info','success','warning','danger') DEFAULT 'info',
   `is_read` tinyint(1) DEFAULT 0,
@@ -297,40 +303,40 @@ VALUES
 (8, 10, 'Clevo Dabouq Elite Wash', 'Dabouq, Amman', 'https://maps.google.com/?q=31.9998,35.8069', 31.99980000, 35.80690000, '0792000008', 4.96, 'Active', 'approved', 'uploads/verification/verify_1777921083_69f8ec3b10513.jpeg', 'clevo-station-tunnel.png', 1, 1, 1, '07:00:00', '23:00:00');
 
 INSERT INTO `services`
-(`ServiceID`, `StationID`, `Name`, `Description`, `Price`, `Duration`, `is_station`, `is_home`, `is_pickup`)
+(`ServiceID`, `StationID`, `Name`, `Name_ar`, `Name_en`, `Description`, `Description_ar`, `Description_en`, `Price`, `Duration`, `is_station`, `is_home`, `is_pickup`)
 VALUES
-(1, 1, 'Full Wash', 'Interior and exterior wash with tire polish.', 9.00, 45, 1, 1, 1),
-(2, 1, 'Interior Deep Clean', 'Seats, dashboard, mats, and cabin sanitizing.', 7.50, 40, 1, 1, 1),
-(3, 1, 'Exterior Polish', 'Foam wash, wax layer, and paint shine.', 12.00, 55, 1, 0, 1),
-(4, 1, 'Oil Change', 'Engine oil replacement with basic checkup.', 22.00, 35, 1, 0, 0),
-(5, 2, 'Full Wash', 'Complete wash using premium shampoo.', 8.50, 40, 1, 1, 0),
-(6, 2, 'Interior Wash', 'Cabin vacuum, surfaces, and fragrance.', 6.50, 35, 1, 1, 0),
-(7, 2, 'Exterior Wash', 'Body wash, wheels, and quick wax.', 5.50, 25, 1, 0, 0),
-(8, 2, 'Ceramic Quick Coat', 'Light protective ceramic spray.', 16.00, 60, 1, 0, 0),
-(9, 3, 'Full Wash', 'Fast full service for daily use cars.', 8.00, 35, 1, 1, 1),
-(10, 3, 'Interior Detailing', 'Deep fabric and plastic cleaning.', 13.00, 70, 1, 1, 1),
-(11, 3, 'Exterior Wash', 'Foam, rinse, dry, and wheel clean.', 5.00, 25, 1, 0, 1),
-(12, 3, 'Oil Change', 'Oil and filter change service.', 24.00, 40, 1, 0, 0),
-(13, 4, 'Full Wash', 'Detailed inside and outside wash.', 9.50, 50, 1, 0, 1),
-(14, 4, 'Interior Steam Clean', 'Steam clean and odor treatment.', 15.00, 80, 1, 0, 1),
-(15, 4, 'Exterior Polish', 'Premium polish and wax finish.', 18.00, 75, 1, 0, 1),
-(16, 4, 'Headlight Restoration', 'Headlight cleaning and shine restoration.', 10.00, 45, 1, 0, 0),
-(17, 5, 'Full Wash', 'Complete wash at station or customer location.', 8.75, 40, 1, 1, 1),
-(18, 5, 'Home Interior Wash', 'Mobile cabin cleaning service.', 9.00, 45, 0, 1, 1),
-(19, 5, 'Exterior Wash', 'Fast exterior wash and tire shine.', 5.50, 25, 1, 1, 1),
-(20, 5, 'Oil Change', 'Oil change with fluid level inspection.', 23.00, 35, 1, 0, 0),
-(21, 6, 'Full Wash', 'Express full car wash.', 7.75, 35, 1, 0, 1),
-(22, 6, 'Pickup Full Service', 'Pickup and drop full wash package.', 12.50, 60, 0, 0, 1),
-(23, 6, 'Exterior Wash', 'Quick exterior shine.', 4.75, 20, 1, 0, 1),
-(24, 6, 'Premium Wax', 'Protective wax and gloss finish.', 13.50, 50, 1, 0, 1),
-(25, 7, 'Full Wash', 'Full car wash with dashboard care.', 8.25, 40, 1, 1, 0),
-(26, 7, 'Interior Wash', 'Interior vacuum and wipe down.', 6.75, 30, 1, 1, 0),
-(27, 7, 'Exterior Wash', 'Body and wheel clean.', 5.25, 25, 1, 0, 0),
-(28, 7, 'Oil Change', 'Synthetic oil option available.', 25.00, 40, 1, 0, 0),
-(29, 8, 'Full Wash', 'Elite full wash and finishing.', 10.00, 45, 1, 1, 1),
-(30, 8, 'Interior Detailing', 'Premium cabin detailing package.', 14.50, 75, 1, 1, 1),
-(31, 8, 'Exterior Polish', 'Paint-safe polish and wax.', 19.00, 80, 1, 0, 1),
-(32, 8, 'Oil Change', 'Oil, filter, and 10-point check.', 26.00, 45, 1, 0, 0);
+(1, 1, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Interior and exterior wash with tire polish.', 'غسيل داخلي وخارجي مع تلميع الإطارات.', 'Interior and exterior wash with tire polish.', 9.00, 45, 1, 1, 1),
+(2, 1, 'Interior Deep Clean', 'تنظيف داخلي عميق', 'Interior Deep Clean', 'Seats, dashboard, mats, and cabin sanitizing.', 'تنظيف المقاعد والتابلوه والدواسات وتعقيم المقصورة.', 'Seats, dashboard, mats, and cabin sanitizing.', 7.50, 40, 1, 1, 1),
+(3, 1, 'Exterior Polish', 'تلميع خارجي', 'Exterior Polish', 'Foam wash, wax layer, and paint shine.', 'غسيل رغوي وطبقة شمع وتلميع للدهان.', 'Foam wash, wax layer, and paint shine.', 12.00, 55, 1, 0, 1),
+(4, 1, 'Oil Change', 'تغيير زيت', 'Oil Change', 'Engine oil replacement with basic checkup.', 'تغيير زيت المحرك مع فحص أساسي.', 'Engine oil replacement with basic checkup.', 22.00, 35, 1, 0, 0),
+(5, 2, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Complete wash using premium shampoo.', 'غسيل كامل باستخدام شامبو ممتاز.', 'Complete wash using premium shampoo.', 8.50, 40, 1, 1, 0),
+(6, 2, 'Interior Wash', 'غسيل داخلي', 'Interior Wash', 'Cabin vacuum, surfaces, and fragrance.', 'شفط وتنظيف أسطح المقصورة مع تعطير.', 'Cabin vacuum, surfaces, and fragrance.', 6.50, 35, 1, 1, 0),
+(7, 2, 'Exterior Wash', 'غسيل خارجي', 'Exterior Wash', 'Body wash, wheels, and quick wax.', 'غسيل الهيكل والعجلات مع شمع سريع.', 'Body wash, wheels, and quick wax.', 5.50, 25, 1, 0, 0),
+(8, 2, 'Ceramic Quick Coat', 'طبقة سيراميك سريعة', 'Ceramic Quick Coat', 'Light protective ceramic spray.', 'رذاذ سيراميك خفيف للحماية.', 'Light protective ceramic spray.', 16.00, 60, 1, 0, 0),
+(9, 3, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Fast full service for daily use cars.', 'خدمة كاملة وسريعة لسيارات الاستخدام اليومي.', 'Fast full service for daily use cars.', 8.00, 35, 1, 1, 1),
+(10, 3, 'Interior Detailing', 'تنظيف داخلي تفصيلي', 'Interior Detailing', 'Deep fabric and plastic cleaning.', 'تنظيف عميق للأقمشة والبلاستيك.', 'Deep fabric and plastic cleaning.', 13.00, 70, 1, 1, 1),
+(11, 3, 'Exterior Wash', 'غسيل خارجي', 'Exterior Wash', 'Foam, rinse, dry, and wheel clean.', 'رغوة وشطف وتجفيف وتنظيف العجلات.', 'Foam, rinse, dry, and wheel clean.', 5.00, 25, 1, 0, 1),
+(12, 3, 'Oil Change', 'تغيير زيت', 'Oil Change', 'Oil and filter change service.', 'خدمة تغيير الزيت والفلتر.', 'Oil and filter change service.', 24.00, 40, 1, 0, 0),
+(13, 4, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Detailed inside and outside wash.', 'غسيل تفصيلي من الداخل والخارج.', 'Detailed inside and outside wash.', 9.50, 50, 1, 0, 1),
+(14, 4, 'Interior Steam Clean', 'تنظيف داخلي بالبخار', 'Interior Steam Clean', 'Steam clean and odor treatment.', 'تنظيف بالبخار ومعالجة الروائح.', 'Steam clean and odor treatment.', 15.00, 80, 1, 0, 1),
+(15, 4, 'Exterior Polish', 'تلميع خارجي', 'Exterior Polish', 'Premium polish and wax finish.', 'تلميع ممتاز مع طبقة شمع نهائية.', 'Premium polish and wax finish.', 18.00, 75, 1, 0, 1),
+(16, 4, 'Headlight Restoration', 'تجديد المصابيح', 'Headlight Restoration', 'Headlight cleaning and shine restoration.', 'تنظيف المصابيح واستعادة لمعانها.', 'Headlight cleaning and shine restoration.', 10.00, 45, 1, 0, 0),
+(17, 5, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Complete wash at station or customer location.', 'غسيل كامل في المحطة أو عند العميل.', 'Complete wash at station or customer location.', 8.75, 40, 1, 1, 1),
+(18, 5, 'Home Interior Wash', 'غسيل داخلي منزلي', 'Home Interior Wash', 'Mobile cabin cleaning service.', 'خدمة تنظيف داخلية متنقلة.', 'Mobile cabin cleaning service.', 9.00, 45, 0, 1, 1),
+(19, 5, 'Exterior Wash', 'غسيل خارجي', 'Exterior Wash', 'Fast exterior wash and tire shine.', 'غسيل خارجي سريع مع تلميع الإطارات.', 'Fast exterior wash and tire shine.', 5.50, 25, 1, 1, 1),
+(20, 5, 'Oil Change', 'تغيير زيت', 'Oil Change', 'Oil change with fluid level inspection.', 'تغيير زيت مع فحص مستويات السوائل.', 'Oil change with fluid level inspection.', 23.00, 35, 1, 0, 0),
+(21, 6, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Express full car wash.', 'غسيل سيارة شامل وسريع.', 'Express full car wash.', 7.75, 35, 1, 0, 1),
+(22, 6, 'Pickup Full Service', 'خدمة كاملة مع استلام وتسليم', 'Pickup Full Service', 'Pickup and drop full wash package.', 'باقة غسيل كاملة مع الاستلام والتسليم.', 'Pickup and drop full wash package.', 12.50, 60, 0, 0, 1),
+(23, 6, 'Exterior Wash', 'غسيل خارجي', 'Exterior Wash', 'Quick exterior shine.', 'لمعة خارجية سريعة.', 'Quick exterior shine.', 4.75, 20, 1, 0, 1),
+(24, 6, 'Premium Wax', 'شمع ممتاز', 'Premium Wax', 'Protective wax and gloss finish.', 'شمع حماية ولمعة نهائية.', 'Protective wax and gloss finish.', 13.50, 50, 1, 0, 1),
+(25, 7, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Full car wash with dashboard care.', 'غسيل شامل مع عناية بالتابلوه.', 'Full car wash with dashboard care.', 8.25, 40, 1, 1, 0),
+(26, 7, 'Interior Wash', 'غسيل داخلي', 'Interior Wash', 'Interior vacuum and wipe down.', 'شفط داخلي ومسح للأسطح.', 'Interior vacuum and wipe down.', 6.75, 30, 1, 1, 0),
+(27, 7, 'Exterior Wash', 'غسيل خارجي', 'Exterior Wash', 'Body and wheel clean.', 'تنظيف الهيكل والعجلات.', 'Body and wheel clean.', 5.25, 25, 1, 0, 0),
+(28, 7, 'Oil Change', 'تغيير زيت', 'Oil Change', 'Synthetic oil option available.', 'يتوفر خيار الزيت الصناعي.', 'Synthetic oil option available.', 25.00, 40, 1, 0, 0),
+(29, 8, 'Full Wash', 'غسيل شامل', 'Full Wash', 'Elite full wash and finishing.', 'غسيل شامل فاخر مع تشطيب نهائي.', 'Elite full wash and finishing.', 10.00, 45, 1, 1, 1),
+(30, 8, 'Interior Detailing', 'تنظيف داخلي تفصيلي', 'Interior Detailing', 'Premium cabin detailing package.', 'باقة تنظيف داخلي تفصيلية ممتازة.', 'Premium cabin detailing package.', 14.50, 75, 1, 1, 1),
+(31, 8, 'Exterior Polish', 'تلميع خارجي', 'Exterior Polish', 'Paint-safe polish and wax.', 'تلميع آمن للدهان مع شمع.', 'Paint-safe polish and wax.', 19.00, 80, 1, 0, 1),
+(32, 8, 'Oil Change', 'تغيير زيت', 'Oil Change', 'Oil, filter, and 10-point check.', 'زيت وفلتر وفحص من 10 نقاط.', 'Oil, filter, and 10-point check.', 26.00, 45, 1, 0, 0);
 
 INSERT INTO `plans`
 (`id`, `name_ar`, `name_en`, `price`, `duration`, `duration_type`, `wash_count`, `description_ar`, `description_en`, `included_services_ar`, `included_services_en`, `is_active`, `created_at`)
@@ -447,14 +453,14 @@ VALUES
 (13, 7, 21.25, 'credit', 'إيراد صاحب محطة من الطلب #6', 'Owner booking earning #6', '2026-05-25 14:10:00');
 
 INSERT INTO `notifications`
-(`id`, `user_id`, `target_role`, `title`, `body`, `target_url`, `type`, `is_read`, `created_at`)
+(`id`, `user_id`, `target_role`, `title`, `title_en`, `body`, `body_en`, `target_url`, `type`, `is_read`, `created_at`)
 VALUES
-(1, 3, NULL, 'طلب جديد', 'وصلك طلب #C260602090014 لخدمة Exterior Polish بتاريخ 2026-06-02 الساعة 09:00.', 'incoming-orders.php', 'info', 0, '2026-06-01 18:15:00'),
-(2, 5, NULL, 'طلب جديد', 'وصلك طلب #C260603113016 لخدمة Oil Change بتاريخ 2026-06-03 الساعة 11:30.', 'incoming-orders.php', 'info', 0, '2026-06-02 08:30:00'),
-(3, 7, NULL, 'طلب جديد', 'وصلك طلب #C260605100018 لخدمة Home Interior Wash بتاريخ 2026-06-05 الساعة 10:00.', 'incoming-orders.php', 'info', 0, '2026-06-02 09:25:00'),
-(4, 11, NULL, 'تم قبول الطلب', 'تم قبول طلبك #C260530170011 وجاري الاستلام.', 'order-details.php?id=11', 'success', 0, '2026-05-29 12:10:00'),
-(5, 12, NULL, 'موعدك القادم', 'طلبك #C260604160017 مقبول ومجدول ليوم 2026-06-04.', 'order-details.php?id=17', 'info', 0, '2026-06-02 09:15:00'),
-(6, NULL, 'Admin', 'نشاط تجريبي', 'تم تحميل بيانات تجريبية لمحطات عمان والحجوزات.', '../admin/admin-dashboard.php', 'success', 0, '2026-06-02 09:30:00');
+(1, 3, NULL, 'طلب جديد', 'New order', 'وصلك طلب #C260602090014 لخدمة Exterior Polish بتاريخ 2026-06-02 الساعة 09:00.', 'You received order #C260602090014 for Exterior Polish on 2026-06-02 at 09:00.', 'incoming-orders.php', 'info', 0, '2026-06-01 18:15:00'),
+(2, 5, NULL, 'طلب جديد', 'New order', 'وصلك طلب #C260603113016 لخدمة Oil Change بتاريخ 2026-06-03 الساعة 11:30.', 'You received order #C260603113016 for Oil Change on 2026-06-03 at 11:30.', 'incoming-orders.php', 'info', 0, '2026-06-02 08:30:00'),
+(3, 7, NULL, 'طلب جديد', 'New order', 'وصلك طلب #C260605100018 لخدمة Home Interior Wash بتاريخ 2026-06-05 الساعة 10:00.', 'You received order #C260605100018 for Home Interior Wash on 2026-06-05 at 10:00.', 'incoming-orders.php', 'info', 0, '2026-06-02 09:25:00'),
+(4, 11, NULL, 'تم قبول الطلب', 'Order accepted', 'تم قبول طلبك #C260530170011 وجاري الاستلام.', 'Your order #C260530170011 was accepted and pickup is in progress.', 'order-details.php?id=11', 'success', 0, '2026-05-29 12:10:00'),
+(5, 12, NULL, 'موعدك القادم', 'Upcoming appointment', 'طلبك #C260604160017 مقبول ومجدول ليوم 2026-06-04.', 'Your order #C260604160017 is accepted and scheduled for 2026-06-04.', 'order-details.php?id=17', 'info', 0, '2026-06-02 09:15:00'),
+(6, NULL, 'Admin', 'نشاط تجريبي', 'Demo activity', 'تم تحميل بيانات تجريبية لمحطات عمان والحجوزات.', 'Demo data for Amman stations and bookings was loaded.', '../admin/admin-dashboard.php', 'success', 0, '2026-06-02 09:30:00');
 
 INSERT INTO `support_tickets`
 (`id`, `user_id`, `user_name`, `user_type`, `subject`, `message`, `status`, `is_guest`, `created_at`)

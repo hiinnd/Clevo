@@ -4,11 +4,12 @@ include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
+clevoEnsureServiceLanguageColumns($conn);
 
 $query = "SELECT s.*,
                  MIN(sv.Price) AS min_price,
                  MAX(sv.Price) AS max_price,
-                 GROUP_CONCAT(DISTINCT sv.Name ORDER BY sv.Name SEPARATOR ' | ') AS service_names,
+                 GROUP_CONCAT(DISTINCT CONCAT_WS('::', COALESCE(NULLIF(sv.Name_ar, ''), sv.Name), COALESCE(NULLIF(sv.Name_en, ''), sv.Name)) ORDER BY sv.ServiceID SEPARATOR ' || ') AS service_pairs,
                  MAX(COALESCE(sv.is_station, 0)) AS has_station_service,
                  MAX(COALESCE(sv.is_home, 0)) AS has_home_service,
                  MAX(COALESCE(sv.is_pickup, 0)) AS has_pickup_service,
@@ -58,6 +59,27 @@ function clevo_search_aliases(string $text): string {
         }
     }
     return trim($text . ' ' . implode(' ', $extra));
+}
+
+function clevo_search_location_ar(string $location): string {
+    $map = [
+        'Abdoun' => 'عبدون',
+        'Sweifieh' => 'الصويفية',
+        'Khalda' => 'خلدا',
+        'Al Jubeiha' => 'الجبيهة',
+        'Jubeiha' => 'الجبيهة',
+        'Marj Al Hamam' => 'مرج الحمام',
+        'Tabarbour' => 'طبربور',
+        'Tla Al Ali' => 'تلاع العلي',
+        'Dabouq' => 'دابوق',
+        'Amman' => 'عمان',
+    ];
+    $translated = $location;
+    foreach ($map as $en => $ar) {
+        $translated = str_ireplace($en, $ar, $translated);
+    }
+    $translated = str_replace(',', '،', $translated);
+    return $translated;
 }
 ?>
 
@@ -166,8 +188,27 @@ function clevo_search_aliases(string $text): string {
                     $min_price = $row['min_price'] !== null ? (float) $row['min_price'] : 0;
                     $max_price = $row['max_price'] !== null ? (float) $row['max_price'] : 0;
                     $rating = number_format((float) ($row['user_rating'] ?? 0), 1);
-                    $serviceNames = trim((string) ($row['service_names'] ?? ''));
-                    $searchText = clevo_search_aliases(($row['Name'] ?? '') . ' ' . ($row['Location'] ?? '') . ' ' . $serviceNames);
+                    $servicePairsRaw = trim((string) ($row['service_pairs'] ?? ''));
+                    $servicePairs = [];
+                    $serviceNamesArParts = [];
+                    $serviceNamesEnParts = [];
+                    foreach (array_filter(array_map('trim', explode('||', $servicePairsRaw))) as $pairRaw) {
+                        [$pairAr, $pairEn] = array_pad(explode('::', $pairRaw, 2), 2, '');
+                        $pairAr = trim($pairAr);
+                        $pairEn = trim($pairEn);
+                        if ($pairAr === '') $pairAr = $pairEn;
+                        if ($pairEn === '') $pairEn = $pairAr;
+                        if ($pairAr !== '' || $pairEn !== '') {
+                            $servicePairs[] = ['ar' => $pairAr, 'en' => $pairEn];
+                            $serviceNamesArParts[] = $pairAr;
+                            $serviceNamesEnParts[] = $pairEn;
+                        }
+                    }
+                    $serviceNamesAr = implode(' ', $serviceNamesArParts);
+                    $serviceNamesEn = implode(' ', $serviceNamesEnParts);
+                    $locationEn = (string) ($row['Location'] ?? '');
+                    $locationAr = clevo_search_location_ar($locationEn);
+                    $searchText = clevo_search_aliases(($row['Name'] ?? '') . ' ' . $locationEn . ' ' . $locationAr . ' ' . $serviceNamesAr . ' ' . $serviceNamesEn);
                     $hasStation = ((int) ($row['has_station_service'] ?? 0) === 1 || (int) ($row['Has_At_Station'] ?? 0) === 1) ? '1' : '0';
                     $hasHome = ((int) ($row['has_home_service'] ?? 0) === 1 || (int) ($row['Has_Home_Service'] ?? 0) === 1) ? '1' : '0';
                     $hasPickup = ((int) ($row['has_pickup_service'] ?? 0) === 1 || (int) ($row['Has_Delivery'] ?? 0) === 1) ? '1' : '0';
@@ -175,7 +216,7 @@ function clevo_search_aliases(string $text): string {
                     if ($map_url === '' && is_numeric($row['Lat'] ?? null) && is_numeric($row['Lon'] ?? null)) {
                         $map_url = 'https://www.google.com/maps?q=' . rawurlencode($row['Lat'] . ',' . $row['Lon']);
                     }
-                    $servicePreview = array_slice(array_filter(array_map('trim', explode('|', $serviceNames))), 0, 3);
+                    $servicePreview = array_slice($servicePairs, 0, 3);
             ?>
                 <div class="col-12 col-md-6 col-lg-4 station-item"
                      data-price="<?php echo htmlspecialchars((string) $min_price); ?>"
@@ -198,7 +239,7 @@ function clevo_search_aliases(string $text): string {
                         </div>
                         <div class="station-info">
                             <h6 class="station-title mb-1"><?php echo htmlspecialchars((string) $row['Name']); ?></h6>
-                            <p class="small station-loc-text mb-2"><i class="fas fa-map-marker-alt text-primary me-1"></i> <span><?php echo htmlspecialchars((string) $row['Location']); ?></span></p>
+                            <p class="small station-loc-text mb-2"><i class="fas fa-map-marker-alt text-primary me-1"></i> <span class="db-location" data-ar="<?php echo htmlspecialchars($locationAr); ?>" data-en="<?php echo htmlspecialchars($locationEn); ?>"><?php echo htmlspecialchars($locationAr); ?></span></p>
                             <p class="small station-loc-text mb-2">
                                 <i class="fas fa-clock text-primary me-1"></i>
                                 <?php echo htmlspecialchars(substr((string) $row['OpeningTime'], 0, 5)); ?> - <?php echo htmlspecialchars(substr((string) $row['ClosingTime'], 0, 5)); ?>
@@ -208,11 +249,17 @@ function clevo_search_aliases(string $text): string {
                             </p>
                             <?php if (!empty($servicePreview)): ?>
                                 <div class="service-chips">
-                                    <?php foreach ($servicePreview as $serviceName): ?>
-                                        <span class="service-chip" data-service-name="<?php echo htmlspecialchars($serviceName); ?>"><?php echo htmlspecialchars($serviceName); ?></span>
+                                    <?php foreach ($servicePreview as $servicePair): ?>
+                                        <?php
+                                            $serviceAr = trim((string) ($servicePair['ar'] ?? ''));
+                                            $serviceEn = trim((string) ($servicePair['en'] ?? ''));
+                                            if ($serviceAr === '') $serviceAr = $serviceEn;
+                                            if ($serviceEn === '') $serviceEn = $serviceAr;
+                                        ?>
+                                        <span class="service-chip" data-service-ar="<?php echo htmlspecialchars($serviceAr); ?>" data-service-en="<?php echo htmlspecialchars($serviceEn); ?>"><?php echo htmlspecialchars($serviceAr); ?></span>
                                     <?php endforeach; ?>
-                                    <?php if (count(array_filter(array_map('trim', explode('|', $serviceNames)))) > 3): ?>
-                                        <span class="service-chip">+<?php echo count(array_filter(array_map('trim', explode('|', $serviceNames)))) - 3; ?></span>
+                                    <?php if (count($servicePairs) > 3): ?>
+                                        <span class="service-chip">+<?php echo count($servicePairs) - 3; ?></span>
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
@@ -489,6 +536,14 @@ function clevo_search_aliases(string $text): string {
                 const val = el.getAttribute('data-status-val');
                 if (val === 'Busy') el.innerText = translations[current].status_busy;
                 if (val === 'Closed') el.innerText = translations[current].status_closed;
+            });
+            document.querySelectorAll('.db-location').forEach(el => {
+                el.innerText = current === 'ar' ? (el.getAttribute('data-ar') || el.innerText) : (el.getAttribute('data-en') || el.innerText);
+            });
+            document.querySelectorAll('.service-chip[data-service-ar][data-service-en]').forEach(el => {
+                el.innerText = current === 'ar'
+                    ? (el.getAttribute('data-service-ar') || el.innerText)
+                    : (el.getAttribute('data-service-en') || el.innerText);
             });
             if (window.clevoApplyServiceTranslations) {
                 window.clevoApplyServiceTranslations(document, current);

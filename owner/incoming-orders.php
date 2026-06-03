@@ -6,6 +6,7 @@ include_once __DIR__ . '/../includes/app-helpers.php';
 
 $owner_id = clevo_require_role('owner');
 clevoEnsureTrackingColumns($conn);
+clevoEnsureServiceLanguageColumns($conn);
 cancelExpiredBookings($conn);
 
 
@@ -203,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 }
 
 
-$orders_stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, u.PhoneNumber as customer_phone, serv.Name as service_name, s.Name as station_name, d.UserName as driver_name, d.CurrentAccessCode as d_code
+$orders_stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, u.PhoneNumber as customer_phone, serv.Name as service_name, serv.Name_ar as service_name_ar, serv.Name_en as service_name_en, s.Name as station_name, d.UserName as driver_name, d.CurrentAccessCode as d_code
     FROM booking b
     JOIN user u ON b.UserID = u.UserID
     JOIN stations s ON b.StationID = s.StationID
@@ -327,7 +328,7 @@ $csrf_token = generate_csrf_token();
                                             <span data-i18n="status_waiting_accept">بانتظار قبول الطلب</span>
                                         <?php endif; ?>
                                     </p>
-                                    <p class="mb-0 small fw-bold"><i class="fas fa-soap me-1"></i><?= e($order['service_name']) ?> | <?= e($order['Booking_Date']) ?> <?= date('h:i A', strtotime($order['Booking_Time'])) ?></p>
+                                    <p class="mb-0 small fw-bold"><i class="fas fa-soap me-1"></i><span class="db-service-name" data-ar="<?= e($order['service_name_ar'] ?: $order['service_name']) ?>" data-en="<?= e($order['service_name_en'] ?: $order['service_name']) ?>"><?= e($order['service_name_ar'] ?: $order['service_name']) ?></span> | <?= e($order['Booking_Date']) ?> <?= date('h:i A', strtotime($order['Booking_Time'])) ?></p>
                                     <p class="mb-0 small opacity-75">
                                         <i class="fas fa-phone me-1"></i><?= e($order['customer_phone']) ?>
                                         <?php if ($order['Payment_Method']): ?>
@@ -575,6 +576,9 @@ $csrf_token = generate_csrf_token();
             document.getElementById('bootstrap-css').href = isRtl ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
             
             document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if(translations[lang][key]) el.innerText = translations[lang][key]; });
+            document.querySelectorAll('.db-service-name').forEach(el => {
+                el.innerText = el.getAttribute(isRtl ? 'data-ar' : 'data-en') || el.getAttribute('data-ar') || el.innerText;
+            });
             document.title = translations[lang].orders_page_title;
             if(!isRtl) document.getElementById('backIcon').className = "fas fa-arrow-left";
             document.getElementById('langBtnText').innerText = isRtl ? 'EN' : 'AR';

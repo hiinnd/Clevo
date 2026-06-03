@@ -5,6 +5,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 
 require_once '../vendor/autoload.php';
 include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
 
 $error = "";
 $registration_success = false;
@@ -75,27 +76,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                     $loyalty_stmt = $conn->prepare("INSERT INTO `loyalty` (UserID, PointsBalance) VALUES (?, 0)");
                     $loyalty_stmt->bind_param("i", $new_id);
                     $loyalty_stmt->execute();
-
                     if ($role === 'customer') {
-                        $admin_id = 1;
-                        $notif_title = "Ù…Ø³ØªØ®Ø¯Ù… Ø¬Ø¯ÙŠØ¯ Ø³Ø¬Ù„ ÙÙŠ Ø§Ù„Ù†Ø¸Ø§Ù…";
-                        $notif_body = "Ù‚Ø§Ù… Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… " . $name . " Ø¨Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯ ÙƒØ²Ø¨ÙˆÙ† ÙÙŠ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚.";
-                        $notif_stmt = $conn->prepare("INSERT INTO `notifications` (user_id, title, body, type, is_read) VALUES (?, ?, ?, 'info', 0)");
-                        $notif_stmt->bind_param("iss", $admin_id, $notif_title, $notif_body);
-                        $notif_stmt->execute();
+                        clevoCreateRoleNotification(
+                            $conn,
+                            'Admin',
+                            'مستخدم جديد سجل في النظام',
+                            'قام المستخدم ' . $name . ' بإنشاء حساب جديد كزبون في التطبيق.',
+                            'info',
+                            '../admin/manage-users.php',
+                            'New user registered in the system',
+                            'User ' . $name . ' created a new customer account in the app.'
+                        );
                     }
-
                     if ($role === 'owner') {
                         $stmt_st = $conn->prepare("INSERT INTO `stations` (Name, UserID, Status, admin_status, CommercialRecordPath) VALUES (?, ?, 'Closed', 'pending', ?)");
                         $stmt_st->bind_param("sis", $st_name, $new_id, $file_path);
                         $stmt_st->execute();
 
-                        $admin_id = 1;
-                        $notif_title = "Ø·Ù„Ø¨ ØªØ³Ø¬ÙŠÙ„ Ù…Ø­Ø·Ø© Ø¬Ø¯ÙŠØ¯Ø©";
-                        $notif_body = "Ù‚Ø§Ù… " . $name . " Ø¨ØªÙ‚Ø¯ÙŠÙ… Ø·Ù„Ø¨ ØªØ³Ø¬ÙŠÙ„ Ù…Ø­Ø·Ø©: " . $st_name . "ØŒ ÙŠØ±Ø¬Ù‰ Ù…Ø±Ø§Ø¬Ø¹Ø© Ø§Ù„Ø³Ø¬Ù„ Ø§Ù„ØªØ¬Ø§Ø±ÙŠ.";
-                        $notif_stmt = $conn->prepare("INSERT INTO `notifications` (user_id, title, body, type, is_read) VALUES (?, ?, ?, 'warning', 0)");
-                        $notif_stmt->bind_param("iss", $admin_id, $notif_title, $notif_body);
-                        $notif_stmt->execute();
+                        clevoCreateRoleNotification(
+                            $conn,
+                            'Admin',
+                            'طلب تسجيل محطة جديدة',
+                            'قام ' . $name . ' بتقديم طلب تسجيل محطة: ' . $st_name . '، يرجى مراجعة السجل التجاري.',
+                            'warning',
+                            '../admin/station-approvals.php',
+                            'New station registration request',
+                            $name . ' submitted a station registration request: ' . $st_name . '. Please review the commercial record.'
+                        );
                     }
 
                     $conn->commit();

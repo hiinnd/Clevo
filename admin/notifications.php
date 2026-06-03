@@ -13,6 +13,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
+clevoEnsureNotificationsTargetColumn($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
@@ -31,34 +32,33 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     $notif_id = intval($_GET['read']);
-    $conn->query("UPDATE notifications SET is_read = 1 WHERE id = $notif_id");
+    $stmt_read = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR target_role = 'Admin')");
+    $stmt_read->bind_param("ii", $notif_id, $admin_id);
+    $stmt_read->execute();
     header("Location: notifications.php");
     exit;
 }
 
 
 if (isset($_GET['read_all'])) {
-    $conn->query("UPDATE notifications SET is_read = 1");
+    $stmt_read_all = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
+    $stmt_read_all->bind_param("i", $admin_id);
+    $stmt_read_all->execute();
     header("Location: notifications.php");
     exit;
 }
 
 
-$filter_query = "SELECT * FROM notifications 
-                 WHERE title LIKE '%انضم%' 
-                 OR title LIKE '%تسجيل محطة%' 
-                 OR title LIKE '%خطة%' 
-                 OR title LIKE '%دعم%'
-                 OR title LIKE '%New User%' 
-                 OR title LIKE '%Station Request%'
-                 OR title LIKE '%Plan%'
-                 OR title LIKE '%Support%'
-                 ORDER BY created_at DESC LIMIT 50";
-
-$res_notifications = $conn->query($filter_query);
+$stmt_notifications = $conn->prepare("SELECT * FROM notifications WHERE user_id = ? OR target_role = 'Admin' ORDER BY created_at DESC LIMIT 50");
+$stmt_notifications->bind_param("i", $admin_id);
+$stmt_notifications->execute();
+$res_notifications = $stmt_notifications->get_result();
 
 
-$unread_count = 0;
+$stmt_unread = $conn->prepare("SELECT COUNT(*) AS total FROM notifications WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
+$stmt_unread->bind_param("i", $admin_id);
+$stmt_unread->execute();
+$unread_count = (int) ($stmt_unread->get_result()->fetch_assoc()['total'] ?? 0);
 ?>
 
 <!DOCTYPE html>
@@ -147,21 +147,28 @@ $unread_count = 0;
                     <div class="notif-container">
                         <?php if ($res_notifications && $res_notifications->num_rows > 0): ?>
                             <?php while($notif = $res_notifications->fetch_assoc()): ?>
+                            <?php
+                                $title_ar = (string) ($notif['title'] ?? '');
+                                $body_ar = (string) ($notif['body'] ?? '');
+                                $title_en = trim((string) ($notif['title_en'] ?? ''));
+                                $body_en = trim((string) ($notif['body_en'] ?? ''));
+                                $icon_title = $title_ar . ' ' . $title_en;
+                            ?>
                             <div class="notif-card shadow-sm <?php echo ($notif['is_read'] == 0) ? 'unread' : ''; ?>" 
-                                 onclick="showNotifDetail('<?php echo addslashes(htmlspecialchars($notif['title'])); ?>', '<?php echo addslashes(htmlspecialchars($notif['body'])); ?>', '<?php echo $notif['id']; ?>')">
+                                 onclick='showNotifDetail(<?php echo json_encode($title_ar); ?>, <?php echo json_encode($body_ar); ?>, <?php echo json_encode($title_en); ?>, <?php echo json_encode($body_en); ?>, <?php echo (int) $notif['id']; ?>)'>
                                 <div class="row align-items-center g-3 text-start">
                                     <div class="col-auto">
                                         <div class="notif-icon shadow-sm">
                                             <i class="fas <?php 
-                                                if(strpos($notif['title'], 'دعم') !== false || strpos($notif['title'], 'Support') !== false) echo 'fa-headset';
-                                                elseif(strpos($notif['title'], 'موافقة') !== false || strpos($notif['title'], 'محطة') !== false || strpos($notif['title'], 'Station') !== false) echo 'fa-check-double';
+                                                if(strpos($icon_title, 'دعم') !== false || strpos($icon_title, 'Support') !== false) echo 'fa-headset';
+                                                elseif(strpos($icon_title, 'موافقة') !== false || strpos($icon_title, 'محطة') !== false || strpos($icon_title, 'Station') !== false) echo 'fa-check-double';
                                                 else echo 'fa-bell'; 
                                             ?>"></i>
                                         </div>
                                     </div>
                                     <div class="col">
-                                        <h6 class="mb-1 fw-bold db-text" data-original="<?php echo htmlspecialchars($notif['title']); ?>"><?php echo htmlspecialchars($notif['title']); ?></h6>
-                                        <p class="small mb-0 opacity-75 text-truncate db-text" data-original="<?php echo htmlspecialchars($notif['body']); ?>" style="max-width: 500px; color: var(--text-main);"><?php echo htmlspecialchars($notif['body']); ?></p>
+                                        <h6 class="mb-1 fw-bold db-text" data-ar="<?php echo htmlspecialchars($title_ar); ?>" data-en="<?php echo htmlspecialchars($title_en); ?>"><?php echo htmlspecialchars($title_ar); ?></h6>
+                                        <p class="small mb-0 opacity-75 text-truncate db-text" data-ar="<?php echo htmlspecialchars($body_ar); ?>" data-en="<?php echo htmlspecialchars($body_en); ?>" style="max-width: 500px; color: var(--text-main);"><?php echo htmlspecialchars($body_ar); ?></p>
                                         <small class="opacity-50 mt-1 d-block"><i class="far fa-clock me-1"></i> <?php echo date('Y-m-d H:i', strtotime($notif['created_at'])); ?></small>
                                     </div>
                                     <div class="col-auto text-end">
@@ -221,7 +228,9 @@ $unread_count = 0;
             "قام المستخدم": "User",
             "المستخدم": "User",
             "جديد": "New",
-            "مقروء": "Read"
+            "مقروء": "Read",
+            "نشاط تجريبي": "Demo activity",
+            "تم تحميل بيانات تجريبية لمحطات عمان والحجوزات.": "Demo data for Amman stations and bookings was loaded."
         };
 
         const translations = {
@@ -250,10 +259,18 @@ $unread_count = 0;
             return t.trim();
         }
 
-        function showNotifDetail(title, body, id) {
+        function localizedDBText(arText, enText, lang) {
+            const englishText = enText && enText.trim() ? enText : translateDBText(arText, 'en');
+            if (englishText && englishText !== arText) {
+                return arText + "\n" + englishText;
+            }
+            return arText;
+        }
+
+        function showNotifDetail(titleAr, bodyAr, titleEn, bodyEn, id) {
             const lang = localStorage.getItem('app_lang') || 'ar';
-            document.getElementById('modalTitle').innerText = translateDBText(title, lang);
-            document.getElementById('modalBody').innerText = translateDBText(body, lang);
+            document.getElementById('modalTitle').innerText = localizedDBText(titleAr, titleEn, lang);
+            document.getElementById('modalBody').innerText = localizedDBText(bodyAr, bodyEn, lang);
             currentNotifId = id;
             nModal.show();
         }
@@ -276,9 +293,9 @@ $unread_count = 0;
             });
 
             document.querySelectorAll('.db-text').forEach(el => {
-                const originalText = el.getAttribute('data-original') || el.innerText;
-                if (!el.getAttribute('data-original')) el.setAttribute('data-original', originalText);
-                el.innerText = translateDBText(originalText, l);
+                const arText = el.getAttribute('data-ar') || el.innerText;
+                const enText = el.getAttribute('data-en') || '';
+                el.innerText = localizedDBText(arText, enText, l);
             });
 
             document.getElementById('backIcon').className = isRtl ? 'fas fa-arrow-right' : 'fas fa-arrow-left';

@@ -44,7 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withd
                 'طلب سحب أرباح',
                 'وصل طلب سحب أرباح من صاحب مغسلة بقيمة ' . number_format($amount, 2) . ' JOD.',
                 'info',
-                'financial-reports.php'
+                'financial-reports.php',
+                'Withdrawal request',
+                'A station owner requested a profit withdrawal of ' . number_format($amount, 2) . ' JOD.'
             );
         }
         clevoCreateNotification(
@@ -53,7 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withd
             'تم إرسال طلب السحب',
             'تم تسجيل طلب سحب الأرباح بقيمة ' . number_format($amount, 2) . ' JOD وسيتم مراجعته من الإدارة.',
             'success',
-            'owner-wallet.php'
+            'owner-wallet.php',
+            'Withdrawal request sent',
+            'Your profit withdrawal request for ' . number_format($amount, 2) . ' JOD was recorded and will be reviewed by admin.'
         );
         $conn->commit();
         echo json_encode(['status' => 'success', 'amount' => $amount], JSON_UNESCAPED_UNICODE);
@@ -229,6 +233,17 @@ if ($userID > 0) {
         </div>
     </div>
 
+    <div class="modal fade" id="walletStatusModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content p-4 text-center shadow-lg border-0">
+                <div id="walletStatusIcon" class="mb-3"></div>
+                <h6 id="walletStatusTitle" class="fw-bold mb-2"></h6>
+                <p id="walletStatusBody" class="text-muted-custom small mb-3"></p>
+                <button class="btn btn-primary rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_ok">موافق</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
@@ -236,18 +251,29 @@ if ($userID > 0) {
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", nav_notifications: "الإشعارات",
                 wallet_page_title: "محفظتي المالية", available_balance: "الرصيد المتاح للسحب", btn_withdraw: "سحب الأرباح", monthly_profit: "أرباح الشهر", commission_label: "العمولة", recent_history: "السجل الأخير", 
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", 
-                no_transactions_yet: "لا توجد حركات بعد", confirm_withdraw_title: "تأكيد سحب الأرباح", confirm_withdraw_msg: "هل تريد سحب الرصيد المتاح لحسابك؟", btn_withdraw_now: "نعم، سحب الآن" 
+                no_transactions_yet: "لا توجد حركات بعد", confirm_withdraw_title: "تأكيد سحب الأرباح", confirm_withdraw_msg: "هل تريد سحب الرصيد المتاح لحسابك؟", btn_withdraw_now: "نعم، سحب الآن", btn_ok: "موافق",
+                withdraw_success_title: "تم إرسال الطلب", withdraw_success_body: "تم إرسال طلب السحب للإدارة وتسجيله في المحفظة.", withdraw_error_title: "تعذر تنفيذ الطلب", withdraw_error_body: "لا يوجد رصيد متاح للسحب أو تعذر تنفيذ الطلب.", request_failed_body: "تعذر تنفيذ الطلب."
             },
             en: { 
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
                 wallet_page_title: "My Wallet", available_balance: "Available Balance", btn_withdraw: "Withdraw", monthly_profit: "Monthly Profit", commission_label: "Commission", recent_history: "Recent History", 
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", 
-                no_transactions_yet: "No transactions found", confirm_withdraw_title: "Confirm Withdrawal", confirm_withdraw_msg: "Do you want to withdraw the available balance to your account?", btn_withdraw_now: "Yes, Withdraw Now" 
+                no_transactions_yet: "No transactions found", confirm_withdraw_title: "Confirm Withdrawal", confirm_withdraw_msg: "Do you want to withdraw the available balance to your account?", btn_withdraw_now: "Yes, Withdraw Now", btn_ok: "OK",
+                withdraw_success_title: "Request Sent", withdraw_success_body: "Withdrawal request was sent to admin and recorded in your wallet.", withdraw_error_title: "Request Failed", withdraw_error_body: "No available balance or withdrawal failed.", request_failed_body: "Request failed."
             }
         };
 
         const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
         const showM = (id) => new bootstrap.Modal(document.getElementById(id)).show();
+        function showWalletStatus(type, titleKey, bodyKey) {
+            const lang = localStorage.getItem('app_lang') || 'ar';
+            document.getElementById('walletStatusIcon').innerHTML = type === 'success'
+                ? '<i class="fas fa-check-circle text-success fa-4x"></i>'
+                : '<i class="fas fa-circle-exclamation text-warning fa-4x"></i>';
+            document.getElementById('walletStatusTitle').innerText = translations[lang][titleKey];
+            document.getElementById('walletStatusBody').innerText = translations[lang][bodyKey];
+            showM('walletStatusModal');
+        }
         function confirmLogout() { showM('logoutModal'); }
         function toggleLanguage() { localStorage.setItem('app_lang', (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'en' : 'ar'); location.reload(); }
         function toggleGlobalTheme() { localStorage.setItem('global_theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); location.reload(); }
@@ -269,13 +295,13 @@ if ($userID > 0) {
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    alert(lang === 'ar' ? 'تم إرسال طلب السحب للإدارة وتسجيله في المحفظة.' : 'Withdrawal request was sent to admin and recorded in your wallet.');
-                    location.reload();
+                    showWalletStatus('success', 'withdraw_success_title', 'withdraw_success_body');
+                    setTimeout(() => location.reload(), 1300);
                     return;
                 }
-                alert(lang === 'ar' ? 'لا يوجد رصيد متاح للسحب أو تعذر تنفيذ الطلب.' : 'No available balance or withdrawal failed.');
+                showWalletStatus('error', 'withdraw_error_title', 'withdraw_error_body');
             })
-            .catch(() => alert(lang === 'ar' ? 'تعذر تنفيذ الطلب.' : 'Request failed.'))
+            .catch(() => showWalletStatus('error', 'withdraw_error_title', 'request_failed_body'))
             .finally(() => {
                 btn.disabled = false;
                 btn.innerHTML = original;

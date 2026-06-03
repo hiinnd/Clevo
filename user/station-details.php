@@ -8,6 +8,7 @@ $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 cancelExpiredBookings($conn, $userID);
 clevoEnsurePlanColumns($conn);
 clevoEnsureBookingServicesTable($conn);
+clevoEnsureServiceLanguageColumns($conn);
 
 $stationID = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $query = "SELECT * FROM `stations` WHERE StationID = ?";
@@ -58,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
     $placeholders = implode(',', array_fill(0, count($serviceIDs), '?'));
     $types = str_repeat('i', count($serviceIDs)) . 'i';
-    $serviceStmt = $conn->prepare("SELECT ServiceID, Name, Price, is_station, is_home, is_pickup FROM services WHERE ServiceID IN ($placeholders) AND StationID = ?");
+    $serviceStmt = $conn->prepare("SELECT ServiceID, Name, Name_ar, Name_en, Price, is_station, is_home, is_pickup FROM services WHERE ServiceID IN ($placeholders) AND StationID = ?");
     $params = array_merge($serviceIDs, [$stationID]);
     $serviceStmt->bind_param($types, ...$params);
     $serviceStmt->execute();
@@ -88,10 +89,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             $orderedServices[] = $selectedDbServices[$id];
         }
     }
-    $serviceNames = array_map(fn($item) => $item['Name'], $orderedServices);
+    $serviceNamesAr = array_map(fn($item) => $item['Name_ar'] ?: $item['Name'], $orderedServices);
+    $serviceNamesEn = array_map(fn($item) => $item['Name_en'] ?: $item['Name'], $orderedServices);
+    $serviceNames = $serviceNamesEn;
     $totalPrice = array_reduce($orderedServices, fn($sum, $item) => $sum + (float) $item['Price'], 0);
     $adminCommission = clevoCalculateAdminCommission($totalPrice);
-    $servicesNote = "الخدمات: " . implode(' + ', $serviceNames);
+    $servicesNote = "الخدمات: " . implode(' + ', $serviceNamesAr);
     $addressForDb = trim($addressDetails) !== '' ? $addressDetails . "\n" . $servicesNote : $servicesNote;
 
     $userPlanID = null;
@@ -138,11 +141,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         clevoSaveBookingServices($conn, $bookingID, $orderedServices);
         $ownerID = (int) $station['UserID'];
         if ($ownerID > 0) {
-            $title = "طلب جديد";
-            $planNote = $paymentMethod === 'plan' ? " الدفع من باقة العميل." : "";
-            $body = "وصلك طلب #$orderNumber لخدمات " . implode(' + ', $serviceNames) . " بتاريخ $bookingDate الساعة $bookingTime." . $planNote;
-            $type = "info";
-            clevoCreateNotification($conn, $ownerID, $title, $body, $type, 'incoming-orders.php');
+            $planNoteAr = $paymentMethod === 'plan' ? " الدفع من باقة العميل." : "";
+            $planNoteEn = $paymentMethod === 'plan' ? " Payment is from the customer's plan." : "";
+            $bodyAr = "وصلك طلب #$orderNumber لخدمات " . implode(' + ', $serviceNamesAr) . " بتاريخ $bookingDate الساعة $bookingTime." . $planNoteAr;
+            $bodyEn = "You received order #$orderNumber for services " . implode(' + ', $serviceNamesEn) . " on $bookingDate at $bookingTime." . $planNoteEn;
+            clevoCreateNotification($conn, $ownerID, "طلب جديد", $bodyAr, "info", 'incoming-orders.php', "New order", $bodyEn);
         }
 
         $conn->commit();
@@ -766,9 +769,13 @@ $csrf_token = generate_csrf_token();
                 container.innerHTML = `<p class="text-center opacity-50 py-3">${translations[lang].no_serv}</p>`;
             } else {
                 filtered.forEach(s => {
-                    const serviceDisplayName = window.clevoTranslateServiceName
-                        ? window.clevoTranslateServiceName(s.Name, lang)
-                        : s.Name;
+                    const localizedService = window.clevoLocalizeService
+                        ? window.clevoLocalizeService(s, lang)
+                        : {
+                            name: lang === 'ar' ? (s.Name_ar || s.Name) : (s.Name_en || s.Name),
+                            description: lang === 'ar' ? (s.Description_ar || s.Description || '') : (s.Description_en || s.Description || '')
+                        };
+                    const serviceDisplayName = localizedService.name;
                     const card = document.createElement('div');
                     card.className = 'item-card d-flex justify-content-between align-items-center shadow-sm';
                     card.onclick = () => toggleServ(card, serviceDisplayName, parseFloat(s.Price), parseInt(s.ServiceID, 10));
@@ -780,7 +787,7 @@ $csrf_token = generate_csrf_token();
                     title.innerText = serviceDisplayName;
                     const desc = document.createElement('small');
                     desc.className = 'opacity-75';
-                    desc.innerText = s.Description || '';
+                    desc.innerText = localizedService.description || '';
                     textWrap.appendChild(title);
                     textWrap.appendChild(desc);
 

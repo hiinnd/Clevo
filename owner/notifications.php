@@ -40,7 +40,7 @@ $unreadStmt->execute();
 $unread_count = (int) ($unreadStmt->get_result()->fetch_assoc()['unread'] ?? 0);
 
 
-$query = "SELECT n.id, n.title, n.body as message, n.type, n.is_read, n.created_at, n.target_url, s.Name AS station_name
+$query = "SELECT n.id, n.title, n.title_en, n.body as message, n.body_en, n.type, n.is_read, n.created_at, n.target_url, s.Name AS station_name
     FROM notifications n
     LEFT JOIN stations s ON s.UserID = n.user_id
     WHERE n.user_id = ?
@@ -139,8 +139,8 @@ $notifications = $stmt->get_result();
                             <div class="d-flex gap-3 text-start">
                                 <div class="mt-1 text-primary"><i class="fas fa-circle-info"></i></div>
                                 <div>
-                                    <h6 class="fw-bold mb-1 db-notif-title"><?php echo htmlspecialchars($row['title']); ?></h6>
-                                    <p class="small text-muted mb-2 db-notif-msg" style="color: var(--text-main) !important;"><?php echo htmlspecialchars($row['message']); ?></p>
+                                    <h6 class="fw-bold mb-1 db-notif-title" data-ar="<?php echo htmlspecialchars($row['title']); ?>" data-en="<?php echo htmlspecialchars($row['title_en'] ?? ''); ?>"><?php echo htmlspecialchars($row['title']); ?></h6>
+                                    <p class="small text-muted mb-2 db-notif-msg" data-ar="<?php echo htmlspecialchars($row['message']); ?>" data-en="<?php echo htmlspecialchars($row['body_en'] ?? ''); ?>" style="color: var(--text-main) !important;"><?php echo htmlspecialchars($row['message']); ?></p>
                                     <?php if (!empty($row['station_name'])): ?>
                                         <span class="badge bg-dark text-info"><i class="fas fa-car-wash me-1"></i> <?php echo htmlspecialchars($row['station_name']); ?></span>
                                     <?php endif; ?>
@@ -254,8 +254,11 @@ $notifications = $stmt->get_result();
         // إذا كانت اللغة إنجليزية، قم بترجمة محتوى الإشعارات المجلوبة من قاعدة البيانات فوراً
         if (lang === 'en') {
             document.querySelectorAll('.db-notif-title').forEach(async (el) => {
-                const text = el.innerText;
-                if (text.includes('طلب جديد')) {
+                const text = el.getAttribute('data-ar') || el.innerText;
+                const savedEnglish = el.getAttribute('data-en') || '';
+                if (savedEnglish.trim()) {
+                    el.innerText = savedEnglish;
+                } else if (text.includes('طلب جديد')) {
                     el.innerText = 'New Order';
                 } else {
                     el.innerText = await translateDatabaseText(text);
@@ -263,7 +266,12 @@ $notifications = $stmt->get_result();
             });
 
             document.querySelectorAll('.db-notif-msg').forEach(async (el) => {
-                const text = el.innerText;
+                const text = el.getAttribute('data-ar') || el.innerText;
+                const savedEnglish = el.getAttribute('data-en') || '';
+                if (savedEnglish.trim()) {
+                    el.innerText = savedEnglish;
+                    return;
+                }
                 // ترجمة ذكية ومحسنة لتنسيق تفاصيل الحجز ونوع الخدمات المكتوبة بالصورة
                 let translated = await translateDatabaseText(text);
                 translated = translated.replace(/وصلك طلب/gi, 'You received an order')
@@ -274,6 +282,10 @@ $notifications = $stmt->get_result();
                                        .replace(/بتاريخ/gi, 'on date')
                                        .replace(/الساعة/gi, 'at time');
                 el.innerText = translated;
+            });
+        } else {
+            document.querySelectorAll('.db-notif-title, .db-notif-msg').forEach((el) => {
+                el.innerText = el.getAttribute('data-ar') || el.innerText;
             });
         }
     };

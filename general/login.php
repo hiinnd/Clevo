@@ -85,9 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stored_password = (string) $user['Password'];
                         $role_lower = strtolower((string) $user['Role']);
 
+                        $legacy_sha256_password = hash('sha256', $password);
+
                         if (password_verify($password, $stored_password)) {
                             $is_password_correct = true;
-                        } elseif (hash_equals($stored_password, $password)) {
+                        } elseif (hash_equals($stored_password, $password) || hash_equals($stored_password, $legacy_sha256_password)) {
                             $is_password_correct = true;
                             $new_hash = password_hash($password, PASSWORD_DEFAULT);
                             $update_pass = $conn->prepare("UPDATE `user` SET Password = ? WHERE UserID = ?");

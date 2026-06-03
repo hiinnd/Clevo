@@ -40,7 +40,7 @@ if (isset($_GET['read']) && is_numeric($_GET['read'])) {
 
 
 
-$stmt = $conn->prepare("SELECT id, title, body, type, is_read, created_at, target_url FROM `notifications` WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC");
+$stmt = $conn->prepare("SELECT id, title, title_en, body, body_en, type, is_read, created_at, target_url FROM `notifications` WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
 $notifications = $stmt->get_result();
@@ -99,6 +99,34 @@ function clevo_notification_variants(string $title, string $body): array
     }
 
     return [$titleAr, $bodyAr, $titleEn, $bodyEn];
+}
+
+function clevo_user_notification_fallback_en(string $text, bool $isTitle = false): string
+{
+    $text = trim($text);
+    if ($text === '') return '';
+    if (preg_match('/^[\x20-\x7E\s]+$/', $text)) return $text;
+    preg_match('/#[A-Za-z0-9]+/', $text, $matches);
+    $orderNum = $matches[0] ?? '';
+
+    $pairs = [
+        'تم قبول الطلب' => 'Order accepted',
+        'تم إلغاء الطلب' => 'Order cancelled',
+        'تم إنهاء الطلب' => 'Order completed',
+        'موعدك القادم' => 'Upcoming appointment',
+        'طلب جديد' => 'New order',
+        'نشاط تجريبي' => 'Demo activity',
+        'رد الدعم' => 'Support reply',
+    ];
+    foreach ($pairs as $ar => $en) {
+        if (str_contains($text, $ar)) return $en;
+    }
+    if ($isTitle) return 'Notification';
+    if (str_contains($text, 'تم قبول')) return trim("Your order $orderNum was accepted.");
+    if (str_contains($text, 'مجدول')) return trim("Your order $orderNum is scheduled.");
+    if (str_contains($text, 'لم يكتمل') || str_contains($text, 'الدفع')) return trim("Your order $orderNum was cancelled because payment was not completed on time.");
+    if (str_contains($text, 'تقييم')) return trim("You can now rate the service for order $orderNum.");
+    return $text;
 }
 ?>
 
@@ -225,6 +253,12 @@ function clevo_notification_variants(string $title, string $body): array
                     if($noti['type'] == 'info' && clevo_notification_contains((string) $noti['title'], ['رد', 'الدعم'])) $icon = "fa-headset";
 
                     [$titleRawAr, $bodyRawAr, $titleRawEn, $bodyRawEn] = clevo_notification_variants((string) $noti['title'], (string) $noti['body']);
+                    $titleRawEn = trim((string) ($noti['title_en'] ?? '')) !== ''
+                        ? (string) $noti['title_en']
+                        : clevo_user_notification_fallback_en($titleRawEn, true);
+                    $bodyRawEn = trim((string) ($noti['body_en'] ?? '')) !== ''
+                        ? (string) $noti['body_en']
+                        : clevo_user_notification_fallback_en($bodyRawEn, false);
                     $title_ar = e($titleRawAr);
                     $body_ar = e($bodyRawAr);
                     $title_en = e($titleRawEn);
@@ -299,6 +333,35 @@ function clevo_notification_variants(string $title, string $body): array
             }
         };
 
+        function translateLeftoverNotificationText(text, isTitle = false) {
+            const value = (text || '').trim();
+            if (!/[\u0600-\u06FF]/.test(value)) return value;
+            const orderMatch = value.match(/#[A-Za-z0-9]+/);
+            const orderNum = orderMatch ? orderMatch[0] : '';
+
+            if (value.includes('انتهت مهلة الطلب')) return 'Request Timed Out';
+            if (value.includes('تم إنهاء الطلب')) return 'Order Completed';
+            if (value.includes('تم قبول الطلب')) return 'Order Accepted';
+            if (value.includes('موعدك القادم')) return 'Upcoming Appointment';
+            if (value.includes('طلب جديد')) return 'New Order';
+            if (value.includes('نشاط تجريبي')) return 'Demo Activity';
+            if (isTitle) return 'Notification';
+
+            if (value.includes('لم يتم الرد') || value.includes('خلال 10 دقائق')) {
+                return `Your order ${orderNum} was not answered within 10 minutes. You can book another station now.`;
+            }
+            if (value.includes('يمكنك الآن تقييم الخدمة')) {
+                return `Your order ${orderNum} was completed. You can now rate the service.`;
+            }
+            if (value.includes('وجاري الاستلام')) {
+                return `Your order ${orderNum} was accepted and pickup is in progress.`;
+            }
+            if (value.includes('مقبول ومجدول')) {
+                return `Your order ${orderNum} is accepted and scheduled.`;
+            }
+            return value;
+        }
+
         window.onload = () => {
             const lang = localStorage.getItem('app_lang') || 'ar';
             const theme = localStorage.getItem('global_theme') || 'dark';
@@ -323,11 +386,22 @@ function clevo_notification_variants(string $title, string $body): array
             // ترجمة نصوص الداتابيز
             document.querySelectorAll('[data-db-ar]').forEach(el => {
                 if(lang === 'en') {
-                    el.innerText = el.getAttribute('data-db-en');
+                    const isTitle = el.classList.contains('noti-title-text');
+                    const englishText = el.getAttribute('data-db-en') || el.innerText;
+                    el.innerText = translateLeftoverNotificationText(englishText, isTitle);
                 } else {
                     el.innerText = el.getAttribute('data-db-ar');
                 }
             });
+
+            if (lang === 'en') {
+                document.querySelectorAll('.noti-title-text').forEach(el => {
+                    el.innerText = translateLeftoverNotificationText(el.innerText, true);
+                });
+                document.querySelectorAll('.noti-body-text').forEach(el => {
+                    el.innerText = translateLeftoverNotificationText(el.innerText, false);
+                });
+            }
         };
     </script>
     <script src="../assets/lamea.js"></script>

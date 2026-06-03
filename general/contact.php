@@ -1,6 +1,7 @@
 <?php
 session_start();
 include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/app-helpers.php';
 
 $message_sent = false;
 
@@ -21,11 +22,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
     
     if (mysqli_query($conn, $sql)) {
         $message_sent = true;
-        
-        
-        $notif_title = "رسالة دعم جديدة";
-        $notif_body = "لديك رسالة جديدة من: " . $name . " بخصوص: " . $subject;
-        mysqli_query($conn, "INSERT INTO notifications (title, body, type, is_read) VALUES ('$notif_title', '$notif_body', 'info', 0)");
+        clevoCreateRoleNotification(
+            $conn,
+            'Admin',
+            'رسالة دعم جديدة',
+            'لديك رسالة جديدة من: ' . $name . ' بخصوص: ' . $subject,
+            'info',
+            '../admin/all-support-chats.php',
+            'New support message',
+            'You have a new message from: ' . $name . ' about: ' . $subject
+        );
     }
 }
 ?>

@@ -53,16 +53,30 @@ $current_page = basename($_SERVER['PHP_SELF']);
 .admin-sidebar {
     background: var(--bg-sidebar, #000000);
     color: white;
-    padding: 20px 15px;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    height: 100vh;
-    z-index: 1050;
-    width: 260px;
-    display: flex;
-    flex-direction: column;
+    padding: 18px 16px 14px !important;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 1050 !important;
+    width: 260px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     transition: all 0.3s ease;
+}
+
+.admin-sidebar .text-center.mb-4 {
+    flex: 0 0 auto !important;
+    margin-bottom: 12px !important;
+}
+
+.admin-sidebar .admin-avatar {
+    width: clamp(58px, 11vh, 80px) !important;
+    height: clamp(58px, 11vh, 80px) !important;
 }
 
 /* إضافة محاذاة تعويضية للمحتوى الرئيسي لكي لا يختفي خلف السايدبار الثابت */
@@ -81,6 +95,42 @@ $current_page = basename($_SERVER['PHP_SELF']);
     display: none !important;
 }
 
+.sidebar-nav-container {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    margin-top: 8px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-inline: 2px !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sidebar-nav-container::-webkit-scrollbar {
+    display: none;
+}
+
+.admin-sidebar .nav-link {
+    min-height: 44px !important;
+    margin-bottom: 4px !important;
+    white-space: nowrap !important;
+}
+
+.admin-sidebar .nav-link span {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.admin-sidebar .mt-auto {
+    flex: 0 0 auto !important;
+    margin-top: 8px !important;
+    padding-top: 6px !important;
+}
+
+.admin-sidebar .mt-auto hr {
+    margin: 6px 0 8px !important;
+}
+
 @media (max-width: 991px) {
     .admin-sidebar {
         position: fixed !important;
@@ -89,9 +139,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
-        height: 70px !important;
+        height: 78px !important;
+        max-height: 78px !important;
         flex-direction: row !important;
-        padding: 0 5px !important;
+        padding: 7px max(6px, env(safe-area-inset-left)) calc(7px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-right)) !important;
         justify-content: space-around !important;
         align-items: center !important;
         box-shadow: 0 -5px 25px rgba(0,0,0,0.4) !important;
@@ -107,23 +158,30 @@ $current_page = basename($_SERVER['PHP_SELF']);
     .sidebar-nav-container {
         width: 100% !important;
         margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
     }
     
     .sidebar-nav-container .nav {
         flex-direction: row !important;
-        justify-content: space-around !important;
+        display: grid !important;
+        grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+        gap: 2px !important;
         width: 100% !important;
     }
     
     .nav-link {
-        padding: 8px 10px !important;
+        min-height: 62px !important;
+        padding: 7px 3px !important;
         margin-bottom: 0 !important;
-        border-radius: 12px !important;
-        font-size: 0.7rem !important;
+        border-radius: 11px !important;
+        font-size: 0.62rem !important;
         flex-direction: column !important;
         align-items: center !important;
         gap: 2px !important;
         justify-content: center !important;
+        min-width: 0 !important;
+        line-height: 1.15 !important;
     }
     
     .nav-link i {
@@ -132,11 +190,39 @@ $current_page = basename($_SERVER['PHP_SELF']);
     }
     
     .nav-link span {
-        font-size: 0.65rem !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        font-size: clamp(0.52rem, 1.7vw, 0.66rem) !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        text-align: center !important;
     }
     
     .mobile-logout-btn {
         display: flex !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .admin-sidebar {
+        height: 66px !important;
+        max-height: 66px !important;
+        padding-top: 5px !important;
+    }
+
+    .nav-link {
+        min-height: 54px !important;
+        padding: 6px 2px !important;
+    }
+
+    .nav-link i {
+        font-size: 1rem !important;
+    }
+
+    .nav-link span {
+        font-size: 0.5rem !important;
     }
 }
 </style>

@@ -3,6 +3,7 @@ session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
+clevoEnsureServiceLanguageColumns($conn);
 
 $stations_query = mysqli_query($conn, "
     SELECT
@@ -15,7 +16,7 @@ $stations_query = mysqli_query($conn, "
         s.Has_At_Station,
         s.Has_Home_Service,
         s.Has_Delivery,
-        GROUP_CONCAT(DISTINCT LOWER(serv.Name) SEPARATOR '|') AS ServiceNames,
+        GROUP_CONCAT(DISTINCT LOWER(CONCAT_WS(' ', COALESCE(NULLIF(serv.Name_ar, ''), serv.Name), COALESCE(NULLIF(serv.Name_en, ''), serv.Name))) SEPARATOR '|') AS ServiceNames,
         MAX(COALESCE(serv.is_home, 0)) AS HasServiceHome,
         MAX(COALESCE(serv.is_pickup, 0)) AS HasServicePickup
     FROM stations s
@@ -71,6 +72,13 @@ if ($stations_query) {
             'ServiceNames' => $serviceNames,
             'Categories' => array_values(array_unique($categories)),
         ];
+    }
+}
+
+$available_service_categories = [];
+foreach ($stations as $station) {
+    foreach ($station['Categories'] as $category) {
+        $available_service_categories[$category] = true;
     }
 }
 
@@ -750,6 +758,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                     ['img' => 'AtHome.jpg', 't' => 'ser_5_t', 'd' => 'ser_5_d'],
                     ['img' => 'Delivary.jpg', 't' => 'ser_6_t', 'd' => 'ser_6_d']
                 ];
+                $services = array_values(array_filter($services, fn($service) => isset($available_service_categories[$service['t']])));
                 foreach ($services as $s): ?>
                     <div class="col-12 col-md-6 col-lg-4">
                         <div class="service-card" onclick="showStations('<?php echo $s['t']; ?>')">
