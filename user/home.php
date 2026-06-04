@@ -1093,13 +1093,13 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                 <div>
 
-                    <span class="status-pill <?= $activeOrderStatusClass ?>">
+                    <span class="status-pill <?= $activeOrderStatusClass ?>" data-active-status="<?= htmlspecialchars($pending_booking['Status']) ?>">
 
                         <?= htmlspecialchars($activeOrderStatusLabels[$pending_booking['Status']] ?? $pending_booking['Status']) ?>
 
                     </span>
 
-                    <h6 class="fw-bold mt-2 mb-1"><?= htmlspecialchars($pending_booking['service_name']) ?></h6>
+                    <h6 class="fw-bold mt-2 mb-1" data-service-name="<?= htmlspecialchars($pending_booking['service_name']) ?>"><?= htmlspecialchars($pending_booking['service_name']) ?></h6>
 
                     <p class="small opacity-75 mb-1"><?= htmlspecialchars($pending_booking['station_name']) ?> | #<?= htmlspecialchars($pending_booking['Order_Number']) ?></p>
 
@@ -1111,7 +1111,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                             <i class="fas fa-hourglass-half"></i>
 
-                            <span>إلغاء تلقائي بعد</span>
+                            <span data-i18n="timer_auto_cancel">إلغاء تلقائي بعد</span>
 
                             <span id="timerText">--:--</span>
 
@@ -1123,7 +1123,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                             <i class="fas fa-credit-card"></i>
 
-                            <span>مهلة الدفع</span>
+                            <span data-i18n="timer_payment_deadline">مهلة الدفع</span>
 
                             <span id="timerText">--:--</span>
 
@@ -1135,7 +1135,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                 <?php if ($pending_booking['Status'] === 'Accepted' && empty($pending_booking['Payment_Method'])): ?>
 
-                    <a class="order-next-btn" href="../includes/payment-method.php?id=<?= (int) $pending_booking['BookingID'] ?>"><i class="fas fa-credit-card"></i> الدفع</a>
+                    <a class="order-next-btn" href="../includes/payment-method.php?id=<?= (int) $pending_booking['BookingID'] ?>"><i class="fas fa-credit-card"></i> <span data-i18n="btn_pay_now">الدفع</span></a>
 
 
 
@@ -1163,7 +1163,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
-                            تتبع السائق
+                            <span data-i18n="btn_track_driver">تتبع السائق</span>
 
 
 
@@ -1266,6 +1266,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/service-translations.js"></script>
 
     <script>
         const API_KEY = "fe43aec0ea2f78313d0d8a5887ba992b";
@@ -1284,7 +1285,11 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             const durationMinutes = parseInt(timerEl.getAttribute('data-duration') || '10', 10);
 
-            const bookingTime = new Date(startTimeStr).getTime();
+            const normalizedStart = startTimeStr ? startTimeStr.replace(' ', 'T') : '';
+
+            const bookingTime = new Date(normalizedStart).getTime();
+
+            if (!Number.isFinite(bookingTime)) return;
 
             const expiryTime = bookingTime + (durationMinutes * 60 * 1000);
 
@@ -1300,7 +1305,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                     clearInterval(interval);
 
-                    document.getElementById('timerText').innerText = "Expired";
+                    document.getElementById('timerText').innerText = (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'انتهت' : 'Expired';
 
                     setTimeout(() => {
 
@@ -1790,7 +1795,29 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                 serv_logout: "خروج",
 
-                paid_from_plan: "من الباقة"
+                paid_from_plan: "من الباقة",
+
+                timer_auto_cancel: "إلغاء تلقائي بعد",
+
+                timer_payment_deadline: "مهلة الدفع",
+
+                btn_pay_now: "الدفع",
+
+                btn_track_driver: "تتبع السائق",
+
+                status_pending: "بانتظار الموافقة",
+
+                status_accepted: "تمت الموافقة",
+
+                status_arrived: "وصل السائق",
+
+                status_in_progress: "قيد التنفيذ",
+
+                status_pickup: "قيد الاستلام",
+
+                status_washing: "قيد الغسيل",
+
+                status_returning: "قيد الإرجاع"
 
             },
 
@@ -1838,7 +1865,29 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                 serv_logout: "Logout",
 
-                paid_from_plan: "From plan"
+                paid_from_plan: "From plan",
+
+                timer_auto_cancel: "Auto-cancel after",
+
+                timer_payment_deadline: "Payment deadline",
+
+                btn_pay_now: "Pay",
+
+                btn_track_driver: "Track Driver",
+
+                status_pending: "Waiting for approval",
+
+                status_accepted: "Accepted",
+
+                status_arrived: "Driver arrived",
+
+                status_in_progress: "In progress",
+
+                status_pickup: "Pickup",
+
+                status_washing: "Washing",
+
+                status_returning: "Returning"
 
             }
 
@@ -1861,6 +1910,38 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             document.getElementById('langBtn').innerText = lang === 'ar' ? 'EN' : 'AR';
 
             renderPlanMiniRail(lang);
+
+            applyActiveOrderTranslations(lang);
+
+        }
+
+
+
+        function applyActiveOrderTranslations(lang) {
+
+            const statusKeys = {
+                Pending: 'status_pending',
+                Accepted: 'status_accepted',
+                Arrived: 'status_arrived',
+                'In Progress': 'status_in_progress',
+                Pickup: 'status_pickup',
+                Washing: 'status_washing',
+                Returning: 'status_returning'
+            };
+
+            document.querySelectorAll('[data-active-status]').forEach(el => {
+
+                const key = statusKeys[el.getAttribute('data-active-status')];
+
+                if (key && translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
+
+            });
+
+            if (window.clevoApplyServiceTranslations) {
+
+                window.clevoApplyServiceTranslations(document, lang);
+
+            }
 
         }
 
