@@ -236,6 +236,7 @@ CREATE TABLE `support_tickets` (
   `user_id` int(11) DEFAULT NULL,
   `user_name` varchar(255) DEFAULT NULL,
   `user_type` enum('user','owner','driver') DEFAULT 'user',
+  `guest_email` varchar(100) DEFAULT NULL,
   `subject` varchar(255) DEFAULT NULL,
   `message` text DEFAULT NULL,
   `status` enum('New','Replied','Closed') DEFAULT 'New',
@@ -481,11 +482,11 @@ VALUES
 (6, NULL, 'Admin', 'نشاط تجريبي', 'Demo activity', 'تم تحميل بيانات تجريبية لمحطات عمان والحجوزات.', 'Demo data for Amman stations and bookings was loaded.', '../admin/admin-dashboard.php', 'success', 0, '2026-06-02 09:30:00');
 
 INSERT INTO `support_tickets`
-(`id`, `user_id`, `user_name`, `user_type`, `subject`, `message`, `status`, `is_guest`, `created_at`)
+(`id`, `user_id`, `user_name`, `user_type`, `guest_email`, `subject`, `message`, `status`, `is_guest`, `created_at`)
 VALUES
-(1, 11, 'Sami Mustafa', 'user', 'Wallet top-up question', 'I want to know if wallet top-up appears immediately.', 'Replied', 0, '2026-05-28 11:00:00'),
-(2, 4, 'Leen Haddad', 'owner', 'Station working hours', 'Please help me update weekend working hours.', 'New', 0, '2026-06-01 10:20:00'),
-(3, NULL, 'Guest Visitor', 'user', 'Service areas', 'Do you support home wash in all Amman areas?', 'New', 1, '2026-06-01 22:10:00');
+(1, 11, 'Sami Mustafa', 'user', NULL, 'Wallet top-up question', 'I want to know if wallet top-up appears immediately.', 'Replied', 0, '2026-05-28 11:00:00'),
+(2, 4, 'Leen Haddad', 'owner', NULL, 'Station working hours', 'Please help me update weekend working hours.', 'New', 0, '2026-06-01 10:20:00'),
+(3, NULL, 'Guest Visitor', 'user', 'guest.visitor@example.com', 'Service areas', 'Do you support home wash in all Amman areas?', 'New', 1, '2026-06-01 22:10:00');
 
 COMMIT;
  

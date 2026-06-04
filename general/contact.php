@@ -2,25 +2,32 @@
 session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
+include_once __DIR__ . '/../includes/support-helpers.php';
 
 $message_sent = false;
+clevoEnsureSupportTicketsGuestEmailColumn($conn);
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
     clevo_require_csrf_token();
-    $name = mysqli_real_escape_string($conn, $_POST['full_name']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $subject = mysqli_real_escape_string($conn, $_POST['subject']);
-    $message = mysqli_real_escape_string($conn, $_POST['message']);
+    $name = trim((string) ($_POST['full_name'] ?? ''));
+    $email = trim((string) ($_POST['email'] ?? ''));
+    $subject = trim((string) ($_POST['subject'] ?? ''));
+    $message = trim((string) ($_POST['message'] ?? ''));
     
     
-    $uID = isset($_SESSION['userID']) ? $_SESSION['userID'] : "NULL";
-    $uRole = $_SESSION['role'] ?? 'guest';
+    $uID = isset($_SESSION['userID']) ? (int) $_SESSION['userID'] : null;
+    $uRole = $_SESSION['role'] ?? 'user';
+    if (!in_array($uRole, ['user', 'owner', 'driver'], true)) {
+        $uRole = 'user';
+    }
+    $isGuest = $uID === null ? 1 : 0;
+    $guestEmail = $isGuest ? $email : null;
 
     
-    $sql = "INSERT INTO support_tickets (user_id, user_name, user_type, subject, message, status, is_guest) 
-            VALUES ($uID, '$name', '$uRole', '$subject', '$message', 'New', " . ($uID === "NULL" ? 1 : 0) . ")";
-    
-    if (mysqli_query($conn, $sql)) {
+    $stmt = $conn->prepare("INSERT INTO support_tickets (user_id, user_name, user_type, guest_email, subject, message, status, is_guest) VALUES (?, ?, ?, ?, ?, ?, 'New', ?)");
+    $stmt->bind_param("isssssi", $uID, $name, $uRole, $guestEmail, $subject, $message, $isGuest);
+    if ($stmt->execute()) {
+        clevoAddSupportMessage($conn, (int) $conn->insert_id, 'user', $uID, $message);
         $message_sent = true;
         clevoCreateRoleNotification(
             $conn,

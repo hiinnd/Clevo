@@ -2,6 +2,7 @@
 session_start(); 
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
+include_once __DIR__ . '/../includes/support-helpers.php';
 
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
@@ -11,6 +12,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
 
 $admin_id = $_SESSION['userID'] ?? 0;
 $admin_name = $_SESSION['userName'] ?? "Admin";
+clevoEnsureSupportTicketsGuestEmailColumn($conn);
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
@@ -121,6 +123,11 @@ $res_all_tickets = $conn->query("SELECT * FROM support_tickets ORDER BY id DESC"
                                     </div>
                                     <div class="col">
                                         <h6 class="fw-bold mb-1"><?php echo htmlspecialchars($ticket['user_name']); ?></h6>
+                                        <?php if (!empty($ticket['guest_email'])): ?>
+                                            <div class="small opacity-75 mb-1">
+                                                <i class="fas fa-envelope me-1"></i><?php echo htmlspecialchars($ticket['guest_email']); ?>
+                                            </div>
+                                        <?php endif; ?>
                                         <p class="small mb-0 opacity-75 text-truncate" style="max-width: 300px; color: var(--text-main);">
                                             <strong>[<?php echo htmlspecialchars($ticket['subject']); ?>]</strong> - <?php echo htmlspecialchars($ticket['message']); ?>
                                         </p>

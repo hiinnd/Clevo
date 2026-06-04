@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
         
         if($stmt->execute()) {
             clevoAddSupportMessage($conn, $t_id, 'admin', (int) $admin_id, $reply_msg);
-            $check_stmt = $conn->prepare("SELECT user_id, is_guest, subject FROM support_tickets WHERE id = ? LIMIT 1");
+            $check_stmt = $conn->prepare("SELECT user_id, user_name, is_guest, guest_email, subject FROM support_tickets WHERE id = ? LIMIT 1");
             $check_stmt->bind_param("i", $t_id);
             $check_stmt->execute();
             $check_ticket = $check_stmt->get_result()->fetch_assoc();
@@ -68,6 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
                 $notif_title = "رد جديد من الدعم الفني";
                 $notif_body = "قام المسؤول بالرد على تذكرتك بخصوص: " . $check_ticket['subject'];
                 clevoCreateNotification($conn, (int)$u_id, $notif_title, $notif_body, 'info', 'support.php?ticket_id=' . $t_id);
+            }
+            if ($check_ticket && (int) $check_ticket['is_guest'] === 1 && !empty($check_ticket['guest_email'])) {
+                clevoSendGuestSupportReplyEmail(
+                    (string) $check_ticket['guest_email'],
+                    (string) $check_ticket['user_name'],
+                    (string) $check_ticket['subject'],
+                    $reply_msg
+                );
             }
             
             $success_sent = true;
@@ -180,6 +188,11 @@ if (!$ticket) {
                                 <div>
                                     <small class="opacity-75" data-i18n="subject">الموضوع:</small>
                                     <div class="fw-bold text-primary"><?php echo htmlspecialchars($ticket['subject']); ?></div>
+                                    <?php if (!empty($ticket['guest_email'])): ?>
+                                        <div class="small opacity-75 mt-1">
+                                            <i class="fas fa-envelope me-1"></i><?php echo htmlspecialchars($ticket['guest_email']); ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <span class="badge bg-<?php echo ($ticket['status'] == 'New' ? 'danger' : 'success'); ?> rounded-pill px-3 py-2 small">
                                     <?php 
