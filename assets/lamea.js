@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", function () {
             placeholder: "اكتب رسالتك هنا..."
         },
         en: {
-            title: "Lamea - Smart Assistant",
+            title: "Lame3 - Smart Assistant",
             status: "Online Now",
             welcome: "Welcome to Clevo! How can I help you today? ✨",
             placeholder: "Type your message here..."

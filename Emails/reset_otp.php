@@ -27,10 +27,6 @@ function sendResetOTP($toEmail, $userName, $otp)
 
         $mail->Subject = 'Password Reset OTP';
         $mail->Body = "
-<div style='margin:0;padding:30px;background:#f4f7fe;font-family:Arial,sans-serif;'>
-
-    <div style='max-width:600px;margin:auto;background:#ffffff;border-radius:30px;overflow:hidden;box-shadow:0 10px 35px rgba(0,0,0,0.08);'>
-
        <div style='background:linear-gradient(135deg,#007bff,#2563eb);padding:10px;text-align:center;'>
 
     <div style='width:70px;
