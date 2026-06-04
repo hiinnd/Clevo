@@ -134,14 +134,6 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             min-height: 100vh;
         }
 
-<<<<<<< HEAD
-
-        .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
-        .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
-        .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
-        .btn-ctrl { width: 35px; height: 35px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); color: white; border: 0; display: inline-flex; align-items: center; justify-content: center; }
-=======
-        /* Sidebar المطور والمثبت بجميع الصفحات لـ Clevo */
         .sidebar {
             width: 260px;
             background: var(--bg-sidebar);
@@ -184,9 +176,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             align-items: center;
             justify-content: center;
         }
->>>>>>> bcce598618541474ab9bcb3eee5c75d8027e553b
 
-        /* Main Content */
         .content-area {
             flex: 1;
             padding: 0;
@@ -589,9 +579,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             }
         }
 
-        // poll every 12 seconds
         setInterval(fetchOwnerStats, 12000);
-        // initial immediate refresh
         fetchOwnerStats();
 
         function toggleLanguage() {
