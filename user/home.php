@@ -221,7 +221,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             margin: 0;
 
             padding-bottom: 80px;
-            /* يعطي مساحة مريحة تحت لمنع تداخل العناصر مع المساعد العائم */
+
 
         }
 
@@ -332,7 +332,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             align-items: center;
 
             flex-wrap: nowrap;
-            /* يمنع نزول الأزرار لسطر جديد */
+
 
         }
 
@@ -393,7 +393,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             width: auto;
 
             white-space: nowrap;
-            /* يمنع انكسار كلمة خروج */
+
 
         }
 
@@ -449,7 +449,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
-        /* تعديل رائع للويدجتس لمنع التداخل نهائياً وعلى كل الأجهزة */
+
 
         .top-widgets {
 
@@ -470,10 +470,10 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         .top-widgets>div {
 
             flex: 1;
-            /* توزيع المساحة بالتساوي 50% لكل بوكس */
+
 
             min-width: 0;
-            /* منع الخروج عن الحاوية */
+
 
         }
 
@@ -584,7 +584,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         .car-promo-img {
 
             width: 100px;
-            /* حجم مناسب لمنع التضخم ومضايقة البوكس الثاني */
+
 
             max-width: 100%;
 
@@ -931,7 +931,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
-        /* تنسيق خاص بـلامع العائم لضمان استقراره في زاوية مخصصة ومنع العجقة */
+
 
         #lamea-container,
         .lamea-bot-icon,
@@ -2158,7 +2158,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         }
     </script>
 
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 
 </body>
 

@@ -13,7 +13,7 @@ if (isset($_GET['change_status'])) {
     }
     $allowed = ['Active', 'Busy', 'Closed'];
     $newStatus = in_array($_GET['change_status'], $allowed, true) ? $_GET['change_status'] : 'Active';
-    $stmt = $conn->prepare("UPDATE stations SET Status = ? WHERE UserID = ? LIMIT 1");
+    $stmt = $conn->prepare("UPDATE stations SET Status = ? WHERE UserID = ? AND admin_status = 'approved' LIMIT 1");
     $stmt->bind_param("si", $newStatus, $owner_id);
     $stmt->execute();
     header('Location: owner-dashboard.php');
@@ -115,7 +115,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
 
         .main-wrapper { display: flex; min-height: 100vh; }
 
-        /* Sidebar المطور والمثبت بجميع الصفحات لـ Clevo */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
@@ -126,7 +126,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3); border: none; }
 
-        /* زر الإشعارات الدائري */
+
         .notif-btn {
             width: 40px;
             height: 40px;
@@ -410,7 +410,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
 
         function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
 
-        // دالة الترجمة التبادلية الفورية لنصوص الداتابيز الحرة (الأسماء والتقييمات)
+
         async function translateDbContent(text) {
             if (!text || !text.trim() || text === '-') return text;
             try {
@@ -443,7 +443,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 
             const name = "<?php echo $_SESSION['userName'] ?? 'Owner'; ?>";
-            // ترجمة اسم المستخدم حياً لو السيستم إنجليزي
+
             const displayOwnerName = isRtl ? name : await translateDbContent(name);
             document.querySelectorAll('.uName').forEach(el => el.innerText = displayOwnerName);
             
@@ -451,7 +451,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             });
 
-            // تحديث حالة النظام
+
             const currentStatus = "<?php echo $status; ?>";
             const statusDisplay = document.getElementById('statusDisplay');
             let statusText = '';
@@ -464,7 +464,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             }
             if (statusDisplay) statusDisplay.innerHTML = statusText;
 
-            // تحديث خيارات القائمة المنسدلة
+
             document.getElementById('opt-active').innerHTML = '🟢 ' + translations[lang]['status_label_active'];
             document.getElementById('opt-busy').innerHTML = '🟡 ' + translations[lang]['status_label_busy'];
             document.getElementById('opt-closed').innerHTML = '🔴 ' + translations[lang]['status_label_closed'];
@@ -484,7 +484,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                 if (key && translations[lang][key]) el.innerText = translations[lang][key];
             });
 
-            // تفعيل الترجمة التبادلية الحية لأسماء العملاء والتعليقات في جدول العرض لو السيستم إنجليزي
+
             if (lang === 'en') {
                 document.querySelectorAll('.db-cust-name').forEach(async (el) => {
                     el.innerText = await translateDbContent(el.innerText);

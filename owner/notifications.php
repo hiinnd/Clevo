@@ -77,12 +77,12 @@ $notifications = $stmt->get_result();
         body { background: var(--bg-body); color: var(--text-main); font-family: 'Cairo', sans-serif; transition: 0.3s; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
         
-        /* Sidebar الأنماط الأساسية المعتمدة مسبقاً */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
         
-        /* الهيدر المتطابق هندسياً وبصرياً مع باقي واجهات الأونر بالنظام */
+
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
         
@@ -205,7 +205,7 @@ $notifications = $stmt->get_result();
 
     function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
 
-    // دالة الترجمة الفورية والذكية لنصوص الداتابيز الحرة لمنع بقائها بالعربية
+
     async function translateDatabaseText(text) {
         if (!text || !text.trim()) return text;
         try {
@@ -213,7 +213,7 @@ $notifications = $stmt->get_result();
             const data = await res.json();
             return data[0].map(item => item[0]).join('');
         } catch (e) {
-            return text; // في حال حدوث خطأ بالشبكة يعود النص الأصلي لسلامة التطبيق
+            return text;
         }
     }
 
@@ -251,7 +251,7 @@ $notifications = $stmt->get_result();
         document.getElementById('langBtnText').innerText = isRtl ? 'EN' : 'AR';
         document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 
-        // إذا كانت اللغة إنجليزية، قم بترجمة محتوى الإشعارات المجلوبة من قاعدة البيانات فوراً
+
         if (lang === 'en') {
             document.querySelectorAll('.db-notif-title').forEach(async (el) => {
                 const text = el.getAttribute('data-ar') || el.innerText;
@@ -272,7 +272,7 @@ $notifications = $stmt->get_result();
                     el.innerText = savedEnglish;
                     return;
                 }
-                // ترجمة ذكية ومحسنة لتنسيق تفاصيل الحجز ونوع الخدمات المكتوبة بالصورة
+
                 let translated = await translateDatabaseText(text);
                 translated = translated.replace(/وصلك طلب/gi, 'You received an order')
                                        .replace(/لخدمات/gi, 'for services')

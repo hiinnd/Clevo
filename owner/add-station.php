@@ -2,6 +2,7 @@
 
 session_start();
 include_once __DIR__ . '/../includes/config.php';
+include_once __DIR__ . '/../includes/app-helpers.php';
 
 $owner_id = clevo_require_role('owner', '../general/login.php');
 $existingStation = null;
@@ -32,13 +33,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
     }
 
     if ($existingStation) {
-        $update = $conn->prepare("UPDATE stations SET Name = ?, Location = ?, Location_URL = ?, Lat = ?, Lon = ?, OpeningTime = ?, ClosingTime = ?, Image = ?, Status = 'Active' WHERE UserID = ?");
+        $update = $conn->prepare("UPDATE stations SET Name = ?, Location = ?, Location_URL = ?, Lat = ?, Lon = ?, OpeningTime = ?, ClosingTime = ?, Image = ? WHERE UserID = ?");
         $update->bind_param("ssssssssi", $name, $location, $location_url, $lat, $lon, $open_time, $close_time, $image_name, $owner_id);
         $success = $update->execute();
     } else {
-        $insert = $conn->prepare("INSERT INTO stations (UserID, Name, Location, Location_URL, Lat, Lon, OpeningTime, ClosingTime, Image, Status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')");
-        $insert->bind_param("issssssss", $owner_id, $name, $location, $location_url, $lat, $lon, $open_time, $close_time, $image_name);
-        $success = $insert->execute();
+        $success = false;
+        $conn->begin_transaction();
+        try {
+            $insert = $conn->prepare("INSERT INTO stations (UserID, Name, Location, Location_URL, Lat, Lon, OpeningTime, ClosingTime, Image, Status, admin_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Closed', 'pending')");
+            $insert->bind_param("issssssss", $owner_id, $name, $location, $location_url, $lat, $lon, $open_time, $close_time, $image_name);
+            $insert->execute();
+            $station_id = (int) $conn->insert_id;
+            $link = $conn->prepare("UPDATE `user` SET StationID = ?, AccountStatus = 'pending' WHERE UserID = ?");
+            $link->bind_param("ii", $station_id, $owner_id);
+            $link->execute();
+            clevoCreateRoleNotification(
+                $conn,
+                'Admin',
+                'طلب تسجيل محطة جديدة',
+                'تم تقديم طلب محطة جديدة: ' . $name . '، يرجى مراجعتها.',
+                'warning',
+                '../admin/station-approvals.php',
+                'New station registration request',
+                'A new station request was submitted: ' . $name . '. Please review it.'
+            );
+            $conn->commit();
+            $success = true;
+        } catch (Throwable $e) {
+            $conn->rollback();
+            error_log('New station request failed: ' . $e->getMessage());
+        }
     }
 
     if ($success) {
@@ -76,13 +100,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
 
-        /* Sidebar المحدث والموحد بالكامل */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
         .btn-ctrl { width: 35px; height: 35px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); color: white; border: 0; display: inline-flex; align-items: center; justify-content: center; }
 
-        /* مطابقة ديزاين الترويسة من الصفحة السابقة للخط وحجم ومكان السهم الدائري */
+
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
         

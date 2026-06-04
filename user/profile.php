@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
         .profile-header { padding: 20px; display: flex; align-items: center; justify-content: space-between; position: relative; height: 180px; border-radius: 0 0 40px 40px; background: linear-gradient(135deg, var(--accent), #0284c7); margin-bottom: 60px; }
         .back-circle-btn { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; z-index: 10; }
 
-        /* تعديلات السهم والهيدر لضمان التوسيط */
+
         .spacer-div { width: 40px; }
         [dir="rtl"] .back-circle-btn { order: 1; } 
         [dir="rtl"] .spacer-div { order: 3; }
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
         [dir="ltr"] .spacer-div { order: 3; }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        /* استرجاع الـ fw-black الأصلي */
+
         h4.fw-black { order: 2; flex-grow: 1; text-align: center; margin: 0; color: white !important; }
 
         .profile-img-container { position: absolute; bottom: -45px; left: 50%; transform: translateX(-50%); text-align: center; width: 100%; }
@@ -196,6 +196,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
             });
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

@@ -247,6 +247,6 @@ if ($uID > 0) {
             if (openTicket) document.getElementById('ticket-' + openTicket)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

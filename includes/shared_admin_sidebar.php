@@ -49,7 +49,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     color: var(--text-main, #ffffff) !important;
 }
 
-/* حل مشكلة بياض السايد بار عبر التثبيت المطلق على الشاشات الكبيرة */
+
 .admin-sidebar {
     background: var(--bg-sidebar, #000000);
     color: white;
@@ -79,7 +79,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     height: clamp(58px, 11vh, 80px) !important;
 }
 
-/* إضافة محاذاة تعويضية للمحتوى الرئيسي لكي لا يختفي خلف السايدبار الثابت */
+
 @media (min-width: 992px) {
     [dir="rtl"] .admin-main-content {
         margin-right: 260px !important;

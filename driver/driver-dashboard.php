@@ -12,6 +12,11 @@ if (!isset($_SESSION['userID']) || $sessionRole !== 'driver') {
 }
 
 $driver_id = (int) $_SESSION['userID'];
+$driver_booking_id = (int) ($_SESSION['driver_booking_id'] ?? 0);
+if ($driver_booking_id <= 0) {
+    header('Location: ../general/logout.php');
+    exit;
+}
 
 function driverStatusLabel(string $status): string
 {
@@ -24,6 +29,19 @@ function driverStatusLabel(string $status): string
         'Returning' => 'في طريق الإرجاع',
         'Completed' => 'مكتملة',
     ][$status] ?? 'جاري التنفيذ';
+}
+
+function driverStatusLabelEn(string $status): string
+{
+    return [
+        'Accepted' => 'Accepted',
+        'Arrived' => 'Driver arrived',
+        'In Progress' => 'On the way',
+        'Pickup' => 'Vehicle picked up',
+        'Washing' => 'Washing',
+        'Returning' => 'Returning',
+        'Completed' => 'Completed',
+    ][$status] ?? 'In progress';
 }
 
 function driverServiceLabel(string $serviceLocation): string
@@ -59,8 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             exit;
         }
 
-        $update_gps = $conn->prepare("UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE DriverID = ? AND Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')");
-        $update_gps->bind_param("ddi", $lat, $lng, $driver_id);
+        $update_gps = $conn->prepare("UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE BookingID = ? AND DriverID = ? AND Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')");
+        $update_gps->bind_param("ddii", $lat, $lng, $driver_booking_id, $driver_id);
         echo json_encode(['status' => $update_gps->execute() ? 'success' : 'error']);
         exit;
     }
@@ -74,8 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             exit;
         }
 
+        if ($order_id !== $driver_booking_id) {
+            echo json_encode(['status' => 'error']);
+            exit;
+        }
+
         $before = $conn->prepare("SELECT Status, Total_Price, Service_Location, Payment_Method FROM booking WHERE BookingID = ? AND DriverID = ? LIMIT 1");
-        $before->bind_param("ii", $order_id, $driver_id);
+        $before->bind_param("ii", $driver_booking_id, $driver_id);
         $before->execute();
         $beforeRow = $before->get_result()->fetch_assoc();
 
@@ -88,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         $stmt = $conn->prepare("UPDATE booking SET Status = ? WHERE BookingID = ? AND DriverID = ?");
-        $stmt->bind_param("sii", $status, $order_id, $driver_id);
+        $stmt->bind_param("sii", $status, $driver_booking_id, $driver_id);
         $ok = $stmt->execute();
 
         if ($ok) {
@@ -102,9 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if (($beforeRow['Payment_Method'] ?? '') === 'plan') {
                         clevoCreditOwnerForBooking($conn, $order_id);
                     }
-                    $clearCode = $conn->prepare("UPDATE user SET CurrentAccessCode = NULL WHERE UserID = ?");
-                    $clearCode->bind_param("i", $driver_id);
-                    $clearCode->execute();
                 }
 
                 $title = 'تحديث حالة الطلب';
@@ -113,12 +133,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 foreach ([(int) $meta['UserID'], (int) $meta['OwnerID']] as $notifyUser) {
                     if ($notifyUser <= 0) continue;
                     $target = $notifyUser === (int) $meta['UserID'] ? 'order-details.php?id=' . $order_id : 'incoming-orders.php';
-                    clevoCreateNotification($conn, $notifyUser, $title, $body, $type, $target);
+                    clevoCreateNotification(
+                        $conn,
+                        $notifyUser,
+                        $title,
+                        $body,
+                        $type,
+                        $target,
+                        'Order status updated',
+                        'Your order #' . ($meta['Order_Number'] ?: $order_id) . ' status is now: ' . driverStatusLabelEn($status)
+                    );
                 }
             }
         }
 
-        echo json_encode(['status' => $ok ? 'success' : 'error']);
+        $logout = $ok && $status === 'Completed';
+        if ($logout) {
+            $_SESSION = [];
+            if (isset($_COOKIE['access_token'])) {
+                setcookie('access_token', '', ['expires' => time() - 3600, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+            }
+            session_destroy();
+        }
+        echo json_encode(['status' => $ok ? 'success' : 'error', 'logout' => $logout]);
         exit;
     }
 }
@@ -126,9 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 $task_stmt = $conn->prepare("SELECT b.*, u.UserName AS CustomerName, u.CarName, u.PhoneNumber AS CustomerPhone
     FROM booking b
     JOIN user u ON b.UserID = u.UserID
-    WHERE b.DriverID = ? AND b.Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')
+    WHERE b.BookingID = ? AND b.DriverID = ? AND b.Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')
     ORDER BY b.created_at DESC LIMIT 1");
-$task_stmt->bind_param("i", $driver_id);
+$task_stmt->bind_param("ii", $driver_booking_id, $driver_id);
 $task_stmt->execute();
 $task = $task_stmt->get_result()->fetch_assoc();
 ?>
@@ -310,7 +347,7 @@ $task = $task_stmt->get_result()->fetch_assoc();
                     if (data.status === 'success') {
                         if (status === 'Completed') {
                             showDriverStatus('success', tr.completed_t, tr.completed_m);
-                            setTimeout(() => { window.location.href = 'driver-dashboard.php'; }, 900);
+                            setTimeout(() => { window.location.href = '../general/login.php'; }, 900);
                         } else {
                             location.reload();
                         }

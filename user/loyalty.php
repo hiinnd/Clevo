@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
         [dir="rtl"] .btn-redeem, [dir="rtl"] .btn-invite { margin-inline-end: auto; }
         [dir="ltr"] .btn-redeem, [dir="ltr"] .btn-invite { margin-left: auto; }
         
-        /* تحويل اتجاه السهم للغة الإنجليزية يلتف يسار تلقائياً */
+
         [dir="ltr"] #backIcon { transform: scaleX(-1); }
     </style>
 </head>
@@ -226,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
     <script>
         const translations = {
             ar: {
-                loyalty_title: "نقاط Clevo", points_balance: "رصيدك الحالي", points_label: "Clevo Points",
+                loyalty_page_title: "نظام المكافآت | Clevo", loyalty_title: "نقاط Clevo", points_balance: "رصيدك الحالي", points_label: "Clevo Points",
                 redeem_title: "استبدل نقاطك برصيد", how_to_earn_title: "كيف تجمع النقاط؟",
                 earn_1_t: "استخدم خدماتنا", earn_1_d: "كل 1 دينار تصرفه = 1 نقطة Clevo",
                 earn_2_t: "دعوة الأصدقاء", earn_2_d: "احصل على 50 نقطة عند أول حجز لصديقك",
@@ -237,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 btn_invite: "دعوة", share_msg: "سجل في تطبيق Clevo واستخدم كود الدعوة الخاص بي للحصول على مكافآت متبادلة عند حجزك الأول! الكود: ", copied_title: "تم النسخ", copied_body: "تم نسخ رابط وكود الدعوة الخاص بك بنجاح!", btn_ok: "موافق"
             },
             en: {
-                loyalty_title: "Clevo Points", points_balance: "Your Balance", points_label: "Clevo Points",
+                loyalty_page_title: "Rewards | Clevo", loyalty_title: "Clevo Points", points_balance: "Your Balance", points_label: "Clevo Points",
                 redeem_title: "Redeem Points", how_to_earn_title: "How to earn points?",
                 earn_1_t: "Use our services", earn_1_d: "Every 1 JOD spent = 1 Clevo point",
                 earn_2_t: "Invite Friends", earn_2_d: "Get 50 points on friend's first booking",
@@ -315,7 +315,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
             <?php endif; ?>
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
-

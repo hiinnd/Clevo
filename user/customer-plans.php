@@ -323,7 +323,7 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
             <?php endif; ?>
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
 

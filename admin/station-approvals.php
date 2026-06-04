@@ -50,22 +50,81 @@ function sendEmailNotification($toEmail, $userName)
 
 
 $res_pending = $conn->query("
-    SELECT u.UserID, u.UserName, u.Email, u.PhoneNumber, COALESCE(s.CommercialRecordPath, u.VerificationFile) AS VerificationFile
+    SELECT s.StationID, s.Name AS StationName, u.UserID, u.UserName, u.Email, u.PhoneNumber,
+           COALESCE(NULLIF(s.CommercialRecordPath, ''), u.VerificationFile) AS VerificationFile
     FROM stations s
     JOIN `user` u ON s.UserID = u.UserID
-    WHERE LOWER(u.Role) = 'owner' AND s.admin_status = 'pending'
+    WHERE s.admin_status = 'pending'
     ORDER BY s.StationID DESC
 ");
 
 
-if (isset($_POST['action']) && isset($_POST['user_id'])) {
+if (isset($_POST['action']) && isset($_POST['station_id'])) {
     clevo_require_csrf_token();
-    $u_id = intval($_POST['user_id']);
+    $station_id = intval($_POST['station_id']);
     $action = $_POST['action'];
-    if ($action === 'Approve') {
+    if (!in_array($action, ['Approve', 'Reject'], true)) {
+        header("Location: station-approvals.php?error=invalid_action");
+        exit;
+    }
 
-        $conn->query("UPDATE user SET AccountStatus = 'active' WHERE UserID = $u_id");
-        $conn->query("UPDATE stations SET admin_status = 'approved', Status = 'Active' WHERE UserID = $u_id");
+    $pending_stmt = $conn->prepare("SELECT StationID, UserID, Name FROM stations WHERE StationID = ? AND admin_status = 'pending' LIMIT 1");
+    $pending_stmt->bind_param("i", $station_id);
+    $pending_stmt->execute();
+    $pending_station = $pending_stmt->get_result()->fetch_assoc();
+    if (!$pending_station) {
+        header("Location: station-approvals.php?error=request_not_found");
+        exit;
+    }
+
+    $u_id = (int) $pending_station['UserID'];
+    $station_name = (string) ($pending_station['Name'] ?? '');
+    $account_status = $action === 'Approve' ? 'active' : 'rejected';
+    $admin_status = $action === 'Approve' ? 'approved' : 'rejected';
+    $station_status = $action === 'Approve' ? 'Active' : 'Closed';
+
+    $conn->begin_transaction();
+    try {
+        $user_update = $conn->prepare("UPDATE `user` SET AccountStatus = ?, StationID = ? WHERE UserID = ?");
+        $user_update->bind_param("sii", $account_status, $station_id, $u_id);
+        $user_update->execute();
+
+        $station_update = $conn->prepare("UPDATE stations SET admin_status = ?, Status = ? WHERE StationID = ?");
+        $station_update->bind_param("ssi", $admin_status, $station_status, $station_id);
+        $station_update->execute();
+
+        if ($action === 'Approve') {
+            clevoCreateNotification(
+                $conn,
+                $u_id,
+                'تمت الموافقة على المحطة',
+                'تمت الموافقة على محطة ' . $station_name . ' ويمكنك الآن إدارتها.',
+                'success',
+                '../owner/owner-dashboard.php',
+                'Station approved',
+                'Your station ' . $station_name . ' was approved and is ready to manage.'
+            );
+        } else {
+            clevoCreateNotification(
+                $conn,
+                $u_id,
+                'تم رفض طلب المحطة',
+                'تم رفض طلب محطة ' . $station_name . '.',
+                'danger',
+                '../general/contact.php',
+                'Station request rejected',
+                'Your station request for ' . $station_name . ' was rejected.'
+            );
+        }
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('Station approval action failed: ' . $e->getMessage());
+        header("Location: station-approvals.php?error=database");
+        exit;
+    }
+
+    if ($action === 'Approve') {
 
         
         $stmt = $conn->prepare("SELECT UserName, Email FROM user WHERE UserID = ?");
@@ -76,6 +135,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
         $user = $result->fetch_assoc();
 
         if ($user) {
+            try {
 
             $mail = new PHPMailer(true);
 
@@ -163,10 +223,10 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
 ";
 
             $mail->send();
+            } catch (Throwable $mailError) {
+                error_log('Station approval email failed: ' . $mailError->getMessage());
+            }
         }
-    } else {
-        $conn->query("UPDATE user SET AccountStatus = 'rejected' WHERE UserID = $u_id");
-        $conn->query("UPDATE stations SET admin_status = 'rejected', Status = 'Closed' WHERE UserID = $u_id");
     }
     header("Location: station-approvals.php?success=1");
     exit;
@@ -230,7 +290,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
             min-height: 100vh;
         }
 
-        /* حماية هندسية وتجاوب كامل للسايدبار الجانبي */
+
         .admin-sidebar {
             background: var(--bg-sidebar);
             color: white;
@@ -403,12 +463,19 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
                                         <div class="col text-start">
                                             <div class="small text-muted-custom" data-i18n="station_label">صاحب الطلب</div>
                                             <div class="fw-bold fs-5"><?php echo htmlspecialchars($row['UserName']); ?></div>
+                                            <div class="small text-muted-custom"><?php echo htmlspecialchars($row['StationName']); ?></div>
                                             <div class="small text-muted-custom"><?php echo htmlspecialchars($row['PhoneNumber']); ?></div>
                                         </div>
                                         <div class="col-12 col-md-auto d-flex gap-2">
-                                            <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="viewDoc('../uploads/verification/<?php echo $row['VerificationFile']; ?>')" data-i18n="btn_view_doc">السجل</button>
-                                            <button class="btn btn-success btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo $row['UserID']; ?>', 'Approve')" data-i18n="btn_approve">موافقة</button>
-                                            <button class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo $row['UserID']; ?>', 'Reject')" data-i18n="btn_reject">رفض</button>
+                                            <?php
+                                                $verification_file = (string) ($row['VerificationFile'] ?? '');
+                                                $verification_src = str_starts_with($verification_file, 'uploads/')
+                                                    ? '../' . $verification_file
+                                                    : '../uploads/verification/' . basename($verification_file);
+                                            ?>
+                                            <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick='viewDoc(<?php echo json_encode($verification_src); ?>)' data-i18n="btn_view_doc">السجل</button>
+                                            <button class="btn btn-success btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo (int) $row['StationID']; ?>', 'Approve')" data-i18n="btn_approve">موافقة</button>
+                                            <button class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo (int) $row['StationID']; ?>', 'Reject')" data-i18n="btn_reject">رفض</button>
                                         </div>
                                     </div>
                                 </div>
@@ -424,7 +491,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
         </div>
     </div>
 
-    <!-- تم حذف الهيكل القديم لـ logoutModal المتكرر من هنا لمنع التضارب، والاعتماد الكلي على منيو الـ Sidebar المركزي للسيستم -->
+
 
     <div class="modal fade" id="docModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -437,7 +504,7 @@ if (isset($_POST['action']) && isset($_POST['user_id'])) {
     <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm" style="max-width: 340px;">
             <div class="modal-content text-center p-4 shadow-lg">
-                <form method="POST"><?= csrf_input(); ?><input type="hidden" name="user_id" id="modal_st_id"><input type="hidden" name="action" id="modal_st_action">
+                <form method="POST"><?= csrf_input(); ?><input type="hidden" name="station_id" id="modal_st_id"><input type="hidden" name="action" id="modal_st_action">
                     <div id="mIcon" class="mb-3 fs-1"></div>
                     <h6 class="fw-bold" data-i18n="confirm_action_t">تأكيد الإجراء</h6>
                     <p class="small text-muted-custom mb-4" data-i18n="confirm_msg">هل أنت متأكد؟</p>

@@ -1,6 +1,9 @@
 <?php
 session_start();
 include_once(__DIR__ . "/../includes/config.php");
+include_once(__DIR__ . "/../includes/app-helpers.php");
+
+clevoEnsureTrackingColumns($conn);
 
 
 function generate_jwt($user_id, $role)
@@ -100,9 +103,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
 
 
-                        $is_driver_code = ($role_lower === 'driver' && !empty($user['CurrentAccessCode']) && hash_equals((string) $user['CurrentAccessCode'], $password));
+                        $driver_booking_id = 0;
+                        $is_driver_code = false;
+                        if ($role_lower === 'driver') {
+                            $driver_code_stmt = $conn->prepare("SELECT BookingID
+                                FROM booking
+                                WHERE DriverID = ?
+                                  AND DriverAccessCode = ?
+                                  AND Service_Location = 'delivery'
+                                  AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')
+                                ORDER BY created_at DESC
+                                LIMIT 1");
+                            $driver_code_stmt->bind_param("is", $user['UserID'], $password);
+                            $driver_code_stmt->execute();
+                            $driver_booking = $driver_code_stmt->get_result()->fetch_assoc();
+                            $driver_booking_id = (int) ($driver_booking['BookingID'] ?? 0);
+                            $is_driver_code = $driver_booking_id > 0;
+                        }
 
-                        if (!$is_driver_code && !$is_password_correct) {
+                        if (($role_lower === 'driver' && !$is_driver_code) || ($role_lower !== 'driver' && !$is_password_correct)) {
                             $error = "wrong_pass";
                         } elseif ($user['AccountStatus'] === 'pending' && in_array($role_lower, ['owner', 'customer', 'user'], true)) {
                             $error = "pending_status";
@@ -141,6 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['userName'] = $user['UserName'];
                             $_SESSION['role']     = $session_role;
                             $_SESSION['jwt_token'] = $token;
+                            if ($session_role === 'driver') {
+                                $_SESSION['driver_booking_id'] = $driver_booking_id;
+                            }
 
 
                             if ($session_role === 'Admin') {
@@ -659,6 +681,7 @@ if (isset($_POST['reset_password_action'])) {
                 pass_label: "كلمة السر أو كود الدخول",
                 btn_login: "تسجيل الدخول",
                 forgot_pass: "نسيت كلمة السر؟",
+                forgot_pass_desc: "أدخل بريدك الإلكتروني لإرسال كود التحقق.",
                 btn_send: "إرسال الكود",
                 enter_code: "أدخل كود التحقق",
                 btn_verify: "تحقق",
@@ -694,6 +717,7 @@ if (isset($_POST['reset_password_action'])) {
                 pass_label: "Password or Access Code",
                 btn_login: "Login",
                 forgot_pass: "Forgot Password?",
+                forgot_pass_desc: "Enter your email to receive a verification code.",
                 btn_send: "Send Code",
                 enter_code: "Enter Code",
                 btn_verify: "Verify",

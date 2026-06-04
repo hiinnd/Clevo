@@ -29,7 +29,7 @@ include_once __DIR__ . '/../includes/config.php';
         body { font-family: 'Cairo', sans-serif; background: var(--main-bg); color: var(--text); min-height: 100vh; transition: 0.5s; margin: 0; padding-bottom: 20px; }
         .glass { background: var(--glass); backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 25px; }
 
-        /* --- Header Logic (نفس ستايل صفحة المعلومات الشخصية والكونتاكت) --- */
+
         .page-header { 
             padding: 20px; display: flex; align-items: center; justify-content: space-between;
             height: 180px; border-radius: 0 0 40px 40px; 
@@ -51,14 +51,14 @@ include_once __DIR__ . '/../includes/config.php';
         [dir="ltr"] .spacer-div { order: 3; }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        /* تعديل الخط ليكون نحيفاً تماماً كالصورة المرفقة */
+
         .header-title-light { 
             order: 2; 
             flex-grow: 1; 
             text-align: center; 
             margin: 0; 
             font-family: 'Cairo', sans-serif !important;
-            font-weight: 400 !important; /* الوزن النحيف */
+            font-weight: 400 !important;
             font-size: 1.5rem;
             color: white !important; 
         }
@@ -133,7 +133,7 @@ include_once __DIR__ . '/../includes/config.php';
     <script>
         const translations = {
             ar: {
-                about_title: "قصة Clevo", our_story_title: "كيف بدأنا؟",
+                nav_about: "من نحن | Clevo", about_title: "قصة Clevo", our_story_title: "كيف بدأنا؟",
                 our_story_p1: "بدأت فكرة Clevo من قلب عمان، عندما لاحظنا الصعوبة في العثور على مغاسل موثوقة.",
                 our_story_p2: "قررنا بناء منصة تجمع أفضل المغاسل لتوفر للزبائن الراحة ولأصحاب الأعمال التنظيم.",
                 vision_t: "رؤيتنا", vision_d: "أن نكون الخيار الأول الذي يثق به كل أردني للعناية بمركبته.",
@@ -142,7 +142,7 @@ include_once __DIR__ . '/../includes/config.php';
                 f_copy: "صمم بكل حب لخدمتكم"
             },
             en: {
-                about_title: "Clevo Story", our_story_title: "How did we start?",
+                nav_about: "About Us | Clevo", about_title: "Clevo Story", our_story_title: "How did we start?",
                 our_story_p1: "Clevo's idea started from the heart of Amman, noticing the difficulty in finding reliable car washes.",
                 our_story_p2: "We decided to build a platform that brings together the best car washes for convenience and growth.",
                 vision_t: "Our Vision", vision_d: "To be the first and only choice every Jordanian trusts for vehicle care.",

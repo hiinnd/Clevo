@@ -92,6 +92,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                         $stmt_st = $conn->prepare("INSERT INTO `stations` (Name, UserID, Status, admin_status, CommercialRecordPath) VALUES (?, ?, 'Closed', 'pending', ?)");
                         $stmt_st->bind_param("sis", $st_name, $new_id, $file_path);
                         $stmt_st->execute();
+                        $new_station_id = (int) $conn->insert_id;
+                        $link_station = $conn->prepare("UPDATE `user` SET StationID = ? WHERE UserID = ?");
+                        $link_station->bind_param("ii", $new_station_id, $new_id);
+                        $link_station->execute();
 
                         clevoCreateRoleNotification(
                             $conn,

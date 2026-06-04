@@ -27,6 +27,15 @@ function clevoEnsureTrackingColumns(mysqli $conn): void
     if (!isset($columns['Driver_Lon'])) {
         $conn->query("ALTER TABLE booking ADD COLUMN Driver_Lon DECIMAL(11,8) DEFAULT NULL AFTER Driver_Lat");
     }
+    if (!isset($columns['DriverAccessCode'])) {
+        $conn->query("ALTER TABLE booking ADD COLUMN DriverAccessCode VARCHAR(10) DEFAULT NULL AFTER DriverID");
+    }
+    $indexCheck = $conn->prepare("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'booking' AND INDEX_NAME = 'uq_booking_driver_access_code' LIMIT 1");
+    $indexCheck->bind_param("s", $db);
+    $indexCheck->execute();
+    if ($indexCheck->get_result()->num_rows === 0) {
+        $conn->query("ALTER TABLE booking ADD UNIQUE KEY uq_booking_driver_access_code (DriverAccessCode)");
+    }
 
     $conn->query("ALTER TABLE booking MODIFY Status ENUM('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled','Cancelled_Timeout','Completed') DEFAULT 'Pending'");
 }

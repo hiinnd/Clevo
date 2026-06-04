@@ -176,7 +176,7 @@ $csrf_token = generate_csrf_token();
             --bg-body: #f8f9fa; --bg-card: #ffffff; --text-main: #111827; 
             --text-muted: #4b5563; --border-color: #dee2e6; --accent: #3b82f6;
         }
-        /* ضبط الدارك مود بألوان شديدة الوضوح */
+
         [data-theme="dark"] { 
             --bg-body: #020617; --bg-card: #0f172a; --text-main: #ffffff; 
             --text-muted: #cbd5e1; --border-color: #334155; --accent: #3b82f6;
@@ -189,7 +189,7 @@ $csrf_token = generate_csrf_token();
 
         .payment-container { width: min(100%, 430px); margin: auto; padding: 14px; }
 
-        /* سهم الرجوع - العودة للخلف تلقائياً */
+
         .back-circle-btn { 
             background: var(--bg-card); border: 1px solid var(--border-color); 
             color: var(--text-main) !important; width: 38px; height: 38px; border-radius: 50%;
@@ -198,7 +198,7 @@ $csrf_token = generate_csrf_token();
         }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        /* بطاقة الخصم */
+
         .loyalty-card { 
             background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); 
             border: 2px solid transparent; border-radius: 16px; padding: 14px; color: #ffffff !important;
@@ -209,7 +209,7 @@ $csrf_token = generate_csrf_token();
             box-shadow: 0 0 0 3px rgba(191, 219, 254, .22);
         }
 
-        /* خيارات الدفع */
+
         .method-item { 
             background: var(--bg-card); border: 2px solid var(--border-color); 
             border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
@@ -222,7 +222,7 @@ $csrf_token = generate_csrf_token();
             margin-inline-end: 12px;
         }
 
-        /* وضوح النصوص في الصناديق */
+
         .summary-card {
             background: var(--bg-card); border-radius: 16px; padding: 14px;
             border: 1px solid var(--border-color);
@@ -254,7 +254,7 @@ $csrf_token = generate_csrf_token();
             h5 { font-size: 1rem; }
         }
 
-        /* المودال */
+
         .modal-content { border-radius: 30px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); }
         .form-control { background: var(--bg-body); color: var(--text-main); border-radius: 12px; border: 1px solid var(--border-color); }
         .form-control:focus { background: var(--bg-body); color: var(--text-main); }
@@ -363,7 +363,7 @@ $csrf_token = generate_csrf_token();
         </button>
     </div>
 
-    <!-- المودال العربي/إنجليزي -->
+
     <div class="modal fade" id="msgModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content text-center p-4 shadow-lg border-0">
@@ -535,7 +535,6 @@ $csrf_token = generate_csrf_token();
             }
         }
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
-

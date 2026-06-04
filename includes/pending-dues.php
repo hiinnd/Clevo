@@ -52,13 +52,13 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             --border-card: #e5e7eb; --amount-bg: #fff5f5;
         }
         
-        /* تحسينات قوية للدارك مود لضمان الوضوح */
+
         [data-theme="dark"] {
-            --bg-body: #020617; /* أسود عميق جداً */
-            --bg-card: #0f172a; /* كحلي غامق للبطاقة */
-            --text-main: #f9fafb; /* أبيض ناصع جداً */
-            --text-muted: #cbd5e1; /* رمادي فاتح مقروء */
-            --amount-bg: #1e1b4b; /* خلفية المبلغ */
+            --bg-body: #020617;
+            --bg-card: #0f172a;
+            --text-main: #f9fafb;
+            --text-muted: #cbd5e1;
+            --amount-bg: #1e1b4b;
             --border-card: #334155;
         }
         
@@ -74,7 +74,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             transition: 0.3s ease;
         }
 
-        /* سهم الرجوع - يعود للخلف تلقائياً */
+
         .back-nav-fixed { position: fixed; top: 20px; right: 20px; z-index: 1000; }
         [dir="ltr"] .back-nav-fixed { right: auto; left: 20px; }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
@@ -130,7 +130,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
 </head>
 
 <body>
-    <!-- سهم الرجوع الديناميكي -->
+
     <div class="back-nav-fixed">
         <a href="javascript:history.back()" class="back-circle-btn">
             <i class="fas fa-arrow-right" id="backIcon"></i>
@@ -151,7 +151,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             <span class="amount-value"><?= e($dueAmount) ?> <small style="font-size: 1rem;">JOD</small></span>
         </div>
 
-        <!-- كلمة نقداً لحالها وواضحة -->
+
         <span class="cash-only-label" data-i18n="pay_cash_only">نقداً | CASH</span>
 
         <button onclick="triggerPayment()" class="btn-custom btn-pay shadow">
@@ -167,7 +167,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
         </div>
     </div>
 
-    <!-- مودال عربي انجليزي -->
+
     <div class="modal fade" id="statusModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content text-center p-4 shadow-lg border-0">
@@ -201,7 +201,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
                     : (lang === 'ar' ? 'الدفع اختياري لخدمة المحطة' : 'Payment is optional for at-station service');
             }
             
-            // تخصيص الاسم
+
             const name = localStorage.getItem('userName') || "صديقنا";
             document.querySelectorAll('.uName-hl').forEach(el => el.innerText = name);
             document.getElementById('deviceId').innerText = "W-CLEVO-" + Math.floor(1000 + Math.random() * 9000);
@@ -216,7 +216,7 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
         }
 
         function triggerPayment() {
-            // مودال التحويل المزدوج
+
             showStatus('loading', 'جاري التحويل', 'Redirecting', 'يرجى الانتظار، جاري تحويلك لبوابة الدفع...', 'Please wait, redirecting to payment gateway...');
             
             setTimeout(() => {
@@ -224,7 +224,6 @@ $dueAmount = number_format((float) $due['Total_Price'], 2);
             }, 2000);
         }
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
-

@@ -521,19 +521,19 @@ $csrf_token = generate_csrf_token();
                 ? 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css'
                 : 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';
 
-            // ترجمة النصوص العادية وثنائية العناوين
+
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
 
-            // ترجمة التلميحات / Placeholders داخل الحقول
+
             document.querySelectorAll('[data-i18n-holder]').forEach(el => {
                 const key = el.getAttribute('data-i18n-holder');
                 if (translations[lang][key]) el.setAttribute('placeholder', translations[lang][key]);
             });
 
-            // تحديث عنوان الصفحة التلقائي
+
             if (translations[lang]['history_page_title']) {
                 document.title = translations[lang]['history_page_title'];
             }
@@ -542,7 +542,7 @@ $csrf_token = generate_csrf_token();
             }
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 
 </html>

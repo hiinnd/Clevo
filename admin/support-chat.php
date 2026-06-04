@@ -112,7 +112,7 @@ if (!$ticket) {
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
-        /* Sidebar الأدمن الثابت */
+
         .admin-sidebar { background: var(--bg-sidebar); color: white; padding: 20px 15px; position: sticky; top: 0; height: 100vh; z-index: 1000; width: 260px; display: flex; flex-direction: column; overflow: visible; }
         .admin-pic-container { position: relative; display: inline-block; margin-bottom: 10px; cursor: pointer; }
         .admin-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-blue); transition: 0.3s; }
@@ -121,7 +121,7 @@ if (!$ticket) {
         .nav-link { color: #ffffff !important; padding: 12px 15px; border-radius: 12px; margin-bottom: 5px; display: flex; align-items: center; text-decoration: none; font-weight: 600; transition: 0.3s; font-size: 0.9rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent-blue); color: white !important; }
 
-        /* Main Content & Header الموحد تماماً مع صفحة أول سبورت */
+
         .admin-main-content { flex: 1; overflow-x: hidden; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .back-btn-circle { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; transition: 0.3s; }
@@ -261,7 +261,7 @@ if (!$ticket) {
     <script>
         const translations = {
             ar: { 
-                chat_with: "محادثة مع:", subject: "الموضوع:", btn_send: "إرسال الرد", msg_sent: "تم إرسال الرد بنجاح!", 
+                chat_title: "محادثة الدعم | Clevo", chat_with: "محادثة مع:", subject: "الموضوع:", btn_send: "إرسال الرد", msg_sent: "تم إرسال الرد بنجاح!",
                 modal_success_body: "تم تحديث حالة التذكرة وإبلاغ المستخدم.",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", 
                 btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء",
@@ -269,7 +269,7 @@ if (!$ticket) {
                 placeholder_reply: "اكتب ردك هنا..."
             },
             en: { 
-                chat_with: "Chat with:", subject: "Subject:", btn_send: "Send Reply", msg_sent: "Reply sent successfully!", 
+                chat_title: "Support Chat | Clevo", chat_with: "Chat with:", subject: "Subject:", btn_send: "Send Reply", msg_sent: "Reply sent successfully!",
                 modal_success_body: "Ticket status updated and user notified.",
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", 
                 btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel",
@@ -288,7 +288,7 @@ if (!$ticket) {
             document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
             document.documentElement.lang = lang;
 
-            // إضافة كلاس للتعامل مع أطراف الفقاعات حسب اتجاه المتصفح الفعلي
+
             const wrapper = document.getElementById('mainRowWrapper');
             if(isRtl) wrapper.classList.remove('not-rtl'); else wrapper.classList.add('not-rtl');
 

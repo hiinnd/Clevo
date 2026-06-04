@@ -14,7 +14,7 @@ include_once __DIR__ . '/../includes/config.php';
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- استدعاء الأوزان النحيفة للخط كما طلبت -->
+
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&display=swap" rel="stylesheet">
 
     <style>
@@ -32,7 +32,7 @@ include_once __DIR__ . '/../includes/config.php';
         body { font-family: 'Cairo', sans-serif; background: var(--main-bg); color: var(--text); min-height: 100vh; transition: 0.5s; margin: 0; padding-bottom: 20px; }
         .glass { background: var(--glass); backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 25px; }
 
-        /* --- Header Logic (توسيط وضبط الخط النحيف) --- */
+
         .page-header { 
             padding: 20px; display: flex; align-items: center; justify-content: space-between;
             height: 180px; border-radius: 0 0 40px 40px; 
@@ -54,14 +54,14 @@ include_once __DIR__ . '/../includes/config.php';
         [dir="ltr"] .spacer-div { order: 3; }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        /* تعديل الخط ليكون نحيفاً (Light) تماماً كالصورة المرفقة */
+
         .header-title-light { 
             order: 2; 
             flex-grow: 1; 
             text-align: center; 
             margin: 0; 
             font-family: 'Cairo', sans-serif !important;
-            font-weight: 300 !important; /* وزن نحيف لسحب الخط */
+            font-weight: 300 !important;
             font-size: 1.6rem;
             color: white !important; 
         }
@@ -71,7 +71,7 @@ include_once __DIR__ . '/../includes/config.php';
         .term-section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
         .term-section h6 { color: var(--accent); font-weight: 700; display: flex; align-items: center; gap: 10px; }
 
-        /* --- Footer البسيط --- */
+
         .custom-footer { margin-top: 40px; text-align: center; padding: 15px; }
         .footer-logo { width: 70px; margin-bottom: 10px; }
         .footer-copy { font-size: 0.75rem; opacity: 0.6; }

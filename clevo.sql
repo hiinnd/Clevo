@@ -3,13 +3,11 @@ START TRANSACTION;
 SET time_zone = "+00:00";
 SET NAMES utf8mb4;
 
-CREATE DATABASE IF NOT EXISTS `clevo` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE `clevo`;
-
 -- Make import idempotent: drop tables in safe order, then recreate
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS `wallet_transactions`;
 DROP TABLE IF EXISTS `wallet`;
+DROP TABLE IF EXISTS `support_messages`;
 DROP TABLE IF EXISTS `support_tickets`;
 DROP TABLE IF EXISTS `user_plans`;
 DROP TABLE IF EXISTS `plans`;
@@ -147,6 +145,7 @@ CREATE TABLE `booking` (
   `StationID` int(11) DEFAULT NULL,
   `ServiceID` int(11) DEFAULT NULL,
   `DriverID` int(11) DEFAULT NULL,
+  `DriverAccessCode` varchar(10) DEFAULT NULL,
   `Service_Location` enum('station','home','delivery') DEFAULT 'station',
   `Latitude` decimal(10,8) DEFAULT NULL,
   `Longitude` decimal(11,8) DEFAULT NULL,
@@ -172,6 +171,7 @@ CREATE TABLE `booking` (
   KEY `StationID` (`StationID`),
   KEY `ServiceID` (`ServiceID`),
   KEY `DriverID` (`DriverID`),
+  UNIQUE KEY `uq_booking_driver_access_code` (`DriverAccessCode`),
   KEY `UserPlanID` (`UserPlanID`),
   CONSTRAINT `booking_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
   CONSTRAINT `booking_ibfk_2` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE CASCADE,
@@ -244,6 +244,19 @@ CREATE TABLE `support_tickets` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `support_tickets_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `support_messages` (
+  `MessageID` int(11) NOT NULL AUTO_INCREMENT,
+  `TicketID` int(11) NOT NULL,
+  `SenderRole` enum('user','admin') NOT NULL,
+  `SenderID` int(11) DEFAULT NULL,
+  `Message` text NOT NULL,
+  `CreatedAt` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`MessageID`),
+  KEY `TicketID` (`TicketID`),
+  KEY `SenderRole` (`SenderRole`),
+  CONSTRAINT `support_messages_ticket_fk` FOREIGN KEY (`TicketID`) REFERENCES `support_tickets` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `wallet` (
@@ -374,6 +387,11 @@ VALUES
 (16, 'C260603113016', 11, 3, 12, NULL, 'station', NULL, NULL, NULL, NULL, 'Services: Oil Change', '2026-06-03', '11:30:00', 'Pending', 24.00, 3.60, NULL, 0.00, 0.00, 24.00, NULL, 0, NULL, 0, '2026-06-02 08:30:00'),
 (17, 'C260604160017', 12, 8, 31, 17, 'delivery', 31.96050000, 35.86250000, NULL, NULL, 'Sweifieh - work address\nServices: Exterior Polish', '2026-06-04', '16:00:00', 'Accepted', 19.00, 2.85, 'visa', 120.00, 3.00, 16.00, NULL, 0, '2026-06-02 09:15:00', 1, '2026-06-02 08:55:00'),
 (18, 'C260605100018', 13, 5, 18, NULL, 'home', 31.90400000, 35.84050000, NULL, NULL, 'Marj Al Hamam - garden entrance\nServices: Home Interior Wash', '2026-06-05', '10:00:00', 'Pending', 9.00, 1.35, NULL, 0.00, 0.00, 9.00, NULL, 0, NULL, 0, '2026-06-02 09:25:00');
+
+UPDATE `booking` SET `DriverAccessCode` = '800007' WHERE `BookingID` = 7;
+UPDATE `booking` SET `DriverAccessCode` = '800011' WHERE `BookingID` = 11;
+UPDATE `booking` SET `DriverAccessCode` = '800013' WHERE `BookingID` = 13;
+UPDATE `booking` SET `DriverAccessCode` = '800017' WHERE `BookingID` = 17;
 
 INSERT INTO `booking_services`
 (`BookingServiceID`, `BookingID`, `ServiceID`, `ServiceName`, `Price`)

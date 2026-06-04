@@ -235,7 +235,7 @@ if (isset($_POST['action'])) {
             }
         };
 
-        // دالة الترجمة التبادلية الفورية والذكية لنصوص الأسماء دون الحاجة لحقول إضافية بالداتابيز
+
         async function translateTextLive(text) {
             if (!text || !text.trim()) return text;
             try {
@@ -344,7 +344,7 @@ if (isset($_POST['action'])) {
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 
-                // إضافة فحص ذكي جداً لترجمة الـ placeholders داخل حقول الـ input فوراً
+
                 if (key.startsWith('[placeholder]')) {
                     const cleanKey = key.replace('[placeholder]', '');
                     if (translations[lang][cleanKey]) {

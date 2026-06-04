@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             --bg-body: #f8f9fa; --bg-card: #ffffff; --text-main: #111827; 
             --text-muted: #4b5563; --border-color: #dee2e6; --accent: #3b82f6;
         }
-        /* تباين عالي جداً للـ Dark Mode لضمان وضوح كل كلمة */
+
         [data-theme="dark"] { 
             --bg-body: #020617; --bg-card: #0f172a; --text-main: #ffffff; 
             --text-muted: #cbd5e1; --border-color: #1e293b; --accent: #3b82f6;
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             color: var(--text-main); transition: 0.3s ease; margin: 0; padding-bottom: 50px;
         }
 
-        /* سهم الرجوع - يعود للصفحة السابقة تلقائياً */
+
         .back-nav-container { padding: 20px; display: flex; align-items: center; gap: 15px; }
         .circle-btn { 
             width: 40px; height: 40px; border-radius: 50%; background: var(--bg-card); 
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             border: 1px solid var(--border-color); margin-bottom: 15px; 
         }
 
-        /* كلمة نقداً منفصلة وواضحة */
+
         .payment-status { 
             display: inline-block; padding: 4px 12px; border-radius: 8px; 
             font-weight: 900; font-size: 0.8rem; background: rgba(16, 185, 129, 0.1); color: #10b981;
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         }
         .form-control:focus { background: var(--bg-body); color: var(--text-main); border-color: var(--accent); box-shadow: none; }
 
-        /* تنسيق المودال ليكون واضحاً */
+
         .modal-content { 
             border-radius: 25px; background: var(--bg-card); 
             color: var(--text-main); border: 1px solid var(--border-color);
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     </div>
 
     <div class="container">
-        <!-- مثال لكرت تقييم -->
+
         <div class="review-card shadow-sm">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <h6 class="fw-bold mb-0">أحمد محمد</h6>
@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         </div>
     </div>
 
-    <!-- المودال الموحد للرسائل -->
+
     <div class="modal fade" id="statusModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content p-4 text-center">
@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 return;
             }
 
-            // إرسال البيانات للباك إند
+
             fetch('manage_reviews.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

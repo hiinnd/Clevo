@@ -224,7 +224,7 @@ function clevo_user_notification_fallback_en(string $text, bool $isTitle = false
         }
         .btn-another-station:hover { opacity: 0.9; transform: scale(1.05); }
 
-        /* تعديلات الاتجاه الأيسر للغة الإنجليزية */
+
         [dir="ltr"] .noti-item { text-align: left; }
         [dir="ltr"] .noti-icon { margin-inline-end: 0; margin-right: 15px; }
         
@@ -377,13 +377,13 @@ function clevo_user_notification_fallback_en(string $text, bool $isTitle = false
                     : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
             }
 
-            // ترجمة النصوص الثابتة
+
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (translations[lang][key]) el.innerText = translations[lang][key];
             });
 
-            // ترجمة نصوص الداتابيز
+
             document.querySelectorAll('[data-db-ar]').forEach(el => {
                 if(lang === 'en') {
                     const isTitle = el.classList.contains('noti-title-text');
@@ -404,6 +404,6 @@ function clevo_user_notification_fallback_en(string $text, bool $isTitle = false
             }
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

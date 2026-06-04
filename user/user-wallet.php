@@ -56,7 +56,7 @@ $transactions = $trans_stmt->get_result();
             background: rgba(255,255,255,0.2); color: #fff; transition: 0.3s; z-index: 10;
         }
 
-        /* تعديل الهيدر ليكون النص في المنتصف تماماً */
+
         .spacer-div { width: 40px; }
         [dir="rtl"] .back-circle-btn { order: 1; } 
         [dir="rtl"] .spacer-div { order: 3; }
@@ -81,7 +81,7 @@ $transactions = $trans_stmt->get_result();
 </head>
 <body>
     <div class="wallet-header shadow">
-        <!-- ديف المساحة لضمان التوسيط -->
+
         <div class="spacer-div"></div>
         
         <h4 class="text-white fw-black m-0" data-i18n="wallet_header">محفظتي</h4>
@@ -179,7 +179,6 @@ $transactions = $trans_stmt->get_result();
             }, 1500);
         }
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
-

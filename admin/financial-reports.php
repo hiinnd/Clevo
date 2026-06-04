@@ -29,20 +29,21 @@ $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-$res_gmv = $conn->query("SELECT SUM(Total_Price) as total FROM booking");
+$res_gmv = $conn->query("SELECT SUM(Total_Price) as total FROM booking WHERE Status = 'Completed'");
 $total_gmv = $res_gmv->fetch_assoc()['total'] ?? 0;
 
-$res_net = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking");
+$res_net = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed'");
 $net_profit = $res_net->fetch_assoc()['total'] ?? 0;
 
 $res_count = $conn->query("SELECT COUNT(*) as total FROM booking WHERE Status = 'Completed'");
 $completed_orders = $res_count->fetch_assoc()['total'] ?? 0;
 
-// جلب أعلى المحطات دخلاً مع إيجاد أعلى قيمة لحساب النسبة المئوية بدقة
+
 $top_stations_query = "
     SELECT s.Name, SUM(b.Total_Price) as revenue 
     FROM stations s 
     JOIN booking b ON s.StationID = b.StationID 
+    WHERE b.Status = 'Completed'
     GROUP BY s.StationID 
     ORDER BY revenue DESC 
     LIMIT 3";
@@ -66,10 +67,10 @@ $history_query = "
     LIMIT 10";
 $history_res = $conn->query($history_query);
 
-// جلب تحليلات الأيام والترتيب الصحيح للمخطط
+
 $days_map = ['Saturday' => 0, 'Sunday' => 1, 'Monday' => 2, 'Tuesday' => 3, 'Wednesday' => 4, 'Thursday' => 5, 'Friday' => 6];
 $chart_values = [0, 0, 0, 0, 0, 0, 0];
-$weekly_res = $conn->query("SELECT DAYNAME(created_at) as day, SUM(Total_Price) as total FROM booking GROUP BY DAYNAME(created_at)");
+$weekly_res = $conn->query("SELECT DAYNAME(created_at) as day, SUM(Total_Price) as total FROM booking WHERE Status = 'Completed' GROUP BY DAYNAME(created_at)");
 if($weekly_res) {
     while($w = $weekly_res->fetch_assoc()){
         if(isset($days_map[$w['day']])) {
@@ -199,7 +200,7 @@ if($weekly_res) {
                             <div class="chart-box shadow-sm text-start">
                                 <h6 class="mb-4 fw-bold" data-i18n="top_stations">أعلى المحطات دخلاً</h6>
                                 <?php if(!empty($top_stations)): foreach($top_stations as $st): 
-                                    // حساب النسبة الحركية لشريط التقدم بناءً على المبيعات الفعلية
+
                                     $percentage = ($st['revenue'] / $max_revenue) * 100;
                                 ?>
                                     <div class="mb-4">
@@ -311,7 +312,7 @@ if($weekly_res) {
             document.getElementById('backIcon').className = isRtl ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
             document.querySelectorAll('.u-name-display').forEach(el => el.innerText = "<?php echo htmlspecialchars($admin_name); ?>");
 
-            // ربط مصفوفة الداتا بيس الحقيقية بالرسم البياني
+
             const realChartData = <?php echo json_encode($chart_values); ?>;
 
             new Chart(document.getElementById('revenueChart').getContext('2d'), {

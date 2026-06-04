@@ -9,7 +9,7 @@ if ($token === '') {
     exit();
 }
 
-$stmt = $conn->prepare("SELECT UserID, AccountStatus FROM `user` WHERE VerificationToken = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT UserID, Role, AccountStatus FROM `user` WHERE VerificationToken = ? LIMIT 1");
 $stmt->bind_param("s", $token);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -20,8 +20,9 @@ if (!$user || $user['AccountStatus'] === 'rejected') {
 }
 
 $user_id = (int) $user['UserID'];
-$update = $conn->prepare("UPDATE `user` SET AccountStatus = 'active', VerificationToken = NULL WHERE UserID = ?");
-$update->bind_param("i", $user_id);
+$verified_status = strtolower((string) $user['Role']) === 'owner' ? 'pending' : 'active';
+$update = $conn->prepare("UPDATE `user` SET AccountStatus = ?, VerificationToken = NULL WHERE UserID = ?");
+$update->bind_param("si", $verified_status, $user_id);
 $update->execute();
 
 header("Location: verify_success.php");

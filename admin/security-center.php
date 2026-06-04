@@ -31,14 +31,28 @@ $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['Prof
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['blacklist_id'])) {
     clevo_require_csrf_token();
-    $u_id = intval($_POST['user_id']);
-    $user_info = $conn->query("SELECT DeviceID FROM user WHERE UserID = $u_id")->fetch_assoc();
-    $device_id = $user_info['DeviceID'] ?? '';
-    $conn->query("UPDATE user SET Role = 'User' WHERE UserID = $u_id");
-    if (!empty($device_id)) {
-        $conn->query("DELETE FROM blacklist WHERE DeviceID = '$device_id'");
+    $blacklist_id = (int) $_POST['blacklist_id'];
+    $conn->begin_transaction();
+    try {
+        $lookup = $conn->prepare("SELECT user_id FROM blacklist WHERE id = ? FOR UPDATE");
+        $lookup->bind_param("i", $blacklist_id);
+        $lookup->execute();
+        $entry = $lookup->get_result()->fetch_assoc();
+        if ($entry && (int) ($entry['user_id'] ?? 0) > 0) {
+            $u_id = (int) $entry['user_id'];
+            $activate = $conn->prepare("UPDATE user SET AccountStatus = 'active' WHERE UserID = ?");
+            $activate->bind_param("i", $u_id);
+            $activate->execute();
+        }
+        $remove = $conn->prepare("DELETE FROM blacklist WHERE id = ?");
+        $remove->bind_param("i", $blacklist_id);
+        $remove->execute();
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('Unban failed: ' . $e->getMessage());
     }
     header("Location: security-center.php?unbanned=success");
     exit;
@@ -50,9 +64,9 @@ $total_banned = $res_banned->fetch_assoc()['total'] ?? 0;
 
 
 $blacklist_res = $conn->query("
-    SELECT u.UserID, b.DeviceID, u.UserName 
-    FROM blacklist b 
-    LEFT JOIN user u ON b.DeviceID = u.DeviceID 
+    SELECT b.id AS blacklist_id, u.UserID, b.DeviceID, u.UserName
+    FROM blacklist b
+    LEFT JOIN user u ON b.user_id = u.UserID
     ORDER BY b.id DESC
 ");
 ?>
@@ -97,11 +111,11 @@ $blacklist_res = $conn->query("
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-btn-back { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; transition: 0.3s; }
 
-        /* البطاقات العلوية */
+
         .custom-card { background-color: var(--bg-card) !important; border: 1px solid var(--border-color); border-radius: 24px; padding: 25px; }
         .security-alert { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 24px; padding: 25px; height: 100%; display: flex; align-items: center; color: var(--text-main); }
 
-        /* الجدول */
+
         .table-container { background-color: var(--bg-card) !important; border-radius: 24px; padding: 25px; border: 1px solid var(--border-color); overflow: hidden; }
         .custom-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; color: var(--text-main) !important; }
         .custom-table thead tr th { background: var(--table-head-bg); color: var(--accent-blue) !important; padding: 15px; border: none; font-weight: 900; }
@@ -174,7 +188,7 @@ $blacklist_res = $conn->query("
                                             <td><span class="badge-id"><?php echo htmlspecialchars($user_b['DeviceID'] ?? 'N/A'); ?></span></td>
                                             <td class="fw-bold"><?php echo htmlspecialchars($user_b['UserName'] ?? 'غير معروف'); ?></td>
                                             <td><span class="badge bg-danger rounded-pill px-3" data-i18n="status_banned">محظور</span></td>
-                                            <td><button class="btn btn-sm btn-success rounded-pill px-4 fw-bold shadow-sm" onclick="askUnban('<?php echo $user_b['UserID']; ?>', '<?php echo $user_b['UserName']; ?>')" data-i18n="btn_unban">فك الحظر</button></td>
+                                            <td><button class="btn btn-sm btn-success rounded-pill px-4 fw-bold shadow-sm" onclick='askUnban(<?php echo (int) $user_b['blacklist_id']; ?>, <?php echo json_encode((string) ($user_b['UserName'] ?? ''), JSON_UNESCAPED_UNICODE); ?>)' data-i18n="btn_unban">فك الحظر</button></td>
                                         </tr>
                                     <?php endwhile; else: ?>
                                         <tr><td colspan="4" class="text-center py-5 opacity-50 fw-bold" data-i18n="no_banned">لا يوجد محظورين حالياً</td></tr>
@@ -188,20 +202,20 @@ $blacklist_res = $conn->query("
         </div>
     </div>
 
-    <!-- تم حذف الهيكل القديم لـ logoutModal المتكرر من هنا لمنع التضارب، والاعتماد الكلي على منيو الـ Sidebar المركزي للسيستم -->
+
 
     <div class="modal fade" id="unbanModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content text-center p-4 shadow-lg border-0">
                 <form method="POST">
                     <?= csrf_input(); ?>
-                    <input type="hidden" name="user_id" id="modalUserId">
+                    <input type="hidden" name="blacklist_id" id="modalBlacklistId">
                     <div class="text-success mb-3"><i class="fas fa-unlock-alt fa-3x"></i></div>
-                    <h6 class="fw-bold mb-3">فك حظر المستخدم</h6>
-                    <p class="small mb-4 opacity-75">هل تريد فك حظر <strong id="targetName" class="text-primary fw-bold"></strong>؟</p>
+                    <h6 class="fw-bold mb-3" data-i18n="unban_title">فك حظر المستخدم</h6>
+                    <p class="small mb-4 opacity-75"><span data-i18n="unban_body">هل تريد فك حظر</span> <strong id="targetName" class="text-primary fw-bold"></strong>؟</p>
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-success rounded-pill fw-bold">نعم، فك الحظر</button>
-                        <button type="button" class="btn btn-light border rounded-pill fw-bold" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-success rounded-pill fw-bold" data-i18n="btn_confirm_unban">نعم، فك الحظر</button>
+                        <button type="button" class="btn btn-light border rounded-pill fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </form>
             </div>
@@ -211,11 +225,11 @@ $blacklist_res = $conn->query("
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const translations = {
-            ar: { security_header_title: "مركز أمان النظام", banned_devices_label: "الأجهزة المحظورة", devices_unit: "جهازا", security_alert_title: "نظام الحماية النشط", security_alert_msg: "يتم مراقبة الأجهزة لضمان المستحقات والالتزام يا", blacklist_title: "إدارة القائمة السوداء", th_device_id: "المعرف", th_user: "المستخدم", th_status: "الحالة", th_action: "الإجراء", status_banned: "محظور", btn_unban: "فك الحظر", no_banned: "لا يوجد محظورين حالياً", nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_security: "الأمان", nav_reports: "التقارير", nav_plans: "الخطط", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء" },
-            en: { security_header_title: "Security Center", banned_devices_label: "Banned Devices", devices_unit: "Devices", security_alert_title: "Active Security System", security_alert_msg: "Devices are monitored to ensure payments and compliance,", blacklist_title: "Blacklist Management", th_device_id: "ID", th_user: "User", th_status: "Status", th_action: "Action", status_banned: "Banned", btn_unban: "Unban", no_banned: "No bans found", nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", nav_reports: "Reports", nav_plans: "Plans", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel" }
+            ar: { security_header_title: "مركز أمان النظام", banned_devices_label: "الأجهزة المحظورة", devices_unit: "جهازا", security_alert_title: "نظام الحماية النشط", security_alert_msg: "يتم مراقبة الأجهزة لضمان المستحقات والالتزام يا", blacklist_title: "إدارة القائمة السوداء", th_device_id: "المعرف", th_user: "المستخدم", th_status: "الحالة", th_action: "الإجراء", status_banned: "محظور", btn_unban: "فك الحظر", no_banned: "لا يوجد محظورين حالياً", unban_title: "فك حظر المستخدم", unban_body: "هل تريد فك حظر", btn_confirm_unban: "نعم، فك الحظر", nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_security: "الأمان", nav_reports: "التقارير", nav_plans: "الخطط", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء" },
+            en: { security_header_title: "Security Center", banned_devices_label: "Banned Devices", devices_unit: "Devices", security_alert_title: "Active Security System", security_alert_msg: "Devices are monitored to ensure payments and compliance,", blacklist_title: "Blacklist Management", th_device_id: "ID", th_user: "User", th_status: "Status", th_action: "Action", status_banned: "Banned", btn_unban: "Unban", no_banned: "No bans found", unban_title: "Unban User", unban_body: "Do you want to unban", btn_confirm_unban: "Yes, Unban", nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", nav_reports: "Reports", nav_plans: "Plans", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel" }
         };
 
-        function askUnban(id, name) { document.getElementById('targetName').innerText = name; document.getElementById('modalUserId').value = id; new bootstrap.Modal(document.getElementById('unbanModal')).show(); }
+        function askUnban(id, name) { document.getElementById('targetName').innerText = name; document.getElementById('modalBlacklistId').value = id; new bootstrap.Modal(document.getElementById('unbanModal')).show(); }
 
         window.onload = function() {
             const lang = localStorage.getItem('app_lang') || 'ar';

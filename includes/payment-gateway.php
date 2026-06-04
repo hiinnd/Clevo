@@ -280,6 +280,7 @@ $csrf_token = generate_csrf_token();
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('lang', lang);
             document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            document.title = `${translations[lang].title} | Clevo`;
             
             if (!bookingID && !planID) {
                 const storedFinalPrice = localStorage.getItem('finalPrice');
@@ -329,7 +330,7 @@ $csrf_token = generate_csrf_token();
                 btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${lang === 'ar' ? 'جاري الدفع...' : 'Processing...'}`;
             }
 
-            // محاكاة معالجة الدفع ثم الانتقال لصفحة التفاصيل
+
             showModal('<i class="fas fa-check-circle text-success fa-3x"></i>', t.successTitle, planID ? t.planSuccessMsg : t.successMsg);
             
             fetch(window.location.href, {
@@ -371,7 +372,6 @@ $csrf_token = generate_csrf_token();
             document.getElementById('mirrorDate').innerText = val || "MM/YY";
         }
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
-

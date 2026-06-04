@@ -462,6 +462,12 @@ $userName = $_SESSION['userName'] ?? 'User';
 
         const pageTranslations = {
             ar: {
+                order_success_page_title: "تم الطلب بنجاح | Clevo",
+                order_sent_title: "تم إرسال الطلب!",
+                hello_thanks: "شكراً لك يا",
+                order_sent_msg: "تم استلام طلبك بنجاح وهو الآن بانتظار موافقة المحطة.",
+                order_id_label: "رقم الطلب:",
+                view_history: "عرض سجل الحجوزات",
                 status_label: "الحالة",
                 station_label: "المحطة",
                 service_label: "الخدمة",
@@ -490,6 +496,12 @@ $userName = $_SESSION['userName'] ?? 'User';
                 generic_error: "حاول مرة أخرى بعد قليل."
             },
             en: {
+                order_success_page_title: "Order Submitted | Clevo",
+                order_sent_title: "Order Submitted!",
+                hello_thanks: "Thank you,",
+                order_sent_msg: "Your order was received and is waiting for station approval.",
+                order_id_label: "Order number:",
+                view_history: "View Booking History",
                 status_label: "Status",
                 station_label: "Station",
                 service_label: "Service",
@@ -677,7 +689,7 @@ $userName = $_SESSION['userName'] ?? 'User';
             localStorage.setItem('clevo_order_status', <?= json_encode($status) ?>);
         });
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
     <div class="modal fade" id="cancelModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content p-4 text-center">

@@ -15,6 +15,7 @@ $admin_id = $_SESSION['userID'] ?? 0;
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
@@ -32,16 +33,47 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 $res_users = $conn->query("SELECT * FROM `user` WHERE Role IN ('customer', 'User') ORDER BY UserID DESC");
 
 
-if (isset($_GET['toggle_status'])) {
-    $u_id = intval($_GET['toggle_status']);
-    $current_status = $_GET['current'];
-    $new_status = ($current_status === 'active') ? 'rejected' : 'active';
-    
-    $stmt = $conn->prepare("UPDATE `user` SET AccountStatus = ? WHERE UserID = ?");
-    $stmt->bind_param("si", $new_status, $u_id);
-    if($stmt->execute()) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_status_id'])) {
+    clevo_require_csrf_token();
+    $u_id = (int) $_POST['toggle_status_id'];
+    $conn->begin_transaction();
+    try {
+        $user_stmt = $conn->prepare("SELECT AccountStatus, DeviceID FROM `user` WHERE UserID = ? AND LOWER(Role) IN ('customer', 'user') FOR UPDATE");
+        $user_stmt->bind_param("i", $u_id);
+        $user_stmt->execute();
+        $target_user = $user_stmt->get_result()->fetch_assoc();
+        if (!$target_user) {
+            throw new RuntimeException('User not found');
+        }
+
+        $new_status = $target_user['AccountStatus'] === 'active' ? 'rejected' : 'active';
+        $stmt = $conn->prepare("UPDATE `user` SET AccountStatus = ? WHERE UserID = ?");
+        $stmt->bind_param("si", $new_status, $u_id);
+        $stmt->execute();
+
+        if ($new_status === 'rejected') {
+            $device_id = trim((string) ($target_user['DeviceID'] ?? ''));
+            $check_blacklist = $conn->prepare("SELECT id FROM blacklist WHERE user_id = ? LIMIT 1");
+            $check_blacklist->bind_param("i", $u_id);
+            $check_blacklist->execute();
+            if (!$check_blacklist->get_result()->fetch_assoc()) {
+                $reason = 'Blocked by admin';
+                $add_blacklist = $conn->prepare("INSERT INTO blacklist (user_id, DeviceID, reason) VALUES (?, ?, ?)");
+                $add_blacklist->bind_param("iss", $u_id, $device_id, $reason);
+                $add_blacklist->execute();
+            }
+        } else {
+            $remove_blacklist = $conn->prepare("DELETE FROM blacklist WHERE user_id = ?");
+            $remove_blacklist->bind_param("i", $u_id);
+            $remove_blacklist->execute();
+        }
+
+        $conn->commit();
         header("Location: manage-users.php?msg=updated");
         exit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('User status update failed: ' . $e->getMessage());
     }
 }
 ?>
@@ -161,10 +193,13 @@ if (isset($_GET['toggle_status'])) {
                                                 </span>
                                             </td>
                                             <td>
-                                                <a href="manage-users.php?toggle_status=<?php echo $user['UserID']; ?>&current=<?php echo $user['AccountStatus']; ?>" 
-                                                   class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold">
+                                                <form method="POST" class="d-inline">
+                                                    <?= csrf_input(); ?>
+                                                    <input type="hidden" name="toggle_status_id" value="<?php echo (int) $user['UserID']; ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold">
                                                     <i class="fas fa-sync-alt me-1"></i> <span data-i18n="btn_toggle">تغيير الحالة</span>
-                                                </a>
+                                                    </button>
+                                                </form>
                                             </td>
                                         </tr>
                                         <?php endwhile; ?>

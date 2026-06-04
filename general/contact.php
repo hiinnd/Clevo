@@ -62,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
         body { font-family: 'Cairo', sans-serif; background: var(--main-bg); color: var(--text); min-height: 100vh; transition: 0.5s; margin: 0; padding-bottom: 20px; }
         .glass { background: var(--glass); backdrop-filter: blur(15px); border: 1px solid var(--border); border-radius: 25px; }
 
-        /* الهيدر الموحد */
+
         .page-header { 
             padding: 20px; display: flex; align-items: center; justify-content: space-between;
             height: 180px; border-radius: 0 0 40px 40px; 
@@ -84,14 +84,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['full_name'])) {
         [dir="ltr"] .spacer-div { order: 3; }
         [dir="ltr"] #backIcon { transform: rotate(180deg); }
 
-        /* تعديل الخط ليكون نحيفاً (Normal/Light) تماماً كالصورة */
+
         .header-title-light { 
             order: 2; 
             flex-grow: 1; 
             text-align: center; 
             margin: 0; 
             font-family: 'Cairo', sans-serif !important;
-            font-weight: 400 !important; /* الوزن العادي النحيف */
+            font-weight: 400 !important;
             font-size: 1.5rem;
             color: white !important; 
         }

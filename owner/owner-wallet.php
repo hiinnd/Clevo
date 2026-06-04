@@ -113,13 +113,13 @@ if ($userID > 0) {
         body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Cairo', sans-serif; transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
 
-        /* Sidebar الموحد والمحدث لجميع الصفحات */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255, 255, 255, 0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 0.95rem; transition: 0.2s; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
         .btn-ctrl { width: 35px; height: 35px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); color: white; border: 0; display: inline-flex; align-items: center; justify-content: center; }
 
-        /* هيدر المحفظة المتناسق والموحد بالكامل مع باقي واجهات الأونر */
+
         .content-area { flex: 1; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
@@ -135,7 +135,7 @@ if ($userID > 0) {
         
         .stat-box { background: var(--bg-card); padding: 20px; border-radius: 24px; border: 1px solid var(--border-color); color: var(--text-main); height: 100%; }
         
-        /* ضبط وتأكيد وضوح المودالات المخصصة للدارك مود */
+
         .modal-content { border-radius: 30px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
 
         @media (max-width: 768px) {
@@ -320,7 +320,7 @@ if ($userID > 0) {
             
             document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if (translations[lang][key]) el.innerText = translations[lang][key]; });
             
-            // ترجمة تبادلية لسجل المعاملات المجلوبة من قاعدة البيانات
+
             document.querySelectorAll('.db-tx-desc').forEach(el => {
                 const arText = el.getAttribute('data-ar');
                 const enText = el.getAttribute('data-en');

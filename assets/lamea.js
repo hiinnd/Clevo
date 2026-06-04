@@ -3,13 +3,13 @@ const lameaAssetsBase = lameaScriptSrc ? new URL(".", lameaScriptSrc).href : "..
 const lameaAvatarUrl = new URL("Images/Lame3.jpg", lameaAssetsBase).href;
 
 document.addEventListener("DOMContentLoaded", function () {
-    // جلب خيار اللغة الفعالة المخزنة في النظام لاعتمادها في بناء النصوص
+
     const currentLang = localStorage.getItem('app_lang') || 'ar';
     
-    // مصفوفة الترجمة الداخلية للشات بوت لضمان تبديل اللغتين مية بالمية
+
     const chatbotLexicon = {
         ar: {
-            title: "لامعة - مساعدة ذكية",
+            title: "لامع - مساعد ذكي",
             status: "متصل الآن • Online",
             welcome: "أهلاً بك في كليفو! كيف يمكنني مساعدتك اليوم؟ ✨",
             placeholder: "اكتب رسالتك هنا..."
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-    // تعيين النصوص بناءً على لغة الواجهة الحالية
+
     const botTitle = chatbotLexicon[currentLang].title;
     const botStatus = chatbotLexicon[currentLang].status;
     const botWelcome = chatbotLexicon[currentLang].welcome;
@@ -32,14 +32,14 @@ document.addEventListener("DOMContentLoaded", function () {
         const style = document.createElement("style");
         style.id = "lamea-chat-style";
         style.textContent = `
-            /* التموضع الرئيسي والتحكم التلقائي بناءً على اتجاه الـ html للسيستم */
+
             .lamea-chat-wrapper{position:fixed;bottom:22px;z-index:3000}
             
-            /* إذا كان السيستم عربي (rtl) يظهر الشات على اليسار */
+
             html[dir="rtl"] .lamea-chat-wrapper{left:22px; right: auto;}
             html[dir="rtl"] .chat-window{left:0; right: auto;}
             
-            /* إذا كان السيستم إنجليزي (ltr) يظهر الشات على اليمين بشكل صحيح وواضح */
+
             html[dir="ltr"] .lamea-chat-wrapper{right:22px; left: auto;}
             html[dir="ltr"] .chat-window{right:0; left: auto;}
             
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
         document.head.appendChild(style);
     }
 
-    // بناء هيكل الشات المطور ليدعم المتغيرات اللغوية الديناميكية بالنص
+
     const chatHTML = `
     <div class="lamea-chat-wrapper">
         <div class="lamea-avatar-btn shadow-lg" onclick="toggleChatWindow()">
@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     document.body.insertAdjacentHTML("beforeend", chatHTML);
 
-    // تفعيل زر الإنتر للإرسال فوراً
+
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && document.activeElement.id === 'chatInput') {
             e.preventDefault(); 
@@ -115,7 +115,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-// فتح وإغلاق النافذة مع أنيميشن سلس
+
 function toggleChatWindow() {
     const win = document.getElementById('chatWindow');
     if (win) {
@@ -129,14 +129,14 @@ function toggleChatWindow() {
     }
 }
 
-// إرسال الرسالة المسبوك بـ n8n
+
 async function sendMessage() {
     const input = document.getElementById('chatInput');
     const body = document.getElementById('chatBody');
     const message = input.value.trim();
 
     if (message !== "") {
-        // إضافة رسالة المستخدم
+
         const userDiv = document.createElement('div');
         userDiv.className = 'msg-bubble user-msg';
         userDiv.innerText = message;
@@ -145,7 +145,7 @@ async function sendMessage() {
         input.value = ""; 
         body.scrollTop = body.scrollHeight;
 
-        // إظهار مؤشر الكتابة
+
         const typingDiv = document.createElement('div');
         typingDiv.className = 'msg-bubble bot-msg typing-indicator';
         typingDiv.innerHTML = '<span>.</span><span>.</span><span>.</span>';
@@ -167,14 +167,9 @@ async function sendMessage() {
 
             const botDiv = document.createElement('div');
             botDiv.className = 'msg-bubble bot-msg';
-            botDiv.innerText = data.reply || data.output || (localStorage.getItem('app_lang') === 'en' ? "Sorry, Lamea is currently busy." : "عذراً، لامعة مشغولة حالياً.");
+            botDiv.innerText = data.reply || data.output || (localStorage.getItem('app_lang') === 'en' ? "Sorry, Lamea is currently busy." : "عذراً، لامع مشغول حالياً.");
             body.appendChild(botDiv);
             body.scrollTop = body.scrollHeight;
-
-            // تشغيل الصوت للرد
-            const speech = new SpeechSynthesisUtterance(botDiv.innerText);
-            speech.lang = (localStorage.getItem('app_lang') === 'en' ? 'en-US' : 'ar-SA');
-            window.speechSynthesis.speak(speech);
 
         } catch (error) {
             typingDiv.innerText = localStorage.getItem('app_lang') === 'en' ? "Connection error occurred." : "حدث خطأ في الاتصال.";
@@ -182,7 +177,7 @@ async function sendMessage() {
     }
 }
 
-// منطق الصوت المطور (Speech to Text)
+
 let recognition;
 function saveLameaTranscript(text) {
     try {
@@ -243,8 +238,9 @@ function toggleVoice() {
 
         recognition.onresult = (event) => {
             const result = event.results[0][0].transcript;
-            document.getElementById('chatInput').value = result;
-            try { saveLameaTranscript(result); } catch(e) {}
+            const input = document.getElementById('chatInput');
+            input.value = result;
+            input.focus();
             document.getElementById('voiceBtn').classList.remove('recording');
         };
 

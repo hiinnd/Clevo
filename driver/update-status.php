@@ -4,8 +4,9 @@ include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
 $driver_id = (int) ($_SESSION['userID'] ?? 0);
+$driver_booking_id = (int) ($_SESSION['driver_booking_id'] ?? 0);
 $driver_role = strtolower($_SESSION['role'] ?? $_SESSION['Role'] ?? '');
-if (!$driver_id || $driver_role !== 'driver') {
+if (!$driver_id || !$driver_booking_id || $driver_role !== 'driver') {
     header('Location: ../general/login.php');
     exit;
 }
@@ -17,18 +18,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     clevo_require_csrf_token(true);
     $status = $_POST['status'] ?? '';
     $order_id = (int) ($_POST['order_id'] ?? 0);
+    if ($order_id !== $driver_booking_id) {
+        echo json_encode(['status' => 'error']);
+        exit;
+    }
     $allowed = ['Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning', 'Completed'];
     if (!in_array($status, $allowed, true)) {
         echo json_encode(['status' => 'error']);
         exit;
     }
 
+    $check = $conn->prepare("SELECT Status, UserID, Order_Number, Total_Price, Service_Location, Payment_Method FROM booking WHERE BookingID = ? AND DriverID = ? LIMIT 1");
+    $check->bind_param("ii", $order_id, $driver_id);
+    $check->execute();
+    $booking = $check->get_result()->fetch_assoc();
+    if (!$booking) {
+        echo json_encode(['status' => 'error']);
+        exit;
+    }
+
     if ($status === 'Completed') {
-        $check = $conn->prepare("SELECT Service_Location, Payment_Method FROM booking WHERE BookingID = ? AND DriverID = ? LIMIT 1");
-        $check->bind_param("ii", $order_id, $driver_id);
-        $check->execute();
-        $booking = $check->get_result()->fetch_assoc();
-        if ($booking && in_array($booking['Service_Location'], ['home', 'delivery'], true) && empty($booking['Payment_Method'])) {
+        if (in_array($booking['Service_Location'], ['home', 'delivery'], true) && empty($booking['Payment_Method'])) {
             echo json_encode(['status' => 'payment_required']);
             exit;
         }
@@ -37,24 +47,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     $stmt = $conn->prepare("UPDATE booking SET Status = ? WHERE BookingID = ? AND DriverID = ?");
     $stmt->bind_param("sii", $status, $order_id, $driver_id);
     $ok = $stmt->execute();
-    if ($ok && $status === 'Completed') {
+    $logout = false;
+    if ($ok && $status === 'Completed' && $booking['Status'] !== 'Completed') {
+        clevoAddLoyaltyPoints($conn, (int) $booking['UserID'], (float) ($booking['Total_Price'] ?? 0));
         if (($booking['Payment_Method'] ?? '') === 'plan') {
             clevoCreditOwnerForBooking($conn, $order_id);
         }
-        $clearCode = $conn->prepare("UPDATE user SET CurrentAccessCode = NULL WHERE UserID = ?");
-        $clearCode->bind_param("i", $driver_id);
-        $clearCode->execute();
+        $ownerStmt = $conn->prepare("SELECT s.UserID AS OwnerID FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ? LIMIT 1");
+        $ownerStmt->bind_param("i", $order_id);
+        $ownerStmt->execute();
+        $ownerID = (int) ($ownerStmt->get_result()->fetch_assoc()['OwnerID'] ?? 0);
+        $orderNumber = (string) ($booking['Order_Number'] ?: $order_id);
+        foreach ([(int) $booking['UserID'], $ownerID] as $notifyUser) {
+            if ($notifyUser <= 0) continue;
+            $target = $notifyUser === (int) $booking['UserID'] ? 'order-details.php?id=' . $order_id : 'incoming-orders.php';
+            clevoCreateNotification(
+                $conn,
+                $notifyUser,
+                'تم إنهاء الطلب',
+                "تم إنهاء وتسليم الطلب #$orderNumber.",
+                'success',
+                $target,
+                'Order completed',
+                "Order #$orderNumber was completed and delivered."
+            );
+        }
+        $_SESSION = [];
+        if (isset($_COOKIE['access_token'])) {
+            setcookie('access_token', '', ['expires' => time() - 3600, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+        }
+        session_destroy();
+        $logout = true;
     }
-    echo json_encode(['status' => $ok ? 'success' : 'error']);
+    echo json_encode(['status' => $ok ? 'success' : 'error', 'logout' => $logout]);
     exit;
 }
 
 $task_stmt = $conn->prepare("SELECT b.BookingID, b.Order_Number, b.Status, u.UserName AS customer_name
     FROM booking b
     JOIN user u ON b.UserID = u.UserID
-    WHERE b.DriverID = ? AND b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')
+    WHERE b.BookingID = ? AND b.DriverID = ? AND b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')
     ORDER BY b.created_at DESC LIMIT 1");
-$task_stmt->bind_param("i", $driver_id);
+$task_stmt->bind_param("ii", $driver_booking_id, $driver_id);
 $task_stmt->execute();
 $task = $task_stmt->get_result()->fetch_assoc();
 ?>
@@ -90,24 +124,48 @@ $task = $task_stmt->get_result()->fetch_assoc();
 
     <main class="container" style="max-width: 500px;">
         <div class="alert alert-primary border-0 shadow-sm rounded-4 mb-4 text-center" style="background: rgba(0, 123, 255, 0.1);">
-            <h6 class="small mb-0" style="color: var(--text-main); font-weight: 700;">الزبون: <?= htmlspecialchars($task['customer_name'] ?? '-') ?></h6>
+            <h6 class="small mb-0" style="color: var(--text-main); font-weight: 700;"><span data-i18n="customer_label">الزبون:</span> <?= htmlspecialchars($task['customer_name'] ?? '-') ?></h6>
         </div>
 
         <?php if($task): ?>
-            <?php foreach (['Arrived' => 'وصلت للموقع', 'Pickup' => 'تم استلام السيارة', 'Washing' => 'بدء الغسيل', 'Returning' => 'جاري الإرجاع'] as $status => $label): ?>
+            <?php foreach (['Arrived' => ['وصلت للموقع', 'status_arrived'], 'Pickup' => ['تم استلام السيارة', 'status_pickup'], 'Washing' => ['بدء الغسيل', 'status_washing'], 'Returning' => ['جاري الإرجاع', 'status_returning']] as $status => [$label, $translationKey]): ?>
                 <button class="status-btn <?= $task['Status'] === $status ? 'active' : '' ?>" data-status="<?= $status ?>" onclick="updateStatus(this)">
                     <div class="icon-box shadow-sm"><i class="fas fa-location-dot text-primary"></i></div>
-                    <div class="flex-grow-1"><h6 class="mb-0 fw-bold"><?= $label ?></h6></div>
+                    <div class="flex-grow-1"><h6 class="mb-0 fw-bold" data-i18n="<?= $translationKey ?>"><?= $label ?></h6></div>
                 </button>
             <?php endforeach; ?>
-            <button class="btn btn-success w-100 rounded-pill py-3 mt-4 shadow fw-bold" onclick="updateStatus({dataset:{status:'Completed'}})">إنهاء وتسليم المهمة</button>
+            <button class="btn btn-success w-100 rounded-pill py-3 mt-4 shadow fw-bold" onclick="updateStatus({dataset:{status:'Completed'}})" data-i18n="finish_task">إنهاء وتسليم المهمة</button>
         <?php else: ?>
-            <div class="text-center opacity-50 py-5">لا توجد مهمة نشطة</div>
+            <div class="text-center opacity-50 py-5" data-i18n="no_active_task">لا توجد مهمة نشطة</div>
         <?php endif; ?>
     </main>
 
     <script>
         const csrfToken = <?= json_encode(generate_csrf_token()) ?>;
+        const translations = {
+            ar: {
+                worker_title: "تحديث الحالة | Clevo Worker",
+                update_order: "تحديث حالة الطلب",
+                customer_label: "الزبون:",
+                status_arrived: "وصلت للموقع",
+                status_pickup: "تم استلام السيارة",
+                status_washing: "بدء الغسيل",
+                status_returning: "جاري الإرجاع",
+                finish_task: "إنهاء وتسليم المهمة",
+                no_active_task: "لا توجد مهمة نشطة"
+            },
+            en: {
+                worker_title: "Update Status | Clevo Worker",
+                update_order: "Update Order Status",
+                customer_label: "Customer:",
+                status_arrived: "Arrived at Location",
+                status_pickup: "Vehicle Picked Up",
+                status_washing: "Start Washing",
+                status_returning: "Returning Vehicle",
+                finish_task: "Finish and Deliver Task",
+                no_active_task: "No Active Task"
+            }
+        };
 
         function updateStatus(btn) {
             const params = new URLSearchParams();
@@ -117,13 +175,26 @@ $task = $task_stmt->get_result()->fetch_assoc();
             params.append('order_id', '<?= (int)($task['BookingID'] ?? 0) ?>');
             fetch(window.location.href, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() })
                 .then(res => res.json())
-                .then(data => { if(data.status === 'success') location.reload(); });
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.href = data.logout ? '../general/login.php' : 'update-status.php';
+                    }
+                });
         }
         window.onload = () => {
             const lang = localStorage.getItem('app_lang') || 'ar';
             const theme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            document.getElementById('bootstrap-rtl').href = lang === 'ar'
+                ? 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css'
+                : 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';
+            document.getElementById('backIcon').className = lang === 'ar' ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
+            });
         };
     </script>
 </body>

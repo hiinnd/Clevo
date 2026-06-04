@@ -73,25 +73,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $order_id = (int) ($_POST['order_id'] ?? 0);
         $driver_id = (int) ($_POST['driver_id'] ?? 0);
         $order_num = clevo_clean_string($_POST['order_number'] ?? '', 40);
-        $new_access_code = (string) random_int(100000, 999999);
+        do {
+            $new_access_code = (string) random_int(100000, 999999);
+            $code_check = $conn->prepare("SELECT BookingID FROM booking WHERE DriverAccessCode = ? LIMIT 1");
+            $code_check->bind_param("s", $new_access_code);
+            $code_check->execute();
+            $code_exists = $code_check->get_result()->num_rows > 0;
+        } while ($code_exists);
 
         $conn->begin_transaction();
         try {
             $update_order = $conn->prepare("UPDATE booking b
                 JOIN stations s ON b.StationID = s.StationID
-                SET b.Status = 'Accepted', b.DriverID = ?, b.Accepted_At = NOW(), b.notification_sent = 0
+                SET b.Status = 'Accepted', b.DriverID = ?, b.DriverAccessCode = ?, b.Accepted_At = NOW(), b.notification_sent = 0
                 WHERE b.BookingID = ? AND b.Status = 'Pending' AND b.Service_Location = 'delivery' AND s.UserID = ?");
-            $update_order->bind_param("iii", $driver_id, $order_id, $owner_id);
+            $update_order->bind_param("isii", $driver_id, $new_access_code, $order_id, $owner_id);
             $update_order->execute();
 
-            $update_driver = $conn->prepare("UPDATE user u
+            $check_driver = $conn->prepare("SELECT u.UserID FROM user u
                 JOIN stations s ON u.StationID = s.StationID
-                SET u.CurrentAccessCode = ?
-                WHERE u.UserID = ? AND LOWER(u.Role) = 'driver' AND s.UserID = ?");
-            $update_driver->bind_param("sii", $new_access_code, $driver_id, $owner_id);
-            $update_driver->execute();
+                WHERE u.UserID = ? AND LOWER(u.Role) = 'driver' AND u.AccountStatus = 'active' AND s.UserID = ?
+                LIMIT 1");
+            $check_driver->bind_param("ii", $driver_id, $owner_id);
+            $check_driver->execute();
+            $driver_valid = $check_driver->get_result()->num_rows > 0;
 
-            if ($update_order->affected_rows <= 0 || $update_driver->affected_rows <= 0) {
+            if ($update_order->affected_rows <= 0 || !$driver_valid) {
                 throw new RuntimeException('assign_failed');
             }
 
@@ -102,10 +109,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             $customer_id = (int) ($customer['UserID'] ?? 0);
 
             $msg_c = "تم قبول طلبك #$order_num. تم تعيين السائق، ويرجى اختيار طريقة الدفع خلال 10 دقائق من زر الدفع.";
-            clevoCreateNotification($conn, $customer_id, 'تم قبول الطلب', $msg_c, 'success');
+            clevoCreateNotification(
+                $conn,
+                $customer_id,
+                'تم قبول الطلب',
+                $msg_c,
+                'success',
+                '../user/order-details.php?id=' . $order_id,
+                'Order accepted',
+                "Your order #$order_num was accepted and a driver was assigned. Please choose a payment method within 10 minutes."
+            );
 
             $msg_d = "لديك مهمة جديدة للطلب #" . $order_num . "، كود الدخول هو: " . $new_access_code;
-            clevoCreateNotification($conn, $driver_id, 'مهمة جديدة', $msg_d, 'info');
+            clevoCreateNotification(
+                $conn,
+                $driver_id,
+                'مهمة جديدة',
+                $msg_d,
+                'info',
+                '../driver/driver-dashboard.php',
+                'New task',
+                "You have a new task for order #$order_num. Login code: $new_access_code"
+            );
 
             $conn->commit();
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'driver_assigned']);
@@ -204,7 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 }
 
 
-$orders_stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, u.PhoneNumber as customer_phone, serv.Name as service_name, serv.Name_ar as service_name_ar, serv.Name_en as service_name_en, s.Name as station_name, d.UserName as driver_name, d.CurrentAccessCode as d_code
+$orders_stmt = $conn->prepare("SELECT b.*, u.UserName as customer_name, u.PhoneNumber as customer_phone, serv.Name as service_name, serv.Name_ar as service_name_ar, serv.Name_en as service_name_en, s.Name as station_name, d.UserName as driver_name, b.DriverAccessCode as d_code
     FROM booking b
     JOIN user u ON b.UserID = u.UserID
     JOIN stations s ON b.StationID = s.StationID
@@ -251,7 +276,7 @@ $csrf_token = generate_csrf_token();
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
         
-        /* Sidebar Style من آخر صفحة */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
@@ -346,7 +371,7 @@ $csrf_token = generate_csrf_token();
                                             <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Latitude']) ?>,<?= e($order['Longitude']) ?>" data-i18n="open_map">فتح الموقع على الخريطة</a>
                                         <?php endif; ?>
                                     <?php endif; ?>
-                                    <?php if($order['Status'] == 'Accepted'): ?>
+                                    <?php if(in_array($order['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'], true) && !empty($order['d_code'])): ?>
                                         <p class="mb-0 small text-success fw-bold"><i class="fas fa-key me-1"></i> <span data-i18n="driver_code">كود السائق:</span> <?= e($order['d_code']) ?></p>
                                     <?php endif; ?>
                                     <?php if(!empty($order['Driver_Lat']) && !empty($order['Driver_Lon'])): ?>
@@ -584,7 +609,7 @@ $csrf_token = generate_csrf_token();
             document.getElementById('langBtnText').innerText = isRtl ? 'EN' : 'AR';
             document.getElementById('themeIcon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             
-            // تحديث عدد الكروت المتاحة ديناميكياً
+
             if (document.getElementById('pendingCount').innerText == '0') {
                 document.getElementById('pendingCount').innerText = document.querySelectorAll('.order-card').length;
             }
@@ -592,4 +617,3 @@ $csrf_token = generate_csrf_token();
     </script>
 </body>
 </html>
-

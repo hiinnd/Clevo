@@ -201,7 +201,7 @@ $csrf_token = generate_csrf_token();
                 });
         }
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>
 

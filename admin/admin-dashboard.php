@@ -42,18 +42,15 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 $res_stations = $conn->query("SELECT COUNT(*) as total FROM stations WHERE admin_status = 'approved'");
 $total_stations = $res_stations->fetch_assoc()['total'] ?? 0;
 
-$res_users = $conn->query("SELECT COUNT(*) as total FROM `user` WHERE Role = 'customer'");
+$res_users = $conn->query("SELECT COUNT(*) as total FROM `user` WHERE LOWER(Role) IN ('customer', 'user')");
 $total_users = $res_users->fetch_assoc()['total'] ?? 0;
-
-$res_pending_bookings = $conn->query("SELECT COUNT(*) as total FROM booking WHERE Status = 'Pending'");
-$pending_bookings_count = $res_pending_bookings->fetch_assoc()['total'] ?? 0;
 
 $res_pending_stations = $conn->query("SELECT COUNT(*) as total FROM stations WHERE admin_status = 'pending'");
 $pending_stations_count = $res_pending_stations->fetch_assoc()['total'] ?? 0;
 
-$total_pending = $pending_bookings_count + $pending_stations_count;
+$total_pending = $pending_stations_count;
 
-$res_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE DATE(created_at) = CURDATE()");
+$res_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed' AND DATE(created_at) = CURDATE()");
 $total_profit = $res_profit->fetch_assoc()['total'] ?? 0;
 
 $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name 
@@ -62,7 +59,6 @@ $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name
                              WHERE st.id IN (SELECT MAX(id) FROM support_tickets GROUP BY COALESCE(user_id, user_name)) 
                              ORDER BY st.id DESC LIMIT 5");
 
-# جلب الإشعارات غير المقروءة الموجهة للأدمن الحالي أو العامة للأدمنز
 $stmt_notif = $conn->prepare("SELECT COUNT(*) as total FROM notifications WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
 $stmt_notif->bind_param("i", $admin_id);
 $stmt_notif->execute();
@@ -73,7 +69,7 @@ $stmt_notif->close();
 $res_most_service = $conn->query("SELECT s.Name as ServiceName, COUNT(b.ServiceID) as count FROM booking b JOIN services s ON b.ServiceID = s.ServiceID GROUP BY b.ServiceID ORDER BY count DESC LIMIT 1");
 $most_service = ($res_most_service) ? $res_most_service->fetch_assoc() : null;
 
-$res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
+$res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
 $monthly_profit = $res_monthly_profit->fetch_assoc()['total'] ?? 0;
 
 $res_avg_rating = $conn->query("SELECT AVG(Rating) as avg_rating FROM reviews");
@@ -176,7 +172,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                         <p class="small mb-0 opacity-75"><span data-i18n="hello">أهلاً</span> <span class="u-name-raw text-primary fw-bold"><?php echo htmlspecialchars($admin_name); ?></span></p>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <!-- زر الإشعارات مربوط بصفحة الإشعارات ويعرض الرقم الحقيقي بدقة -->
+
                         <a href="notifications.php" class="btn-ctrl-circle position-relative">
                             <i class="fas fa-bell"></i>
                             <?php if ($unread_count > 0): ?>

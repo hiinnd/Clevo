@@ -36,9 +36,22 @@ $msg_type = "";
 if (isset($_POST['confirm_delete_id'])) {
     clevo_require_csrf_token();
     $delete_id = intval($_POST['confirm_delete_id']);
-    if($conn->query("DELETE FROM stations WHERE StationID = $delete_id")) { 
+    $conn->begin_transaction();
+    try {
+        $unlink = $conn->prepare("UPDATE `user` SET StationID = NULL WHERE StationID = ?");
+        $unlink->bind_param("i", $delete_id);
+        $unlink->execute();
+        $delete = $conn->prepare("DELETE FROM stations WHERE StationID = ?");
+        $delete->bind_param("i", $delete_id);
+        $delete->execute();
+        $conn->commit();
         $show_msg_modal = true; 
-        $msg_type = "deleted"; 
+        $msg_type = "deleted";
+    } catch (Throwable $e) {
+        $conn->rollback();
+        error_log('Station delete failed: ' . $e->getMessage());
+        $show_msg_modal = true;
+        $msg_type = "error";
     }
 }
 
@@ -46,7 +59,9 @@ if (isset($_POST['confirm_delete_id'])) {
 if (isset($_POST['confirm_block_id'])) {
     clevo_require_csrf_token();
     $block_id = intval($_POST['confirm_block_id']);
-    if($conn->query("UPDATE stations SET Status = 'Closed' WHERE StationID = $block_id")) { 
+    $block = $conn->prepare("UPDATE stations SET Status = 'Closed', admin_status = 'blocked' WHERE StationID = ?");
+    $block->bind_param("i", $block_id);
+    if($block->execute()) {
         $show_msg_modal = true; 
         $msg_type = "blocked"; 
     }
@@ -84,7 +99,7 @@ $res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
         
-        /* Sidebar الأدمن الثابت */
+
         .admin-sidebar { background: var(--bg-sidebar); color: white; padding: 20px 15px; position: sticky; top: 0; height: 100vh; width: 260px; display: flex; flex-direction: column; overflow: visible; z-index: 1000; }
         .admin-pic-container { position: relative; display: inline-block; margin-bottom: 10px; cursor: pointer; }
         .admin-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-blue); transition: 0.3s; }
@@ -100,7 +115,7 @@ $res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-btn-back { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; transition: 0.3s; }
         
-        /* الجدول وعناصر العرض */
+
         .station-table-container { background-color: var(--bg-card) !important; border-radius: 24px; padding: 25px; border: 1px solid var(--border-color); }
         .custom-table { width: 100%; border-collapse: separate; border-spacing: 0 12px; color: var(--text-main) !important; }
         .custom-table tbody tr { background: var(--row-bg); transition: 0.3s; }
@@ -109,7 +124,7 @@ $res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations
         
         .station-img { width: 50px; height: 50px; border-radius: 12px; object-fit: cover; border: 1px solid var(--border-color); }
 
-        /* المودالات الموحدة والناعمة */
+
         .modal-content { border-radius: 30px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
         .text-muted-custom { color: var(--text-main) !important; opacity: 0.7; }
 

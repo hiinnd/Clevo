@@ -108,7 +108,7 @@ while($row = $services_res->fetch_assoc()){
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
 
-        /* Sidebar Style الموحد والمطور */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
@@ -281,6 +281,7 @@ while($row = $services_res->fetch_assoc()){
     <script>
         const translations = {
             ar: {
+                manage_services_title: "إدارة الخدمات | Clevo",
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", nav_notifications: "الإشعارات",
                 manage_services_header: "إدارة الخدمات المتاحة", add_new_service: "إضافة خدمة جديدة", edit_service: "تعديل الخدمة", service_name_label: "اسم الخدمة", service_description_label: "وصف الخدمة", service_description_placeholder: "", service_price_label: "السعر (JOD)",
                 available_options: "خيارات تقديم الخدمة:", type_station: "في المحطة (Station)", type_home: "خدمة منزلية (At Home)", type_pickup: "استلام وتسليم (Pickup)",
@@ -291,6 +292,7 @@ while($row = $services_res->fetch_assoc()){
                 service_saved_title: "تم الحفظ", service_saved_body: "تم حفظ الخدمة بنجاح.", service_deleted_title: "تم الحذف", service_deleted_body: "تم حذف الخدمة بنجاح."
             },
             en: {
+                manage_services_title: "Services Management | Clevo",
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
                 manage_services_header: "Services Management", add_new_service: "Add New Service", edit_service: "Edit Service", service_name_label: "Service Name", service_description_label: "Service Description", service_description_placeholder: "", service_price_label: "Price (JOD)",
                 available_options: "Delivery Options:", type_station: "At Station", type_home: "At Home Service", type_pickup: "Pickup & Delivery",
@@ -414,4 +416,3 @@ while($row = $services_res->fetch_assoc()){
     </script>
 </body>
 </html>
-

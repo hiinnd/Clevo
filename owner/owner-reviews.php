@@ -95,7 +95,7 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
 
-        /* Sidebar الموحد الجديد من صفحة الإشعارات */
+
         .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
         .nav-link { color: rgba(255, 255, 255, 0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 0.95rem; transition: 0.2s; }
         .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
@@ -118,12 +118,12 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
         .reply-box { background: rgba(0, 123, 255, 0.05); border-radius: 18px; padding: 20px; margin-top: 15px; border-right: 5px solid var(--primary-blue); }
         [dir="ltr"] .reply-box { border-right: none; border-left: 5px solid var(--primary-blue); }
         
-        /* وضوح البوكس والخط بالكامل بالثيمين */
+
         .reply-input { border-radius: 12px; border: 1px solid var(--border-color); padding: 12px; font-size: 0.95rem; width: 100%; background: var(--input-bg); color: var(--input-text) !important; outline: none; font-family: 'Cairo', sans-serif; }
         .reply-input::placeholder { color: var(--text-muted); opacity: 0.6; }
         .owner-badge { background: var(--primary-blue); color: white; font-size: 0.75rem; padding: 4px 12px; border-radius: 50px; margin-bottom: 8px; display: inline-block; font-weight: 800; }
 
-        /* وضوح مودالات الأكشن والخروج */
+
         .modal-content { border-radius: 30px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
 
         @media (max-width: 768px) {
@@ -312,7 +312,7 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
             location.reload();
         }
 
-        // دالة الترجمة الحية لنصوص الكومنتات والأسماء القادمة من قاعدة البيانات دون لمس الـ Backend
+
         async function translateTextLive(text) {
             if (!text || !text.trim()) return text;
             try {
@@ -342,7 +342,7 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
                 }
             });
 
-            // إذا تحول النظام للغة الإنجليزية، قم بترجمة الكومنتات والأسماء والردود حياً تلقائياً
+
             if (!isRtl) {
                 document.querySelectorAll('.user-name-el').forEach(async (el) => {
                     const rawName = el.getAttribute('data-name');

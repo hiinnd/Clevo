@@ -562,6 +562,6 @@ function clevo_search_location_ar(string $location): string {
             applyFilters();
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

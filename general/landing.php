@@ -701,7 +701,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                                 <ul class="dropdown-menu dropdown-menu-dark rounded-3 shadow border-0 mt-2 text-end">
                                     <li>
                                         <?php
-                                        // تحديد رابط لوحة التحكم حسب الدور
+
                                         $current_role = isset($_SESSION['role']) ? trim($_SESSION['role']) : 'User';
 
                                         if (strcasecmp($current_role, 'Admin') === 0) {
@@ -876,7 +876,7 @@ $user_role = $_SESSION['role'] ?? 'User';
                 f_terms: "الشروط والأحكام",
                 f_follow: "تابعنا",
                 f_copy: "صمم بكل حب لخدمتكم",
-                chat_h: "لامعة - مساعدة ذكية",
+                chat_h: "لامع - مساعد ذكي",
                 chat_welcome: "أهلاً بك في كليفوا! كيف يمكنني مساعدتك اليوم؟",
                 home_page: "لوحة التحكم",
                 logout: "خروج",
@@ -1095,7 +1095,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             });
         };
     </script>
-    <script src="../assets/lamea.js"></script>
+    <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 
 </html>

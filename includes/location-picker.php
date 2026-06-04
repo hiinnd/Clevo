@@ -61,10 +61,10 @@
             font-family: 'Cairo', sans-serif; 
             background: url('../assets/Images/background.png') no-repeat center center fixed;
             background-size: cover; color: var(--text-main); margin: 0; padding: 0;
-            height: 100vh; overflow: hidden; /* لمنع السكرول الخارجي */
+            height: 100vh; overflow: hidden;
         }
 
-        /* هيدر ثابت */
+
         .map-header { 
             background: var(--bg-header); padding: 12px 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); 
             position: fixed; top: 0; width: 100%; z-index: 2000; border-bottom: 1px solid var(--border-color); 
@@ -78,11 +78,11 @@
         }
         [dir="ltr"] .map-header { flex-direction: row-reverse; }
 
-        /* حاوية الخريطة - أهم تعديل */
+
         #map-container { position: relative; width: 100%; height: 100vh; z-index: 1; }
         #map { width: 100%; height: 100%; }
 
-        /* زر GPS */
+
         .locate-me-btn { 
             position: absolute; bottom: 240px; z-index: 1500; 
             background: var(--bg-header); width: 48px; height: 48px; border-radius: 50%; 
@@ -93,14 +93,14 @@
         [dir="rtl"] .locate-me-btn { left: 20px; }
         [dir="ltr"] .locate-me-btn { right: 20px; }
 
-        /* السيرش */
+
         .leaflet-control-geocoder { 
             margin-top: 80px !important; z-index: 1000 !important;
             background: var(--bg-header) !important; border-radius: 12px !important;
             border: 1px solid var(--border-color) !important; width: 280px !important;
         }
 
-        /* الفوتر */
+
         .location-footer { 
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); 
             padding: 20px; border-radius: 30px 30px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2); 
@@ -157,7 +157,7 @@
         const lang = localStorage.getItem('app_lang') || 'ar';
         const user = localStorage.getItem('userName') || "صديقنا";
 
-        // حل مشكلة تأخر ظهور الخريطة
+
         const map = L.map('map', { zoomControl: false }).setView([31.9539, 35.9106], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -182,7 +182,7 @@
             document.getElementById('backIcon').className = lang === 'ar' ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
             if (typeof applyTranslations === 'function') applyTranslations(lang);
             
-            // تحديث الخريطة بعد التحميل لضمان الظهور
+
             setTimeout(() => { map.invalidateSize(); }, 500);
             detectUserLocation(false);
         };
@@ -220,7 +220,7 @@
             localStorage.setItem('selected_lat', marker.getLatLng().lat);
             localStorage.setItem('selected_lng', marker.getLatLng().lng);
             localStorage.setItem('selected_google_maps_url', `https://www.google.com/maps?q=${marker.getLatLng().lat},${marker.getLatLng().lng}`);
-            location.href = '../user/home.php'; // أو النجاح
+            location.href = '../user/home.php';
         }
     </script>
 </body>

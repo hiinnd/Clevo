@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['user_id'])) {
     $user_id = intval($_POST['user_id']); 
     
     
-    $stmt = $conn->prepare("UPDATE user SET Role = 'User' WHERE UserID = ?");
+    $stmt = $conn->prepare("UPDATE user SET AccountStatus = 'active' WHERE UserID = ?");
     $stmt->bind_param("i", $user_id);
     
     if ($stmt->execute()) {
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['user_id'])) {
         exit;
         
     } else {
-        echo "Error Updating User Role: " . $conn->error;
+        echo "Error Updating User Status: " . $conn->error;
     }
 }
 ?>
