@@ -9,13 +9,13 @@ document.addEventListener("DOMContentLoaded", function () {
     // مصفوفة الترجمة الداخلية للشات بوت لضمان تبديل اللغتين مية بالمية
     const chatbotLexicon = {
         ar: {
-            title: "لامعة - مساعدة ذكية",
+            title: "لامع - مساعد ذكي",
             status: "متصل الآن • Online",
             welcome: "أهلاً بك في كليفو! كيف يمكنني مساعدتك اليوم؟ ✨",
             placeholder: "اكتب رسالتك هنا..."
         },
         en: {
-            title: "Lamea - Smart Assistant",
+            title: "Lame3 - Smart Assistant",
             status: "Online Now",
             welcome: "Welcome to Clevo! How can I help you today? ✨",
             placeholder: "Type your message here..."
@@ -167,7 +167,7 @@ async function sendMessage() {
 
             const botDiv = document.createElement('div');
             botDiv.className = 'msg-bubble bot-msg';
-            botDiv.innerText = data.reply || data.output || (localStorage.getItem('app_lang') === 'en' ? "Sorry, Lamea is currently busy." : "عذراً، لامعة مشغولة حالياً.");
+            botDiv.innerText = data.reply || data.output || (localStorage.getItem('app_lang') === 'en' ? "Sorry, Lamea is currently busy." : "عذراً، لامع مشغول حالياً.");
             body.appendChild(botDiv);
             body.scrollTop = body.scrollHeight;
 

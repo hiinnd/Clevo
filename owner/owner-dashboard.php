@@ -91,17 +91,33 @@ $recent_reviews = $recent_reviews_stmt->get_result();
 
     <style>
         :root {
-            --accent: #007bff; --bg-body: #f0f2f5; --bg-sidebar: #0f172a; --bg-header: #ffffff; 
-            --bg-card: #ffffff; --text-main: #000000; --text-muted: #495057; 
-            --badge-bg: #e7f1ff; --border-card: #dee2e6; --primary-blue: #007bff;
-            --border-color: #dee2e6; --input-bg: #ffffff; --input-text: #000000;
+            --accent: #007bff;
+            --bg-body: #f0f2f5;
+            --bg-sidebar: #0f172a;
+            --bg-header: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #000000;
+            --text-muted: #495057;
+            --badge-bg: #e7f1ff;
+            --border-card: #dee2e6;
+            --primary-blue: #007bff;
+            --border-color: #dee2e6;
+            --input-bg: #ffffff;
+            --input-text: #000000;
         }
 
         [data-theme="dark"] {
-            --bg-body: #020617; --bg-sidebar: #000000; --bg-header: #000000; 
-            --bg-card: #0f172a; --text-main: #ffffff !important; --text-muted: #cbd5e1 !important; 
-            --badge-bg: #334155; --border-card: #334155; --border-color: #334155;
-            --input-bg: #1a2236; --input-text: #ffffff !important;
+            --bg-body: #020617;
+            --bg-sidebar: #000000;
+            --bg-header: #000000;
+            --bg-card: #0f172a;
+            --text-main: #ffffff !important;
+            --text-muted: #cbd5e1 !important;
+            --badge-bg: #334155;
+            --border-card: #334155;
+            --border-color: #334155;
+            --input-bg: #1a2236;
+            --input-text: #ffffff !important;
         }
 
         body {
@@ -113,18 +129,82 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             overflow-x: hidden;
         }
 
-        .main-wrapper { display: flex; min-height: 100vh; }
+        .main-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
 
         /* Sidebar المطور والمثبت بجميع الصفحات لـ Clevo */
-        .sidebar { width: 260px; background: var(--bg-sidebar); padding: 30px 15px; position: sticky; top: 0; min-height: 100vh; display: flex; flex-direction: column; transition: all 0.3s ease; }
-        .nav-link { color: rgba(255,255,255,0.8) !important; padding: 12px; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
-        .nav-link:hover, .nav-link.active { background: var(--accent); color: white !important; }
-        .btn-ctrl { width: 35px; height: 35px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); color: white; border: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            padding: 30px 15px;
+            position: sticky;
+            top: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: var(--accent);
+            color: white !important;
+        }
+
+        .btn-ctrl {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
 
         /* Main Content */
-        .content-area { flex: 1; padding: 0; }
-        .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
-        .circle-back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3); border: none; }
+        .content-area {
+            flex: 1;
+            padding: 0;
+        }
+
+        .orders-header {
+            background: var(--bg-header);
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid var(--border-card);
+            margin-bottom: 25px;
+        }
+
+        .circle-back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            color: white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+            border: none;
+        }
 
         /* زر الإشعارات الدائري */
         .notif-btn {
@@ -139,7 +219,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             position: relative;
             text-decoration: none;
             border: 1px solid var(--border-color);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             transition: 0.3s;
         }
 
@@ -155,13 +235,23 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             border: 2px solid var(--bg-body);
         }
 
-        .stat-card, .table-container, .review-item {
+        .stat-card,
+        .table-container,
+        .review-item {
             background-color: var(--bg-card) !important;
             border: 1px solid var(--border-color);
             border-radius: 24px;
             padding: 25px;
             color: var(--text-main) !important;
             height: 100%;
+        }
+
+        .table-container {
+            overflow: hidden;
+        }
+
+        .review-item {
+            height: auto !important;
         }
 
         .icon-shape {
@@ -176,13 +266,37 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             font-size: 1.4rem;
         }
 
-        .modal-content { border-radius: 30px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
+        .modal-content {
+            border-radius: 30px;
+            background-color: var(--bg-card) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-color);
+        }
 
         @media (max-width: 768px) {
-            .main-wrapper { display: block; }
-            .sidebar { width: 100%; height: auto; min-height: auto; position: relative; border-radius: 0 0 20px 20px; padding: 15px; }
-            .sidebar .nav { flex-direction: row !important; overflow-x: auto; white-space: nowrap; gap: 5px; }
-            .sidebar h4 { display: none; }
+            .main-wrapper {
+                display: block;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                min-height: auto;
+                position: relative;
+                border-radius: 0 0 20px 20px;
+                padding: 15px;
+            }
+
+            .sidebar .nav {
+                flex-direction: row !important;
+                overflow-x: auto;
+                white-space: nowrap;
+                gap: 5px;
+            }
+
+            .sidebar h4 {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -197,7 +311,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
 
     <div class="container-fluid p-0">
         <div class="main-wrapper">
-            
+
             <?php include __DIR__ . '/../includes/shared_owner_sidebar.php'; ?>
 
             <main class="content-area">
@@ -208,7 +322,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                                 <i class="fas fa-arrow-right" id="backIcon"></i>
                             </a>
                             <div class="text-start">
-                                <h4 class="mb-1 fw-bold"><span data-i18n="welcome_back_owner">مرحباً بك يا</span> <span class="uName text-primary fw-bold">...</span> 👋</h4>
+                                <h4 class="mb-1 fw-bold"><span data-i18n="welcome_back_owner">مرحباً بك يا</span> <span class="uName text-primary fw-bold">...</span> </h4>
                                 <p class="small opacity-75 mb-0 id-date" id="dateDisp" style="color:var(--text-main) !important;"></p>
                             </div>
                         </div>
@@ -356,16 +470,94 @@ $recent_reviews = $recent_reviews_stmt->get_result();
     <script>
         const translations = {
             ar: {
-                owner_dash_title: "لوحة تحكم المالك | Clevo", nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", welcome_back_owner: "مرحباً بك يا", today_orders: "طلبات اليوم", your_earnings: "أرباح اليوم (JOD)", recent_orders: "آخر الطلبات", th_customer: "العميل", th_service: "المبلغ", th_status: "الحالة", th_action: "التاريخ", view_all: "عرض الكل", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", active_orders_label: "نشط حالياً", status_active: "نظام نشط", status_busy: "مشغول حالياً", status_closed: "مغلق حالياً", status_label_active: "نشط", status_label_busy: "مشغول", status_label_closed: "مغلق", nav_notifications: "الإشعارات", no_reviews_yet: "لا توجد تقييمات بعد", booking_pending: "قيد الانتظار", booking_accepted: "مقبول", booking_arrived: "وصل السائق", booking_in_progress: "قيد التنفيذ", booking_pickup: "قيد الاستلام", booking_washing: "قيد الغسيل", booking_returning: "قيد الإرجاع", booking_completed: "مكتمل"
+                owner_dash_title: "لوحة تحكم المالك | Clevo",
+                nav_main: "الرئيسية",
+                nav_orders: "الطلبات",
+                add_st_page_title: "إعداد المغسلة",
+                services_list: "الخدمات",
+                drivers_page_title: "طاقم العمل",
+                recent_reviews: "التقييمات",
+                serv_wallet: "المحفظة",
+                nav_logout: "خروج",
+                welcome_back_owner: "مرحباً بك يا",
+                today_orders: "طلبات اليوم",
+                your_earnings: "أرباح اليوم (JOD)",
+                recent_orders: "آخر الطلبات",
+                th_customer: "العميل",
+                th_service: "المبلغ",
+                th_status: "الحالة",
+                th_action: "التاريخ",
+                view_all: "عرض الكل",
+                logout_title: "تأكيد الخروج",
+                logout_msg: "هل أنت متأكد من الخروج من النظام؟",
+                btn_confirm_logout: "نعم، خروج",
+                btn_cancel: "إلغاء",
+                active_orders_label: "نشط حالياً",
+                status_active: "نظام نشط",
+                status_busy: "مشغول حالياً",
+                status_closed: "مغلق حالياً",
+                status_label_active: "نشط",
+                status_label_busy: "مشغول",
+                status_label_closed: "مغلق",
+                nav_notifications: "الإشعارات",
+                no_reviews_yet: "لا توجد تقييمات بعد",
+                booking_pending: "قيد الانتظار",
+                booking_accepted: "مقبول",
+                booking_arrived: "وصل السائق",
+                booking_in_progress: "قيد التنفيذ",
+                booking_pickup: "قيد الاستلام",
+                booking_washing: "قيد الغسيل",
+                booking_returning: "قيد الإرجاع",
+                booking_completed: "مكتمل"
             },
             en: {
-                owner_dash_title: "Owner Dashboard | Clevo", nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", welcome_back_owner: "Welcome back,", today_orders: "Today Orders", your_earnings: "Today Profit (JOD)", recent_orders: "Recent Orders", th_customer: "Customer", th_service: "Amount", th_status: "Status", th_action: "Date", view_all: "View All", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", active_orders_label: "Live Tasks", status_active: "System Active", status_busy: "Busy Now", status_closed: "Closed Now", status_label_active: "Active", status_label_busy: "Busy", status_label_closed: "Closed", nav_notifications: "Notifications", no_reviews_yet: "No reviews found", booking_pending: "Pending", booking_accepted: "Accepted", booking_arrived: "Driver arrived", booking_in_progress: "In progress", booking_pickup: "Pickup", booking_washing: "Washing", booking_returning: "Returning", booking_completed: "Completed"
+                owner_dash_title: "Owner Dashboard | Clevo",
+                nav_main: "Dashboard",
+                nav_orders: "Orders",
+                add_st_page_title: "Station Setup",
+                services_list: "Services",
+                drivers_page_title: "Team",
+                recent_reviews: "Reviews",
+                serv_wallet: "Wallet",
+                nav_logout: "Logout",
+                welcome_back_owner: "Welcome back,",
+                today_orders: "Today Orders",
+                your_earnings: "Today Profit (JOD)",
+                recent_orders: "Recent Orders",
+                th_customer: "Customer",
+                th_service: "Amount",
+                th_status: "Status",
+                th_action: "Date",
+                view_all: "View All",
+                logout_title: "Logout Confirmation",
+                logout_msg: "Are you sure you want to log out?",
+                btn_confirm_logout: "Yes, Logout",
+                btn_cancel: "Cancel",
+                active_orders_label: "Live Tasks",
+                status_active: "System Active",
+                status_busy: "Busy Now",
+                status_closed: "Closed Now",
+                status_label_active: "Active",
+                status_label_busy: "Busy",
+                status_label_closed: "Closed",
+                nav_notifications: "Notifications",
+                no_reviews_yet: "No reviews found",
+                booking_pending: "Pending",
+                booking_accepted: "Accepted",
+                booking_arrived: "Driver arrived",
+                booking_in_progress: "In progress",
+                booking_pickup: "Pickup",
+                booking_washing: "Washing",
+                booking_returning: "Returning",
+                booking_completed: "Completed"
             }
         };
 
         async function fetchOwnerStats() {
             try {
-                const res = await fetch('ajax_stats.php', { credentials: 'same-origin' });
+                const res = await fetch('ajax_stats.php', {
+                    credentials: 'same-origin'
+                });
                 if (!res.ok) return;
                 const data = await res.json();
                 if (document.getElementById('activeCount')) document.getElementById('activeCount').innerText = data.active_count;
@@ -408,7 +600,9 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             location.reload();
         }
 
-        function confirmLogout() { new bootstrap.Modal(document.getElementById('logoutModal')).show(); }
+        function confirmLogout() {
+            new bootstrap.Modal(document.getElementById('logoutModal')).show();
+        }
 
         // دالة الترجمة التبادلية الفورية لنصوص الداتابيز الحرة (الأسماء والتقييمات)
         async function translateDbContent(text) {
@@ -446,9 +640,12 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             // ترجمة اسم المستخدم حياً لو السيستم إنجليزي
             const displayOwnerName = isRtl ? name : await translateDbContent(name);
             document.querySelectorAll('.uName').forEach(el => el.innerText = displayOwnerName);
-            
+
             document.getElementById('dateDisp').innerText = new Date().toLocaleDateString(isRtl ? 'ar-JO' : 'en-US', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
 
             // تحديث حالة النظام
@@ -499,4 +696,5 @@ $recent_reviews = $recent_reviews_stmt->get_result();
         };
     </script>
 </body>
+
 </html>
