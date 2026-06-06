@@ -303,7 +303,7 @@ function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $t
     return $stmt->execute();
 }
 
-function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID, int $maxSize = 2097152): ?string
+function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID, int $maxSize = 10485760): ?string
 {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || $userID <= 0) {
         return null;
@@ -332,7 +332,7 @@ function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID,
     }
 
     $safePrefix = preg_replace('/[^a-z0-9_-]/i', '', $prefix) ?: 'user';
-    $newName = $safePrefix . "_" . $userID . "_" . time() . "." . $extensions[$mime];
+    $newName = $safePrefix . "_" . $userID . "_" . time() . "_" . bin2hex(random_bytes(4)) . "." . $extensions[$mime];
     return move_uploaded_file($tmpName, $targetDir . $newName) ? $newName : null;
 }
 
@@ -374,21 +374,36 @@ function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
 function clevoProfileImageUrl(?string $image, string $name = 'User'): string
 {
     $image = trim((string) $image);
-    if ($image === '') {
+    if ($image === '' || $image === 'default_user.png') {
         return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=0ea5e9&color=fff';
     }
     if (preg_match('/^https?:\/\//i', $image)) {
         return $image;
     }
     if (str_contains($image, '/')) {
-        return '../' . ltrim($image, '/');
+        $relativeImage = ltrim($image, '/');
+        if (is_file(__DIR__ . '/../' . $relativeImage)) {
+            return clevoPublicAssetUrl($relativeImage);
+        }
+
+        return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=0ea5e9&color=fff';
     }
     if (is_file(__DIR__ . '/../uploads/profiles/' . $image)) {
-        return '../uploads/profiles/' . rawurlencode($image);
+        return clevoPublicAssetUrl('uploads/profiles/' . rawurlencode($image));
     }
     if (is_file(__DIR__ . '/../assets/Images/' . $image)) {
-        return '../assets/Images/' . rawurlencode($image);
+        return clevoPublicAssetUrl('assets/Images/' . rawurlencode($image));
     }
-    return '../uploads/profiles/' . rawurlencode($image);
+
+    return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=0ea5e9&color=fff';
+}
+
+function clevoPublicAssetUrl(string $path): string
+{
+    $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')));
+    $basePath = preg_replace('#/(admin|driver|owner|user|general|Emails|includes)$#', '', $scriptDir) ?: '';
+    $basePath = $basePath === '/' || $basePath === '.' ? '' : rtrim($basePath, '/');
+
+    return $basePath . '/' . ltrim($path, '/');
 }
 ?>

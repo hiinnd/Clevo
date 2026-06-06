@@ -8,16 +8,8 @@ $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
-    if (!isset($_POST['csrf_token']) || !validate_csrf_token($_POST['csrf_token'])) {
-        die("CSRF token validation failed.");
-    }
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
-    $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-    $max_size = 2 * 1024 * 1024;
-    if (!in_array($file['type'], $allowed_types) || $file['size'] > $max_size || $file['error'] !== UPLOAD_ERR_OK) {
-        die("Invalid file upload.");
-    }
-    
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
         $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
@@ -229,12 +221,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <nav class="admin-sidebar shadow">
     <div class="text-center mb-4">
-        <form id="adminPicForm" method="POST" enctype="multipart/form-data">
+        <form id="adminPicForm" method="POST" enctype="multipart/form-data" action="<?php echo e(clevoPublicAssetUrl('admin/upload-profile-picture.php')); ?>">
             <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
             <label for="admin_pic_upload" class="admin-pic-container">
                 <img src="<?php echo e($admin_pic_url); ?>" class="admin-avatar shadow" id="sidebarAvatar">
                 <div class="upload-overlay"><i class="fas fa-camera"></i></div>
-                <input type="file" name="admin_pic_upload" id="admin_pic_upload" hidden onchange="document.getElementById('adminPicForm').submit();">
+                <input type="file" name="admin_pic_upload" id="admin_pic_upload" hidden accept="image/jpeg,image/png,image/gif,image/webp" onchange="document.getElementById('adminPicForm').submit();">
             </label>
         </form>
         <h6 class="mb-0 text-white u-name-display" style="font-weight: 700;"><?php echo htmlspecialchars($admin_name); ?></h6>

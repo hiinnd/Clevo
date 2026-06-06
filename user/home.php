@@ -1547,6 +1547,19 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
+        function saveUserLocation(lat, lon, address = '') {
+            const body = new URLSearchParams();
+            body.append('latitude', lat);
+            body.append('longitude', lon);
+            body.append('address', address);
+            body.append('google_maps_url', `https://www.google.com/maps?q=${lat},${lon}`);
+            fetch('save-location.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            }).catch(() => {});
+        }
+
         function fetchWeather() {
 
 
@@ -1596,6 +1609,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
                                         city = 'Amman';
                                     }
 
+                                    saveUserLocation(lat, lon, city);
                                     updateWeatherUI(
                                         data.main.temp,
                                         data.weather[0].main.toLowerCase(),
@@ -1606,6 +1620,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                                 .catch(() => {
 
+                                    saveUserLocation(lat, lon, data.name);
                                     updateWeatherUI(
                                         data.main.temp,
                                         data.weather[0].main.toLowerCase(),
@@ -1641,6 +1656,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
                     if (modal) modal.hide();
 
+                    saveUserLocation(position.coords.latitude, position.coords.longitude);
                     fetchWeather();
 
                 }, () => {

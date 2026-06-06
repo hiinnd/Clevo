@@ -846,8 +846,12 @@ $csrf_token = generate_csrf_token();
                 locationMarker.on('dragend', () => {
                     const pos = locationMarker.getLatLng();
                     setServiceLocation(pos.lat, pos.lng, true);
+                    saveUserLocation(pos.lat, pos.lng);
                 });
-                locationMap.on('click', (event) => setServiceLocation(event.latlng.lat, event.latlng.lng, true));
+                locationMap.on('click', (event) => {
+                    setServiceLocation(event.latlng.lat, event.latlng.lng, true);
+                    saveUserLocation(event.latlng.lat, event.latlng.lng);
+                });
             }
             setTimeout(() => locationMap.invalidateSize(), 80);
         }
@@ -863,6 +867,20 @@ $csrf_token = generate_csrf_token();
             googleLink.style.display = 'inline-flex';
             googleLink.style.alignItems = 'center';
             if (shouldFetchAddress) fetchStreetName(lat, lng);
+        }
+
+        function saveUserLocation(lat, lng) {
+            const address = document.getElementById('detectedAddress')?.value.trim() || '';
+            const body = new URLSearchParams();
+            body.append('latitude', lat);
+            body.append('longitude', lng);
+            body.append('address', address === translations[lang].searching_address ? '' : address);
+            body.append('google_maps_url', `https://www.google.com/maps?q=${lat},${lng}`);
+            fetch('save-location.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            }).catch(() => {});
         }
 
         function fetchStreetName(lat, lng) {
@@ -889,6 +907,7 @@ $csrf_token = generate_csrf_token();
 
             navigator.geolocation.getCurrentPosition((pos) => {
                 setServiceLocation(pos.coords.latitude, pos.coords.longitude, true);
+                saveUserLocation(pos.coords.latitude, pos.coords.longitude);
                 showAlert('<i class="fas fa-check-circle text-success"></i>', translations[lang].location_title_saved, translations[lang].location_body_saved);
             }, () => {
                 ensureLocationMap();

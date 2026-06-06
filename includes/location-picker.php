@@ -217,10 +217,25 @@
         });
 
         function confirmLocation() {
-            localStorage.setItem('selected_lat', marker.getLatLng().lat);
-            localStorage.setItem('selected_lng', marker.getLatLng().lng);
-            localStorage.setItem('selected_google_maps_url', `https://www.google.com/maps?q=${marker.getLatLng().lat},${marker.getLatLng().lng}`);
-            location.href = '../user/home.php';
+            const selected = marker.getLatLng();
+            const mapsUrl = `https://www.google.com/maps?q=${selected.lat},${selected.lng}`;
+            localStorage.setItem('selected_lat', selected.lat);
+            localStorage.setItem('selected_lng', selected.lng);
+            localStorage.setItem('selected_google_maps_url', mapsUrl);
+
+            const body = new URLSearchParams();
+            body.append('latitude', selected.lat);
+            body.append('longitude', selected.lng);
+            body.append('address', document.getElementById('address-text').innerText || '');
+            body.append('google_maps_url', mapsUrl);
+
+            fetch('../user/save-location.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            }).finally(() => {
+                location.href = '../user/home.php';
+            });
         }
     </script>
 </body>

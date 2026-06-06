@@ -12,17 +12,8 @@ $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
-    if (!isset($_POST['csrf_token']) || !validate_csrf_token($_POST['csrf_token'])) {
-        die("CSRF token validation failed.");
-    }
+    clevo_require_csrf_token();
     $file = $_FILES['admin_pic_upload'];
-    
-    $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-    $max_size = 2 * 1024 * 1024; 
-    if (!in_array($file['type'], $allowed_types) || $file['size'] > $max_size || $file['error'] !== UPLOAD_ERR_OK) {
-        die("Invalid file upload.");
-    }
-    
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
         $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
