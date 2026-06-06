@@ -76,7 +76,7 @@ $transactions = $trans_stmt->get_result();
         .minus { border-inline-start: 6px solid #ef4444; }
 
         .form-control-custom { background: var(--glass) !important; border: 1px solid var(--border); color: var(--text) !important; border-radius: 15px; padding: 12px; font-weight: 900; text-align: center; width: 100%; outline: none; }
-        .btn-charge { background: #fbbf24; color: #000; border: none; border-radius: 50px; padding: 14px; font-weight: 900; width: 100%; margin-top: 15px; transition: 0.3s; }
+        .btn-charge { background: #7597ef; color: #000; border: none; border-radius: 50px; padding: 14px; font-weight: 900; width: 100%; margin-top: 15px; transition: 0.3s; }
     </style>
 </head>
 <body>
