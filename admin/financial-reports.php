@@ -11,6 +11,47 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 
+clevoEnsureOwnerPayoutTables($conn);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_withdrawal_status') {
+    clevo_require_csrf_token();
+    $requestID = (int) ($_POST['request_id'] ?? 0);
+    $newStatus = $_POST['status'] ?? '';
+    if ($requestID > 0 && in_array($newStatus, ['paid', 'rejected'], true)) {
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare("SELECT * FROM owner_withdrawal_requests WHERE id = ? AND status = 'pending' LIMIT 1 FOR UPDATE");
+            $stmt->bind_param("i", $requestID);
+            $stmt->execute();
+            $request = $stmt->get_result()->fetch_assoc();
+            if (!$request) {
+                throw new RuntimeException('request_not_found');
+            }
+
+            if ($newStatus === 'rejected') {
+                $walletID = (int) ($request['wallet_id'] ?? 0);
+                $amount = (float) ($request['amount'] ?? 0);
+                if ($walletID <= 0 || $amount <= 0 || !clevoCreditWallet($conn, $walletID, $amount)) {
+                    throw new RuntimeException('refund_failed');
+                }
+                clevoRecordWalletTransaction($conn, $walletID, $amount, 'credit', 'استرجاع طلب سحب مرفوض', 'Rejected withdrawal refund');
+            }
+
+            $update = $conn->prepare("UPDATE owner_withdrawal_requests SET status = ?, processed_at = NOW() WHERE id = ? AND status = 'pending'");
+            $update->bind_param("si", $newStatus, $requestID);
+            $update->execute();
+            if ($update->affected_rows <= 0) {
+                throw new RuntimeException('update_failed');
+            }
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollback();
+        }
+    }
+    header("Location: financial-reports.php");
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
@@ -66,6 +107,13 @@ $history_query = "
     ORDER BY b.BookingID DESC 
     LIMIT 10";
 $history_res = $conn->query($history_query);
+
+$withdrawal_res = $conn->query("
+    SELECT wr.*, u.UserName AS owner_name, u.PhoneNumber AS owner_phone
+    FROM owner_withdrawal_requests wr
+    JOIN user u ON u.UserID = wr.owner_id
+    ORDER BY wr.requested_at DESC
+    LIMIT 10");
 
 
 $days_map = ['Saturday' => 0, 'Sunday' => 1, 'Monday' => 2, 'Tuesday' => 3, 'Wednesday' => 4, 'Thursday' => 5, 'Friday' => 6];
@@ -220,6 +268,69 @@ if($weekly_res) {
                     </div>
 
                     <div class="table-container shadow-sm text-start">
+                        <h6 class="mb-4 fw-bold"><i class="fas fa-money-check-alt me-2 text-primary"></i> <span data-i18n="withdrawal_requests_title">Owner withdrawal requests</span></h6>
+                        <div class="table-responsive">
+                            <table class="table custom-table align-middle">
+                                <thead class="small text-muted">
+                                    <tr>
+                                        <th data-i18n="th_owner">Owner</th>
+                                        <th data-i18n="th_amount">Amount</th>
+                                        <th data-i18n="th_bank">Bank details</th>
+                                        <th data-i18n="th_requested_at">Requested at</th>
+                                        <th data-i18n="th_status">Status</th>
+                                        <th data-i18n="th_action">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="small">
+                                    <?php if($withdrawal_res && $withdrawal_res->num_rows > 0): ?>
+                                        <?php while($wr = $withdrawal_res->fetch_assoc()): ?>
+                                            <?php $bank = json_decode((string) ($wr['bank_snapshot'] ?? ''), true) ?: []; ?>
+                                            <tr>
+                                                <td class="fw-bold">
+                                                    <?= htmlspecialchars($wr['owner_name'] ?? '') ?><br>
+                                                    <span class="opacity-75"><?= htmlspecialchars($wr['owner_phone'] ?? '') ?></span>
+                                                </td>
+                                                <td class="text-success fw-bold"><?= number_format((float) $wr['amount'], 2) ?> JOD</td>
+                                                <td>
+                                                    <strong><?= htmlspecialchars($bank['bank_name'] ?? '-') ?></strong><br>
+                                                    <span><?= htmlspecialchars($bank['account_holder_name'] ?? '-') ?></span><br>
+                                                    <span class="opacity-75"><?= htmlspecialchars($bank['iban'] ?? '-') ?></span>
+                                                </td>
+                                                <td><?= htmlspecialchars($wr['requested_at'] ?? '') ?></td>
+                                                <td><span class="badge bg-warning text-dark rounded-pill px-3"><?= htmlspecialchars($wr['status'] ?? 'pending') ?></span></td>
+                                                <td>
+                                                    <?php if (($wr['status'] ?? '') === 'pending'): ?>
+                                                        <div class="d-flex gap-2 flex-wrap">
+                                                            <form method="POST">
+                                                                <?= csrf_input(); ?>
+                                                                <input type="hidden" name="action" value="update_withdrawal_status">
+                                                                <input type="hidden" name="request_id" value="<?= (int) $wr['id'] ?>">
+                                                                <input type="hidden" name="status" value="paid">
+                                                                <button class="btn btn-sm btn-success rounded-pill px-3" data-i18n="btn_mark_paid">Paid</button>
+                                                            </form>
+                                                            <form method="POST">
+                                                                <?= csrf_input(); ?>
+                                                                <input type="hidden" name="action" value="update_withdrawal_status">
+                                                                <input type="hidden" name="request_id" value="<?= (int) $wr['id'] ?>">
+                                                                <input type="hidden" name="status" value="rejected">
+                                                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" data-i18n="btn_reject">Reject</button>
+                                                            </form>
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <span class="opacity-75">-</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr><td colspan="6" class="text-center py-3 opacity-50" data-i18n="no_withdrawals">No withdrawal requests yet</td></tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="table-container shadow-sm text-start">
                         <h6 class="mb-4 fw-bold"><i class="fas fa-history me-2 text-primary"></i> <span data-i18n="payment_history_title">سجل العمليات الأخير</span></h6>
                         <div class="table-responsive">
                             <table class="table custom-table align-middle" id="historyTable">
@@ -277,6 +388,7 @@ if($weekly_res) {
                 total_gmv: "إجمالي المبيعات (GMV)", net_profit: "صافي أرباحك (10%)", your_earnings: "أرباحكِ يا", completed_orders: "الطلبات المكتملة",
                 weekly_analysis: "تحليل المبيعات الأسبوعي", top_stations: "أعلى المحطات دخلاً", payment_history_title: "سجل العمليات الأخير",
                 th_date: "التاريخ", th_customer: "الزبون", th_value: "القيمة", th_commission: "عمولة", th_status: "الحالة",
+                withdrawal_requests_title: "طلبات سحب أرباح الأونر", th_owner: "الأونر", th_amount: "المبلغ", th_bank: "بيانات البنك", th_requested_at: "تاريخ الطلب", th_action: "الإجراء", btn_mark_paid: "تم الدفع", btn_reject: "رفض", no_withdrawals: "لا توجد طلبات سحب بعد",
                 nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_security: "الأمان", nav_reports: "التقارير", nav_plans: "الخطط", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج",
                 export_confirm_title: "تصدير التقارير", export_confirm_msg: "تصدير البيانات كملف Excel؟", btn_confirm_export: "تأكيد", btn_cancel: "إلغاء",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج"
@@ -286,6 +398,7 @@ if($weekly_res) {
                 total_gmv: "Total Sales (GMV)", net_profit: "Net Profit (10%)", your_earnings: "Your Earnings,", completed_orders: "Completed Orders",
                 weekly_analysis: "Weekly Sales Analysis", top_stations: "Top Earning Stations", payment_history_title: "Recent Transactions",
                 th_date: "Date", th_customer: "Customer", th_value: "Value", th_commission: "Comm.", th_status: "Status",
+                withdrawal_requests_title: "Owner Withdrawal Requests", th_owner: "Owner", th_amount: "Amount", th_bank: "Bank details", th_requested_at: "Requested at", th_action: "Action", btn_mark_paid: "Paid", btn_reject: "Reject", no_withdrawals: "No withdrawal requests yet",
                 nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", nav_reports: "Reports", nav_plans: "Plans", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout",
                 export_confirm_title: "Export Reports", export_confirm_msg: "Export current data as Excel?", btn_confirm_export: "Confirm", btn_cancel: "Cancel",
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Logout"

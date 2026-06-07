@@ -264,6 +264,105 @@ function clevoRecordWalletTransaction(mysqli $conn, int $walletID, float $amount
     return $stmt->execute();
 }
 
+function clevoEnsureOwnerPayoutTables(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $conn->query("CREATE TABLE IF NOT EXISTS owner_bank_accounts (
+        id INT(11) NOT NULL AUTO_INCREMENT,
+        owner_id INT(11) NOT NULL,
+        account_holder_name VARCHAR(150) NOT NULL,
+        bank_name VARCHAR(150) NOT NULL,
+        iban VARCHAR(34) NOT NULL,
+        account_number VARCHAR(50) DEFAULT NULL,
+        swift_code VARCHAR(20) DEFAULT NULL,
+        notes VARCHAR(255) DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY owner_id (owner_id),
+        CONSTRAINT owner_bank_accounts_owner_fk FOREIGN KEY (owner_id) REFERENCES user(UserID) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS owner_withdrawal_requests (
+        id INT(11) NOT NULL AUTO_INCREMENT,
+        owner_id INT(11) NOT NULL,
+        wallet_id INT(11) DEFAULT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        status ENUM('pending','paid','rejected') DEFAULT 'pending',
+        bank_snapshot TEXT DEFAULT NULL,
+        requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP NULL DEFAULT NULL,
+        PRIMARY KEY (id),
+        KEY owner_id (owner_id),
+        KEY wallet_id (wallet_id),
+        CONSTRAINT owner_withdrawal_owner_fk FOREIGN KEY (owner_id) REFERENCES user(UserID) ON DELETE CASCADE,
+        CONSTRAINT owner_withdrawal_wallet_fk FOREIGN KEY (wallet_id) REFERENCES wallet(WalletID) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+}
+
+function clevoGetOwnerBankAccount(mysqli $conn, int $ownerID): ?array
+{
+    clevoEnsureOwnerPayoutTables($conn);
+    $stmt = $conn->prepare("SELECT * FROM owner_bank_accounts WHERE owner_id = ? LIMIT 1");
+    $stmt->bind_param("i", $ownerID);
+    $stmt->execute();
+    $account = $stmt->get_result()->fetch_assoc();
+    return $account ?: null;
+}
+
+function clevoSaveOwnerBankAccount(mysqli $conn, int $ownerID, array $data): bool
+{
+    clevoEnsureOwnerPayoutTables($conn);
+    $holder = clevo_clean_string($data['account_holder_name'] ?? '', 150);
+    $bank = clevo_clean_string($data['bank_name'] ?? '', 150);
+    $iban = strtoupper(preg_replace('/\s+/', '', clevo_clean_string($data['iban'] ?? '', 34)));
+    $accountNumber = clevo_clean_string($data['account_number'] ?? '', 50);
+    $swift = strtoupper(clevo_clean_string($data['swift_code'] ?? '', 20));
+    $notes = clevo_clean_string($data['notes'] ?? '', 255);
+
+    if ($ownerID <= 0 || $holder === '' || $bank === '' || $iban === '') {
+        return false;
+    }
+
+    $stmt = $conn->prepare("INSERT INTO owner_bank_accounts
+        (owner_id, account_holder_name, bank_name, iban, account_number, swift_code, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            account_holder_name = VALUES(account_holder_name),
+            bank_name = VALUES(bank_name),
+            iban = VALUES(iban),
+            account_number = VALUES(account_number),
+            swift_code = VALUES(swift_code),
+            notes = VALUES(notes)");
+    $stmt->bind_param("issssss", $ownerID, $holder, $bank, $iban, $accountNumber, $swift, $notes);
+    return $stmt->execute();
+}
+
+function clevoRecordOwnerWithdrawalRequest(mysqli $conn, int $ownerID, int $walletID, float $amount, array $bankAccount): bool
+{
+    clevoEnsureOwnerPayoutTables($conn);
+    if ($ownerID <= 0 || $walletID <= 0 || $amount <= 0 || empty($bankAccount)) {
+        return false;
+    }
+
+    $snapshot = json_encode([
+        'account_holder_name' => $bankAccount['account_holder_name'] ?? '',
+        'bank_name' => $bankAccount['bank_name'] ?? '',
+        'iban' => $bankAccount['iban'] ?? '',
+        'account_number' => $bankAccount['account_number'] ?? '',
+        'swift_code' => $bankAccount['swift_code'] ?? '',
+        'notes' => $bankAccount['notes'] ?? '',
+    ], JSON_UNESCAPED_UNICODE);
+
+    $stmt = $conn->prepare("INSERT INTO owner_withdrawal_requests (owner_id, wallet_id, amount, bank_snapshot) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("iids", $ownerID, $walletID, $amount, $snapshot);
+    return $stmt->execute();
+}
+
 function clevoCreateNotification(mysqli $conn, int $userID, string $title, string $body, string $type = 'info', ?string $targetUrl = null, ?string $titleEn = null, ?string $bodyEn = null): bool
 {
     if ($userID <= 0) {
@@ -353,6 +452,7 @@ function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
     $wallet = clevoEnsureWallet($conn, $ownerID);
     $walletID = (int) $wallet['WalletID'];
     $orderNumber = $booking['Order_Number'] ?: $bookingID;
+    $isPlanPayment = ($booking['Payment_Method'] ?? '') === 'plan';
     $descEn = "Owner booking earning #$orderNumber";
 
     $exists = $conn->prepare("SELECT TransactionID FROM wallet_transactions WHERE WalletID = ? AND Description_en = ? LIMIT 1");
@@ -367,7 +467,7 @@ function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
         return;
     }
     $type = "credit";
-    $descAr = "أرباح طلب #$orderNumber";
+    $descAr = $isPlanPayment ? "حصة صاحب المحطة من طلب باقة #$orderNumber" : "أرباح طلب #$orderNumber";
     clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $descEn);
 }
 

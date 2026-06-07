@@ -10,10 +10,28 @@ $balanceValue = 0.00;
 $balance = '0.00';
 $transactions = [];
 $monthly_profit = 0.00;
+$bankAccount = null;
+
+clevoEnsureOwnerPayoutTables($conn);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_bank_account') {
+    header('Content-Type: application/json; charset=utf-8');
+    clevo_require_csrf_token(true);
+
+    $saved = clevoSaveOwnerBankAccount($conn, (int) $userID, $_POST);
+    echo json_encode(['status' => $saved ? 'success' : 'error', 'message' => $saved ? 'saved' : 'missing_bank_fields'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withdraw_balance') {
     header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
+
+    $bankAccount = clevoGetOwnerBankAccount($conn, (int) $userID);
+    if (!$bankAccount) {
+        echo json_encode(['status' => 'error', 'message' => 'bank_required'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 
     $wallet = clevoEnsureWallet($conn, (int) $userID);
     $walletID = (int) ($wallet['WalletID'] ?? 0);
@@ -26,7 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withd
 
     $conn->begin_transaction();
     $debited = clevoDebitWallet($conn, $walletID, $amount);
-    $recorded = $debited && clevoRecordWalletTransaction(
+    $withdrawalRecorded = $debited && clevoRecordOwnerWithdrawalRequest($conn, (int) $userID, $walletID, $amount, $bankAccount);
+    $recorded = $withdrawalRecorded && clevoRecordWalletTransaction(
         $conn,
         $walletID,
         $amount,
@@ -46,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withd
                 'info',
                 'financial-reports.php',
                 'Withdrawal request',
-                'A station owner requested a profit withdrawal of ' . number_format($amount, 2) . ' JOD.'
+                'A station owner requested a profit withdrawal of ' . number_format($amount, 2) . ' JOD. Bank: ' . ($bankAccount['bank_name'] ?? '') . ', IBAN: ' . ($bankAccount['iban'] ?? '')
             );
         }
         clevoCreateNotification(
@@ -82,6 +101,7 @@ if ($userID > 0) {
     if ($monthly_row = mysqli_fetch_assoc($monthly_query)) {
         $monthly_profit = (float) $monthly_row['total'];
     }
+    $bankAccount = clevoGetOwnerBankAccount($conn, (int) $userID);
 }
 ?>
 <!DOCTYPE html>
@@ -180,6 +200,49 @@ if ($userID > 0) {
                         <div class="col-6"><div class="stat-box border-bottom border-primary border-4 shadow-sm"><small class="text-muted-custom d-block mb-1 fw-bold" data-i18n="commission_label">العمولة</small><strong class="text-primary fs-5">10%</strong></div></div>
                     </div>
 
+                    <div class="stat-box shadow-sm mb-4">
+                        <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+                            <div class="text-start">
+                                <h6 class="fw-bold mb-1" data-i18n="bank_info_title">Bank transfer details</h6>
+                                <small class="text-muted-custom" data-i18n="bank_info_hint">Add the bank account where Clevo should transfer your profits.</small>
+                            </div>
+                            <span class="badge rounded-pill <?= $bankAccount ? 'text-bg-success' : 'text-bg-warning' ?>" data-i18n="<?= $bankAccount ? 'bank_saved_badge' : 'bank_missing_badge' ?>">
+                                <?= $bankAccount ? 'Saved' : 'Required' ?>
+                            </span>
+                        </div>
+                        <form id="bankAccountForm" class="row g-3 text-start">
+                            <input type="hidden" name="action" value="save_bank_account">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold" data-i18n="account_holder_name">Account holder name</label>
+                                <input class="form-control rounded-4" name="account_holder_name" maxlength="150" required value="<?= htmlspecialchars($bankAccount['account_holder_name'] ?? '') ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold" data-i18n="bank_name">Bank name</label>
+                                <input class="form-control rounded-4" name="bank_name" maxlength="150" required value="<?= htmlspecialchars($bankAccount['bank_name'] ?? '') ?>">
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label small fw-bold" data-i18n="iban_label">IBAN</label>
+                                <input class="form-control rounded-4 text-uppercase" name="iban" maxlength="34" required value="<?= htmlspecialchars($bankAccount['iban'] ?? '') ?>">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold" data-i18n="account_number">Account number</label>
+                                <input class="form-control rounded-4" name="account_number" maxlength="50" value="<?= htmlspecialchars($bankAccount['account_number'] ?? '') ?>">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold" data-i18n="swift_code">SWIFT code</label>
+                                <input class="form-control rounded-4 text-uppercase" name="swift_code" maxlength="20" value="<?= htmlspecialchars($bankAccount['swift_code'] ?? '') ?>">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label small fw-bold" data-i18n="bank_notes">Notes</label>
+                                <input class="form-control rounded-4" name="notes" maxlength="255" value="<?= htmlspecialchars($bankAccount['notes'] ?? '') ?>">
+                            </div>
+                            <div class="col-12 d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold" id="saveBankBtn" data-i18n="btn_save_bank">Save bank details</button>
+                            </div>
+                        </form>
+                    </div>
+
                     <h6 class="mb-3 fw-bold text-start" data-i18n="recent_history">السجل الأخير</h6>
                     <div id="transactions">
                         <?php if (!empty($transactions)): ?>
@@ -252,14 +315,20 @@ if ($userID > 0) {
                 wallet_page_title: "محفظتي المالية", available_balance: "الرصيد المتاح للسحب", btn_withdraw: "سحب الأرباح", monthly_profit: "أرباح الشهر", commission_label: "العمولة", recent_history: "السجل الأخير", 
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", 
                 no_transactions_yet: "لا توجد حركات بعد", confirm_withdraw_title: "تأكيد سحب الأرباح", confirm_withdraw_msg: "هل تريد سحب الرصيد المتاح لحسابك؟", btn_withdraw_now: "نعم، سحب الآن", btn_ok: "موافق",
-                withdraw_success_title: "تم إرسال الطلب", withdraw_success_body: "تم إرسال طلب السحب للإدارة وتسجيله في المحفظة.", withdraw_error_title: "تعذر تنفيذ الطلب", withdraw_error_body: "لا يوجد رصيد متاح للسحب أو تعذر تنفيذ الطلب.", request_failed_body: "تعذر تنفيذ الطلب."
+                withdraw_success_title: "تم إرسال الطلب", withdraw_success_body: "تم إرسال طلب السحب للإدارة وتسجيله في المحفظة.", withdraw_error_title: "تعذر تنفيذ الطلب", withdraw_error_body: "لا يوجد رصيد متاح للسحب أو تعذر تنفيذ الطلب.", request_failed_body: "تعذر تنفيذ الطلب.",
+                bank_info_title: "بيانات التحويل البنكي", bank_info_hint: "أدخل الحساب البنكي الذي سيتم تحويل أرباحك إليه.", bank_saved_badge: "محفوظة", bank_missing_badge: "مطلوبة",
+                account_holder_name: "اسم صاحب الحساب", bank_name: "اسم البنك", iban_label: "IBAN", account_number: "رقم الحساب", swift_code: "رمز SWIFT", bank_notes: "ملاحظات", btn_save_bank: "حفظ بيانات البنك",
+                bank_save_success_title: "تم الحفظ", bank_save_success_body: "تم حفظ بيانات البنك بنجاح.", bank_save_error_title: "بيانات ناقصة", bank_save_error_body: "يرجى تعبئة اسم صاحب الحساب واسم البنك ورقم IBAN.", bank_required_body: "يرجى حفظ بيانات البنك قبل طلب السحب."
             },
             en: { 
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
                 wallet_page_title: "My Wallet", available_balance: "Available Balance", btn_withdraw: "Withdraw", monthly_profit: "Monthly Profit", commission_label: "Commission", recent_history: "Recent History", 
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", 
                 no_transactions_yet: "No transactions found", confirm_withdraw_title: "Confirm Withdrawal", confirm_withdraw_msg: "Do you want to withdraw the available balance to your account?", btn_withdraw_now: "Yes, Withdraw Now", btn_ok: "OK",
-                withdraw_success_title: "Request Sent", withdraw_success_body: "Withdrawal request was sent to admin and recorded in your wallet.", withdraw_error_title: "Request Failed", withdraw_error_body: "No available balance or withdrawal failed.", request_failed_body: "Request failed."
+                withdraw_success_title: "Request Sent", withdraw_success_body: "Withdrawal request was sent to admin and recorded in your wallet.", withdraw_error_title: "Request Failed", withdraw_error_body: "No available balance or withdrawal failed.", request_failed_body: "Request failed.",
+                bank_info_title: "Bank transfer details", bank_info_hint: "Add the bank account where Clevo should transfer your profits.", bank_saved_badge: "Saved", bank_missing_badge: "Required",
+                account_holder_name: "Account holder name", bank_name: "Bank name", iban_label: "IBAN", account_number: "Account number", swift_code: "SWIFT code", bank_notes: "Notes", btn_save_bank: "Save bank details",
+                bank_save_success_title: "Saved", bank_save_success_body: "Bank details were saved successfully.", bank_save_error_title: "Missing details", bank_save_error_body: "Please fill account holder name, bank name, and IBAN.", bank_required_body: "Please save your bank details before requesting a withdrawal."
             }
         };
 
@@ -299,6 +368,10 @@ if ($userID > 0) {
                     setTimeout(() => location.reload(), 1300);
                     return;
                 }
+                if (data.message === 'bank_required') {
+                    showWalletStatus('error', 'withdraw_error_title', 'bank_required_body');
+                    return;
+                }
                 showWalletStatus('error', 'withdraw_error_title', 'withdraw_error_body');
             })
             .catch(() => showWalletStatus('error', 'withdraw_error_title', 'request_failed_body'))
@@ -335,6 +408,35 @@ if ($userID > 0) {
             const withdrawBtn = document.getElementById('confirmWithdrawBtn');
             if (withdrawBtn) {
                 withdrawBtn.addEventListener('click', () => submitWithdrawal(withdrawBtn));
+            }
+            const bankForm = document.getElementById('bankAccountForm');
+            const saveBankBtn = document.getElementById('saveBankBtn');
+            if (bankForm && saveBankBtn) {
+                bankForm.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    const original = saveBankBtn.innerHTML;
+                    saveBankBtn.disabled = true;
+                    saveBankBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams(new FormData(bankForm)).toString()
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showWalletStatus('success', 'bank_save_success_title', 'bank_save_success_body');
+                            setTimeout(() => location.reload(), 900);
+                            return;
+                        }
+                        showWalletStatus('error', 'bank_save_error_title', 'bank_save_error_body');
+                    })
+                    .catch(() => showWalletStatus('error', 'bank_save_error_title', 'request_failed_body'))
+                    .finally(() => {
+                        saveBankBtn.disabled = false;
+                        saveBankBtn.innerHTML = original;
+                    });
+                });
             }
         };
     </script>

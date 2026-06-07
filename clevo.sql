@@ -6,6 +6,8 @@ SET NAMES utf8mb4;
 -- Make import idempotent: drop tables in safe order, then recreate
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS `wallet_transactions`;
+DROP TABLE IF EXISTS `owner_withdrawal_requests`;
+DROP TABLE IF EXISTS `owner_bank_accounts`;
 DROP TABLE IF EXISTS `wallet`;
 DROP TABLE IF EXISTS `support_messages`;
 DROP TABLE IF EXISTS `support_tickets`;
@@ -286,6 +288,37 @@ CREATE TABLE `wallet_transactions` (
   PRIMARY KEY (`TransactionID`),
   KEY `WalletID` (`WalletID`),
   CONSTRAINT `wallet_transactions_ibfk_1` FOREIGN KEY (`WalletID`) REFERENCES `wallet` (`WalletID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `owner_bank_accounts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `owner_id` int(11) NOT NULL,
+  `account_holder_name` varchar(150) NOT NULL,
+  `bank_name` varchar(150) NOT NULL,
+  `iban` varchar(34) NOT NULL,
+  `account_number` varchar(50) DEFAULT NULL,
+  `swift_code` varchar(20) DEFAULT NULL,
+  `notes` varchar(255) DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `owner_id` (`owner_id`),
+  CONSTRAINT `owner_bank_accounts_owner_fk` FOREIGN KEY (`owner_id`) REFERENCES `user` (`UserID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `owner_withdrawal_requests` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `owner_id` int(11) NOT NULL,
+  `wallet_id` int(11) DEFAULT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `status` enum('pending','paid','rejected') DEFAULT 'pending',
+  `bank_snapshot` text DEFAULT NULL,
+  `requested_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `processed_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `owner_id` (`owner_id`),
+  KEY `wallet_id` (`wallet_id`),
+  CONSTRAINT `owner_withdrawal_owner_fk` FOREIGN KEY (`owner_id`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
+  CONSTRAINT `owner_withdrawal_wallet_fk` FOREIGN KEY (`wallet_id`) REFERENCES `wallet` (`WalletID`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Demo seed data: realistic Clevo system snapshot for Amman.

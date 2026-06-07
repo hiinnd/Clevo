@@ -57,7 +57,7 @@ $res_un_notif = $stmt_notif->get_result();
 $unread_count = $res_un_notif->fetch_assoc()['total'] ?? 0;
 $stmt_notif->close();
 
-$res_most_service = $conn->query("SELECT s.Name as ServiceName, COUNT(b.ServiceID) as count FROM booking b JOIN services s ON b.ServiceID = s.ServiceID GROUP BY b.ServiceID ORDER BY count DESC LIMIT 1");
+$res_most_service = $conn->query("SELECT COALESCE(NULLIF(s.Name_ar, ''), s.Name) as ServiceNameAr, COALESCE(NULLIF(s.Name_en, ''), s.Name) as ServiceNameEn, COUNT(b.ServiceID) as count FROM booking b JOIN services s ON b.ServiceID = s.ServiceID GROUP BY b.ServiceID, s.Name, s.Name_ar, s.Name_en ORDER BY count DESC LIMIT 1");
 $most_service = ($res_most_service) ? $res_most_service->fetch_assoc() : null;
 
 $res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
@@ -209,7 +209,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                     <div class="col-6 col-md-3">
                         <div class="stat-card bg-blue" style="cursor: default;">
                             <small class="fw-bold" data-i18n="most_requested_service">الخدمة الأكثر طلباً</small>
-                            <h4 class="mt-2 fw-bold" data-service-raw="<?php echo htmlspecialchars($most_service['ServiceName'] ?? 'غير محدد'); ?>"></h4>
+                            <h4 class="mt-2 fw-bold" data-service-ar="<?php echo htmlspecialchars($most_service['ServiceNameAr'] ?? 'غير محدد'); ?>" data-service-en="<?php echo htmlspecialchars($most_service['ServiceNameEn'] ?? 'Not specified'); ?>"></h4>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
@@ -310,10 +310,11 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                 if (translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
             });
 
-            const serviceEl = document.querySelector('[data-service-raw]');
+            const serviceEl = document.querySelector('[data-service-ar]');
             if (serviceEl) {
-                const rawVal = serviceEl.getAttribute('data-service-raw');
-                serviceEl.innerText = (translations[lang] && translations[lang][rawVal]) ? translations[lang][rawVal] : rawVal;
+                serviceEl.innerText = lang === 'ar'
+                    ? (serviceEl.getAttribute('data-service-ar') || translations[lang].not_specified || '')
+                    : (serviceEl.getAttribute('data-service-en') || translations[lang].not_specified || '');
             }
 
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
