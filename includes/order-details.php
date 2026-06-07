@@ -11,6 +11,7 @@ if (!isset($_SESSION['userID'])) {
 $userID = (int) $_SESSION['userID'];
 $bookingID = (int) ($_GET['id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
+clevoEnsureReviewUniqueBooking($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submit_rating') {
     header('Content-Type: application/json; charset=utf-8');
@@ -31,12 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
     $existing->execute();
     $review = $existing->get_result()->fetch_assoc();
     if ($review) {
-        $save = $conn->prepare("UPDATE reviews SET Rating = ?, Comment = ? WHERE ReviewID = ?");
-        $save->bind_param("isi", $rating, $comment, $review['ReviewID']);
-    } else {
-        $save = $conn->prepare("INSERT INTO reviews (BookingID, Rating, Comment) VALUES (?, ?, ?)");
-        $save->bind_param("iis", $bookingID, $rating, $comment);
+        echo json_encode(['status' => 'already_reviewed']);
+        exit;
     }
+    $save = $conn->prepare("INSERT INTO reviews (BookingID, Rating, Comment) VALUES (?, ?, ?)");
+    $save->bind_param("iis", $bookingID, $rating, $comment);
     $ok = $save->execute();
 
     if ($ok) {

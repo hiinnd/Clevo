@@ -667,7 +667,7 @@ $user_role = $_SESSION['role'] ?? 'User';
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-transparent position-absolute w-100" id="site-navbar">
         <div class="container">
-            <a class="navbar-brand" href="home.php">
+            <a class="navbar-brand" href="landing.php">
                 <img src="../assets/Images/Logo.png" alt="Clevo Logo" class="navbar-logo">
             </a>
 

@@ -7,6 +7,7 @@ include_once(__DIR__ . "/../includes/booking-helpers.php");
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 $bookingID = (int) ($_GET['id'] ?? 0);
 cancelExpiredBookings($conn, $userID);
+clevoEnsureReviewUniqueBooking($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
@@ -52,12 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $review = $existing->get_result()->fetch_assoc();
 
         if ($review) {
-            $save = $conn->prepare("UPDATE reviews SET Rating = ?, Comment = ? WHERE ReviewID = ?");
-            $save->bind_param("isi", $rating, $comment, $review['ReviewID']);
-        } else {
-            $save = $conn->prepare("INSERT INTO reviews (BookingID, Rating, Comment) VALUES (?, ?, ?)");
-            $save->bind_param("iis", $bookingID, $rating, $comment);
+            echo json_encode(['status' => 'already_reviewed']);
+            exit;
         }
+
+        $save = $conn->prepare("INSERT INTO reviews (BookingID, Rating, Comment) VALUES (?, ?, ?)");
+        $save->bind_param("iis", $bookingID, $rating, $comment);
         $ok = $save->execute();
 
         if ($ok) {
@@ -107,6 +108,7 @@ $status = (string) ($order['Status'] ?? 'Pending');
 $canModify = clevoBookingCanBeChanged($status);
 $isCompleted = $status === 'Completed';
 $currentRating = (int) ($order['Rating'] ?? 0);
+$hasReview = $currentRating > 0;
 $paymentMethod = (string) ($order['Payment_Method'] ?? '');
 $paymentLabelAr = clevoPaymentMethodLabel($paymentMethod, 'ar');
 $paymentLabelEn = clevoPaymentMethodLabel($paymentMethod, 'en');
@@ -699,14 +701,18 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                         </h3>
                         <div class="rating-stars" id="ratingStars">
                             <?php for ($i = 1; $i <= 5; $i++): ?>
-                                <i class="fas fa-star <?= $currentRating >= $i ? 'active' : '' ?>" data-value="<?= $i ?>" onclick="setRating(<?= $i ?>)"></i>
+                                <i class="fas fa-star <?= $currentRating >= $i ? 'active' : '' ?>" data-value="<?= $i ?>" <?= $hasReview ? '' : 'onclick="setRating(' . $i . ')"' ?>></i>
                             <?php endfor; ?>
                         </div>
-                        <textarea id="feedbackInput" class="feedback-box" data-placeholder-ar="اكتب ملاحظاتك هنا..." data-placeholder-en="Write your comments here..." placeholder="اكتب ملاحظاتك هنا..."><?= e($order['Comment'] ?? '') ?></textarea>
-                        <button onclick="submitRating(this)" class="btn-main mt-3">
-                            <span class="lang-node" data-ar="حفظ التقييم" data-en="Save Rating">حفظ التقييم</span>
-                            <i class="fas fa-check"></i>
-                        </button>
+                        <textarea id="feedbackInput" class="feedback-box" data-placeholder-ar="اكتب ملاحظاتك هنا..." data-placeholder-en="Write your comments here..." placeholder="اكتب ملاحظاتك هنا..." <?= $hasReview ? 'readonly' : '' ?>><?= e($order['Comment'] ?? '') ?></textarea>
+                        <?php if (!$hasReview): ?>
+                            <button onclick="submitRating(this)" class="btn-main mt-3">
+                                <span class="lang-node" data-ar="حفظ التقييم" data-en="Save Rating">حفظ التقييم</span>
+                                <i class="fas fa-check"></i>
+                            </button>
+                        <?php else: ?>
+                            <p class="action-note mt-3 mb-0 lang-node" data-ar="تم إرسال تقييمك لهذا الطلب." data-en="Your rating for this order has already been submitted.">تم إرسال تقييمك لهذا الطلب.</p>
+                        <?php endif; ?>
                     </section>
                 <?php endif; ?>
             </div>
@@ -866,6 +872,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                 loading: 'جاري المعالجة...',
                 success: 'تم بنجاح',
                 ratingSaved: 'تم حفظ تقييمك بنجاح.',
+                ratingAlreadySaved: 'تم إرسال تقييمك لهذا الطلب مسبقاً.',
                 cancelSuccess: 'تم إلغاء الحجز بنجاح.',
                 rescheduleSuccess: 'تم حفظ الموعد الجديد وإرسال الطلب للمحطة للمراجعة.',
                 warning: 'تنبيه',
@@ -879,6 +886,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
                 loading: 'Processing...',
                 success: 'Success',
                 ratingSaved: 'Your rating was saved successfully.',
+                ratingAlreadySaved: 'Your rating for this order has already been submitted.',
                 cancelSuccess: 'Booking cancelled successfully.',
                 rescheduleSuccess: 'The new appointment was saved and sent to the station for review.',
                 warning: 'Warning',
@@ -1023,6 +1031,8 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
             }).then(res => res.json()).then(data => {
                 if (data.status === 'success') {
                     showStatus('success', t('success'), t('ratingSaved'), () => location.reload());
+                } else if (data.status === 'already_reviewed') {
+                    showStatus('warning', t('warning'), t('ratingAlreadySaved'), () => location.reload());
                 } else {
                     showStatus('warning', t('error'), t('failed'));
                 }

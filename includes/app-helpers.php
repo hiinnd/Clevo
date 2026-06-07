@@ -264,6 +264,29 @@ function clevoRecordWalletTransaction(mysqli $conn, int $walletID, float $amount
     return $stmt->execute();
 }
 
+function clevoEnsureReviewUniqueBooking(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
+    if ($db === '') {
+        return;
+    }
+
+    $indexCheck = $conn->prepare("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'reviews' AND INDEX_NAME = 'uq_reviews_booking' LIMIT 1");
+    $indexCheck->bind_param("s", $db);
+    $indexCheck->execute();
+    if ($indexCheck->get_result()->num_rows === 0) {
+        $conn->query("DELETE r1 FROM reviews r1
+            JOIN reviews r2 ON r1.BookingID = r2.BookingID AND r1.ReviewID > r2.ReviewID");
+        $conn->query("ALTER TABLE reviews ADD UNIQUE KEY uq_reviews_booking (BookingID)");
+    }
+}
+
 function clevoEnsureOwnerPayoutTables(mysqli $conn): void
 {
     static $done = false;

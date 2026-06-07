@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             }
 
 
-            fetch('manage_reviews.php', {
+            fetch('process-reviews.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=submit_reply&review_id=${reviewId}&reply_text=${encodeURIComponent(replyText)}`

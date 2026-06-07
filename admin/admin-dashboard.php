@@ -253,7 +253,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                                         <td>
                                             <?php if($ticket['status'] == 'New'): ?>
                                                 <span class="badge bg-danger rounded-pill px-3" data-i18n="status_new">جديد</span>
-                                            </<?php else: ?>
+                                            <?php else: ?>
                                                 <span class="badge bg-secondary rounded-pill px-3" data-i18n="status_replied">تم الرد</span>
                                             <?php endif; ?>
                                         </td>

@@ -1769,6 +1769,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             ar: {
 
+                dash_page_title: "Clevo | الرئيسية",
+
                 hello_weather: "مرحباً بك..",
 
                 loyalty_title: "نقاط الولاء",
@@ -1838,6 +1840,8 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
             },
 
             en: {
+
+                dash_page_title: "Clevo | Home",
 
                 hello_weather: "Welcome..",
 

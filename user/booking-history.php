@@ -6,6 +6,7 @@ include_once(__DIR__ . "/../includes/booking-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 cancelExpiredBookings($conn, $userID);
+clevoEnsureReviewUniqueBooking($conn);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quick_rating') {
     header('Content-Type: application/json; charset=utf-8');
@@ -27,13 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quick
     $existing->execute();
     $review = $existing->get_result()->fetch_assoc();
     if ($review) {
-        $save = $conn->prepare("UPDATE reviews SET Rating = ?, Comment = ? WHERE ReviewID = ?");
-        $save->bind_param("isi", $rating, $comment, $review['ReviewID']);
-    } else {
-        $save = $conn->prepare("INSERT INTO reviews (BookingID, Rating, Comment) VALUES (?, ?, ?)");
-        $save->bind_param("iis", $bookingID, $rating, $comment);
+        echo json_encode(['status' => 'already_reviewed']);
+        exit;
     }
 
+    $save = $conn->prepare("INSERT INTO reviews (BookingID, Rating, Comment) VALUES (?, ?, ?)");
+    $save->bind_param("iis", $bookingID, $rating, $comment);
     echo json_encode(['status' => $save->execute() ? 'success' : 'error']);
     exit;
 }
@@ -322,7 +322,7 @@ $csrf_token = generate_csrf_token();
                                         <i class="fas fa-map-marker-alt"></i> <span data-i18n="btn_track">تتبع الآن</span>
                                     </a>
                                 <?php endif; ?>
-                                <?php if ($row['Status'] == 'Completed'): ?>
+                                <?php if ($row['Status'] == 'Completed' && empty($row['Rating'])): ?>
                                     <button type="button" class="btn-track shadow-sm" onclick="openRatingModal(<?= (int)$row['BookingID'] ?>)" style="border:0;">
                                         <i class="fas fa-star"></i> <span data-i18n="btn_rate">تقييم</span>
                                     </button>
@@ -456,6 +456,7 @@ $csrf_token = generate_csrf_token();
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') location.reload();
+                    if (data.status === 'already_reviewed') location.reload();
                 });
         }
 

@@ -208,6 +208,7 @@ CREATE TABLE `reviews` (
   `Owner_Reply` text DEFAULT NULL,
   PRIMARY KEY (`ReviewID`),
   KEY `BookingID` (`BookingID`),
+  UNIQUE KEY `uq_reviews_booking` (`BookingID`),
   CONSTRAINT `reviews_ibfk_1` FOREIGN KEY (`BookingID`) REFERENCES `booking` (`BookingID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
