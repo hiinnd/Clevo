@@ -17,6 +17,11 @@ if (isset($_POST['action'])) {
     clevo_require_csrf_token(true);
     $action = $_POST['action'];
 
+    if ((int) $my_station_id <= 0) {
+        echo json_encode($action === 'fetch_drivers' ? [] : ['status' => 'error', 'message' => 'station_not_found']);
+        exit;
+    }
+
     if ($action == 'fetch_drivers') {
         $query = mysqli_query($conn, "SELECT UserID as id, UserName as name, PhoneNumber as phone FROM user WHERE Role = 'driver' AND StationID = '$my_station_id' ORDER BY UserID DESC");
         $drivers_list = [];
@@ -40,7 +45,7 @@ if (isset($_POST['action'])) {
             exit;
         }
         
-        $default_pass = "123456";
+        $default_pass = password_hash("123456", PASSWORD_DEFAULT);
         $sql = "INSERT INTO user (UserName, PhoneNumber, Password, Role, AccountStatus, StationID) VALUES ('$name', '$phone', '$default_pass', 'driver', 'active', '$my_station_id')";
         if (mysqli_query($conn, $sql)) { 
             echo json_encode(['status' => 'success']); 

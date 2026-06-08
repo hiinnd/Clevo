@@ -10,6 +10,8 @@ if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'Admin') {
 
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
+$page_lang = $_GET['lang'] ?? $_COOKIE['app_lang'] ?? 'ar';
+$page_lang = $page_lang === 'en' ? 'en' : 'ar';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
     clevo_require_csrf_token();
@@ -57,8 +59,43 @@ $res_un_notif = $stmt_notif->get_result();
 $unread_count = $res_un_notif->fetch_assoc()['total'] ?? 0;
 $stmt_notif->close();
 
-$res_most_service = $conn->query("SELECT COALESCE(NULLIF(s.Name_ar, ''), s.Name) as ServiceNameAr, COALESCE(NULLIF(s.Name_en, ''), s.Name) as ServiceNameEn, COUNT(b.ServiceID) as count FROM booking b JOIN services s ON b.ServiceID = s.ServiceID GROUP BY b.ServiceID, s.Name, s.Name_ar, s.Name_en ORDER BY count DESC LIMIT 1");
+function clevoAdminServiceNameAr(string $name): string
+{
+    $map = [
+        'Full Wash' => 'غسيل شامل',
+        'Interior Deep Clean' => 'تنظيف داخلي عميق',
+        'Exterior Polish' => 'تلميع خارجي',
+        'Oil Change' => 'تغيير زيت',
+        'Interior Wash' => 'غسيل داخلي',
+        'Exterior Wash' => 'غسيل خارجي',
+        'Ceramic Quick Coat' => 'طبقة سيراميك سريعة',
+        'Interior Detailing' => 'تنظيف داخلي تفصيلي',
+        'Interior Steam Clean' => 'تنظيف داخلي بالبخار',
+        'Headlight Restoration' => 'تجديد المصابيح',
+        'Home Interior Wash' => 'غسيل داخلي منزلي',
+        'Pickup Full Service' => 'خدمة كاملة مع استلام وتسليم',
+        'Premium Wax' => 'شمع ممتاز',
+        'Not specified' => 'غير محدد',
+    ];
+
+    return $map[$name] ?? $name;
+}
+
+$res_most_service = $conn->query("
+    SELECT
+        COALESCE(NULLIF(MAX(s.Name_ar), ''), MAX(s.Name), 'غير محدد') AS ServiceNameAr,
+        COALESCE(NULLIF(MAX(s.Name_en), ''), MAX(s.Name), 'Not specified') AS ServiceNameEn,
+        COUNT(*) AS count
+    FROM booking b
+    JOIN services s ON b.ServiceID = s.ServiceID
+    GROUP BY COALESCE(NULLIF(s.Name_en, ''), s.Name)
+    ORDER BY count DESC, ServiceNameEn ASC
+    LIMIT 1
+");
 $most_service = ($res_most_service) ? $res_most_service->fetch_assoc() : null;
+$most_service_ar = $most_service['ServiceNameAr'] ?? 'غير محدد';
+$most_service_en = $most_service['ServiceNameEn'] ?? 'Not specified';
+$most_service_ar = clevoAdminServiceNameAr($most_service_ar);
 
 $res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
 $monthly_profit = $res_monthly_profit->fetch_assoc()['total'] ?? 0;
@@ -209,7 +246,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                     <div class="col-6 col-md-3">
                         <div class="stat-card bg-blue" style="cursor: default;">
                             <small class="fw-bold" data-i18n="most_requested_service">الخدمة الأكثر طلباً</small>
-                            <h4 class="mt-2 fw-bold" data-service-ar="<?php echo htmlspecialchars($most_service['ServiceNameAr'] ?? 'غير محدد'); ?>" data-service-en="<?php echo htmlspecialchars($most_service['ServiceNameEn'] ?? 'Not specified'); ?>"></h4>
+                            <h4 id="mostRequestedServiceValue" class="mt-2 fw-bold" data-service-ar="<?php echo htmlspecialchars($most_service_ar); ?>" data-service-en="<?php echo htmlspecialchars($most_service_en); ?>"><?php echo htmlspecialchars($most_service_ar); ?></h4>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
@@ -310,29 +347,76 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                 if (translations[lang] && translations[lang][key]) el.innerText = translations[lang][key];
             });
 
-            const serviceEl = document.querySelector('[data-service-ar]');
-            if (serviceEl) {
-                serviceEl.innerText = lang === 'ar'
-                    ? (serviceEl.getAttribute('data-service-ar') || translations[lang].not_specified || '')
-                    : (serviceEl.getAttribute('data-service-en') || translations[lang].not_specified || '');
-            }
+            updateServiceLanguage(lang);
 
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
         }
 
-        window.onload = () => {
-            const lang = localStorage.getItem('app_lang') || 'ar';
-            const theme = localStorage.getItem('global_theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
+        const serviceNameArFallbacks = {
+            'Full Wash': 'غسيل شامل',
+            'Interior Deep Clean': 'تنظيف داخلي عميق',
+            'Exterior Polish': 'تلميع خارجي',
+            'Exterior Wash': 'غسيل خارجي',
+            'Interior Detailing': 'تنظيف داخلي تفصيلي',
+            'Oil Change': 'تغيير زيت',
+            'Home Interior Wash': 'غسيل داخلي منزلي',
+            'Pickup Full Service': 'خدمة كاملة مع استلام وتسليم'
+        };
+
+        function updateServiceLanguage(lang) {
+            const serviceEl = document.getElementById('mostRequestedServiceValue');
+            if (!serviceEl) return;
+
+            const fallback = lang === 'ar' ? 'غير محدد' : 'Not specified';
+            let serviceName = lang === 'ar'
+                ? (serviceEl.getAttribute('data-service-ar') || fallback)
+                : (serviceEl.getAttribute('data-service-en') || fallback);
+
+            if (lang === 'ar' && serviceNameArFallbacks[serviceName]) {
+                serviceName = serviceNameArFallbacks[serviceName];
+            }
+
+            serviceEl.innerText = serviceName;
+        }
+
+        function enforceArabicDashboardService() {
+            const serviceEl = document.getElementById('mostRequestedServiceValue');
+            const titleEl = document.querySelector('[data-i18n="most_requested_service"]');
+            if (!serviceEl || !titleEl) return;
+
+            const pageLooksArabic = document.documentElement.dir === 'rtl'
+                || titleEl.innerText.includes('الخدمة')
+                || (document.getElementById('adminLangText')?.innerText || '') === 'EN';
+
+            if (pageLooksArabic) {
+                serviceEl.innerText = serviceEl.getAttribute('data-service-ar') || 'غسيل شامل';
+            }
+        }
+
+        function setAdminLanguage(lang) {
+            localStorage.setItem('app_lang', lang);
+            document.cookie = `app_lang=${lang}; path=/; max-age=31536000; SameSite=Lax`;
             applyTranslations(lang);
             document.getElementById('adminLangText').innerText = lang === 'ar' ? 'EN' : 'AR';
+        }
+
+        window.onload = () => {
+            const urlLang = new URLSearchParams(window.location.search).get('lang');
+            const lang = urlLang || localStorage.getItem('app_lang') || 'ar';
+            const theme = localStorage.getItem('global_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            setAdminLanguage(lang);
+            enforceArabicDashboardService();
             if(theme === 'light') document.getElementById('adminThemeIcon').className = 'fas fa-sun';
+            setTimeout(enforceArabicDashboardService, 150);
         };
 
         function toggleLanguage() {
             const newLang = (localStorage.getItem('app_lang') || 'ar') === 'ar' ? 'en' : 'ar';
-            localStorage.setItem('app_lang', newLang);
-            location.reload();
+            setAdminLanguage(newLang);
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', newLang);
+            window.location.href = url.toString();
         }
 
         function toggleGlobalTheme() {

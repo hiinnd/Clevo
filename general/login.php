@@ -90,13 +90,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         $legacy_sha256_password = hash('sha256', $password);
 
-                        if (hash_equals($stored_password, $password)) {
+                        if (password_verify($password, $stored_password)) {
                             $is_password_correct = true;
-                        } elseif (password_verify($password, $stored_password) || hash_equals($stored_password, $legacy_sha256_password)) {
+                        } elseif (hash_equals($stored_password, $password) || hash_equals($stored_password, $legacy_sha256_password)) {
                             $is_password_correct = true;
+                            $new_hash = password_hash($password, PASSWORD_DEFAULT);
                             $update_pass = $conn->prepare("UPDATE `user` SET Password = ? WHERE UserID = ?");
                             if ($update_pass) {
-                                $update_pass->bind_param("si", $password, $user['UserID']);
+                                $update_pass->bind_param("si", $new_hash, $user['UserID']);
                                 $update_pass->execute();
                             }
                         }
@@ -222,6 +223,9 @@ if (isset($_POST['reset_password_action'])) {
         exit;
     }
 
+    $hashedPassword =
+        password_hash($newPassword, PASSWORD_DEFAULT);
+
     $stmt = $conn->prepare("
     UPDATE user
     SET Password = ?,
@@ -232,7 +236,7 @@ if (isset($_POST['reset_password_action'])) {
 
     $stmt->bind_param(
         "si",
-        $newPassword,
+        $hashedPassword,
         $userID
     );
 
