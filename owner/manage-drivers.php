@@ -40,7 +40,7 @@ if (isset($_POST['action'])) {
             exit;
         }
         
-        $default_pass = password_hash("123456", PASSWORD_DEFAULT);
+        $default_pass = "123456";
         $sql = "INSERT INTO user (UserName, PhoneNumber, Password, Role, AccountStatus, StationID) VALUES ('$name', '$phone', '$default_pass', 'driver', 'active', '$my_station_id')";
         if (mysqli_query($conn, $sql)) { 
             echo json_encode(['status' => 'success']); 

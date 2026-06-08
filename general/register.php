@@ -57,11 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
                 $conn->begin_transaction();
                 try {
                     
-                    $hashed_pass = password_hash($pass, PASSWORD_DEFAULT);
                     $status = 'pending';
                     $token = bin2hex(random_bytes(32));
                     $stmt = $conn->prepare("INSERT INTO `user` (UserName, Email, PhoneNumber, Password, Role, AccountStatus, VerificationFile, VerificationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param("ssssssss", $name, $email, $phone, $hashed_pass, $role, $status, $file_path, $token);
+                    $stmt->bind_param("ssssssss", $name, $email, $phone, $pass, $role, $status, $file_path, $token);
                     $stmt->execute();
                     $new_id = $conn->insert_id;
 

@@ -90,14 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         $legacy_sha256_password = hash('sha256', $password);
 
-                        if (password_verify($password, $stored_password)) {
+                        if (hash_equals($stored_password, $password)) {
                             $is_password_correct = true;
-                        } elseif (hash_equals($stored_password, $password) || hash_equals($stored_password, $legacy_sha256_password)) {
+                        } elseif (password_verify($password, $stored_password) || hash_equals($stored_password, $legacy_sha256_password)) {
                             $is_password_correct = true;
-                            $new_hash = password_hash($password, PASSWORD_DEFAULT);
                             $update_pass = $conn->prepare("UPDATE `user` SET Password = ? WHERE UserID = ?");
                             if ($update_pass) {
-                                $update_pass->bind_param("si", $new_hash, $user['UserID']);
+                                $update_pass->bind_param("si", $password, $user['UserID']);
                                 $update_pass->execute();
                             }
                         }
@@ -119,9 +118,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $driver_booking = $driver_code_stmt->get_result()->fetch_assoc();
                             $driver_booking_id = (int) ($driver_booking['BookingID'] ?? 0);
                             $is_driver_code = $driver_booking_id > 0;
+
+                            if (!$is_driver_code && $is_password_correct) {
+                                $driver_task_stmt = $conn->prepare("SELECT BookingID
+                                    FROM booking
+                                    WHERE DriverID = ?
+                                      AND Service_Location = 'delivery'
+                                      AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')
+                                    ORDER BY created_at DESC
+                                    LIMIT 1");
+                                $driver_task_stmt->bind_param("i", $user['UserID']);
+                                $driver_task_stmt->execute();
+                                $driver_task = $driver_task_stmt->get_result()->fetch_assoc();
+                                $driver_booking_id = (int) ($driver_task['BookingID'] ?? 0);
+                            }
                         }
 
-                        if (($role_lower === 'driver' && !$is_driver_code) || ($role_lower !== 'driver' && !$is_password_correct)) {
+                        if (($role_lower === 'driver' && !$is_driver_code && !$is_password_correct) || ($role_lower !== 'driver' && !$is_password_correct)) {
                             $error = "wrong_pass";
                         } elseif ($user['AccountStatus'] === 'pending' && in_array($role_lower, ['owner', 'customer', 'user'], true)) {
                             $error = "pending_status";
@@ -209,9 +222,6 @@ if (isset($_POST['reset_password_action'])) {
         exit;
     }
 
-    $hashedPassword =
-        password_hash($newPassword, PASSWORD_DEFAULT);
-
     $stmt = $conn->prepare("
     UPDATE user
     SET Password = ?,
@@ -222,7 +232,7 @@ if (isset($_POST['reset_password_action'])) {
 
     $stmt->bind_param(
         "si",
-        $hashedPassword,
+        $newPassword,
         $userID
     );
 

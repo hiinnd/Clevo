@@ -13,10 +13,6 @@ if (!isset($_SESSION['userID']) || $sessionRole !== 'driver') {
 
 $driver_id = (int) $_SESSION['userID'];
 $driver_booking_id = (int) ($_SESSION['driver_booking_id'] ?? 0);
-if ($driver_booking_id <= 0) {
-    header('Location: ../general/logout.php');
-    exit;
-}
 
 function driverStatusLabel(string $status): string
 {
