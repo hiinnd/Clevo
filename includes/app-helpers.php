@@ -386,6 +386,92 @@ function clevoRecordOwnerWithdrawalRequest(mysqli $conn, int $ownerID, int $wall
     return $stmt->execute();
 }
 
+function clevoNotificationTextForMatching(string $text): string
+{
+    $text = trim($text);
+    if ($text === '') {
+        return '';
+    }
+
+    $repaired = function_exists('mb_convert_encoding')
+        ? @mb_convert_encoding($text, 'UTF-8', 'Windows-1252')
+        : '';
+
+    return $text . "\n" . ($repaired ?: '');
+}
+
+function clevoNotificationFallbackEnglish(string $text, bool $isTitle = false): string
+{
+    $text = trim($text);
+    if ($text === '') {
+        return '';
+    }
+    if (preg_match('/^[\x20-\x7E\s]+$/', $text)) {
+        return $text;
+    }
+
+    $matchText = clevoNotificationTextForMatching($text);
+    preg_match('/#[A-Za-z0-9_-]+/', $text, $matches);
+    $orderNumber = $matches[0] ?? '';
+
+    $contains = static function (array $needles) use ($matchText): bool {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && str_contains($matchText, $needle)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if ($isTitle) {
+        if ($contains(['طلب جديد'])) return 'New order';
+        if ($contains(['تم قبول الطلب'])) return 'Order accepted';
+        if ($contains(['رفض الطلب', 'رفض طلب'])) return 'Order rejected';
+        if ($contains(['تم إنهاء الطلب'])) return 'Order completed';
+        if ($contains(['تم إلغاء الحجز', 'تم إلغاء الطلب'])) return 'Order cancelled';
+        if ($contains(['انتهت مهلة الطلب'])) return 'Request timed out';
+        if ($contains(['تم تعديل موعد الحجز'])) return 'Booking rescheduled';
+        if ($contains(['مهمة جديدة'])) return 'New task';
+        if ($contains(['تم إلغاء المهمة'])) return 'Task cancelled';
+        if ($contains(['تم تعديل موعد المهمة'])) return 'Task rescheduled';
+        if ($contains(['رد جديد على تقييمك'])) return 'New reply to your review';
+        if ($contains(['رد جديد من الدعم الفني', 'رد الدعم'])) return 'New support reply';
+        if ($contains(['طلب تسجيل محطة جديدة'])) return 'New station registration request';
+        if ($contains(['مستخدم جديد سجل في النظام'])) return 'New user registered in the system';
+        if ($contains(['إشعارات قرب انتهاء الباقات'])) return 'Plan expiry notifications';
+        if ($contains(['طلب سحب أرباح'])) return 'Withdrawal request';
+        if ($contains(['تم إرسال طلب السحب'])) return 'Withdrawal request sent';
+        return 'Notification';
+    }
+
+    if ($contains(['وصلك طلب'])) return trim("You received a new order $orderNumber.");
+    if ($contains(['تم قبول طلبك']) && $contains(['باقتك'])) return trim("Your order $orderNumber was accepted and will be counted from your plan.");
+    if ($contains(['تم قبول طلبك']) && $contains(['تعيين السائق'])) return trim("Your order $orderNumber was accepted and a driver was assigned. Please choose a payment method within 10 minutes.");
+    if ($contains(['تم قبول طلبك'])) return trim("Your order $orderNumber was accepted. Please choose a payment method within 10 minutes.");
+    if ($contains(['تم رفض طلبك', 'نعتذر، تم رفض'])) return trim("Sorry, your order $orderNumber was rejected by the station. You can book another station.");
+    if ($contains(['تم إنهاء طلبك', 'يمكنك الآن تقييم الخدمة'])) return trim("Your order $orderNumber was completed. You can now rate the service.");
+    if ($contains(['تم إنهاء وتسليم الطلب'])) return trim("Order $orderNumber was completed and delivered.");
+    if ($contains(['قام العميل بإلغاء الطلب'])) return trim("The customer cancelled order $orderNumber.");
+    if ($contains(['تم إلغاء الطلب', 'من قبل العميل'])) return trim("Order $orderNumber was cancelled by the customer.");
+    if ($contains(['تم إلغاء طلبك']) && $contains(['حفظ المبلغ'])) return trim("Your order $orderNumber was cancelled and the due amount or credit was saved to your account.");
+    if ($contains(['تم إلغاء طلبك'])) return trim("Your order $orderNumber was cancelled successfully.");
+    if ($contains(['لم يتم الرد على طلبك'])) return trim("Your order $orderNumber was not answered within 10 minutes. You can book another station now.");
+    if ($contains(['الدفع لم يكتمل', 'لم يكتمل خلال 10 دقائق'])) return trim("Your order $orderNumber was cancelled because payment was not completed within 10 minutes after acceptance.");
+    if ($contains(['تم تعديل موعد الطلب'])) return trim("Order $orderNumber was rescheduled. Please review it again.");
+    if ($contains(['تم حفظ الموعد الجديد'])) return trim("The new time for order $orderNumber was saved while keeping the payment method and dues.");
+    if ($contains(['لديك مهمة جديدة'])) return trim("You have a new task for order $orderNumber.");
+    if ($contains(['وصلك تقييم جديد'])) return trim("You received a new review for order $orderNumber.");
+    if ($contains(['قام صاحب الخدمة بالرد'])) return 'The service owner replied to your review.';
+    if ($contains(['قام المسؤول بالرد'])) return 'Support replied to your ticket.';
+    if ($contains(['بقبول الطلب'])) return trim("A station owner accepted order $orderNumber.");
+    if ($contains(['برفض الطلب'])) return trim("A station owner rejected order $orderNumber.");
+    if ($contains(['تم إرسال', 'إشعار', 'المستخدمين', 'باقاتهم'])) return 'Plan expiry notifications were sent to users.';
+    if ($contains(['طلب سحب أرباح'])) return 'A station owner submitted a withdrawal request.';
+    if ($contains(['تم إرسال طلب السحب'])) return 'Your withdrawal request was sent and is pending admin review.';
+
+    return '';
+}
+
 function clevoCreateNotification(mysqli $conn, int $userID, string $title, string $body, string $type = 'info', ?string $targetUrl = null, ?string $titleEn = null, ?string $bodyEn = null): bool
 {
     if ($userID <= 0) {
@@ -398,6 +484,8 @@ function clevoCreateNotification(mysqli $conn, int $userID, string $title, strin
     }
 
     clevoEnsureNotificationsTargetColumn($conn);
+    $titleEn = trim((string) $titleEn) !== '' ? $titleEn : clevoNotificationFallbackEnglish($title, true);
+    $bodyEn = trim((string) $bodyEn) !== '' ? $bodyEn : clevoNotificationFallbackEnglish($body, false);
 
     $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, title_en, body, body_en, type, target_url) VALUES (?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) return false;
@@ -418,6 +506,8 @@ function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $t
     }
 
     clevoEnsureNotificationsTargetColumn($conn);
+    $titleEn = trim((string) $titleEn) !== '' ? $titleEn : clevoNotificationFallbackEnglish($title, true);
+    $bodyEn = trim((string) $bodyEn) !== '' ? $bodyEn : clevoNotificationFallbackEnglish($body, false);
 
     $stmt = $conn->prepare("INSERT INTO notifications (user_id, target_role, title, title_en, body, body_en, type, target_url) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) return false;

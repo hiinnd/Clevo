@@ -53,11 +53,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             } else {
                 $msg = "تم قبول طلبك #$order_num. اضغط زر الدفع لاختيار طريقة الدفع خلال 10 دقائق.";
             }
-            clevoCreateNotification($conn, $customer_id, 'تم قبول الطلب', $msg, 'success');
+            clevoCreateNotification(
+                $conn,
+                $customer_id,
+                'تم قبول الطلب',
+                $msg,
+                'success',
+                null,
+                'Order accepted',
+                $order_data['Payment_Method'] === 'plan'
+                    ? "Your order #$order_num was accepted and will be counted from your plan."
+                    : "Your order #$order_num was accepted. Please choose a payment method within 10 minutes."
+            );
             
             try {
                 $admin_msg = "قام صاحب المحطة (ID: $owner_id) بقبول الطلب #$order_num.";
-                clevoCreateNotification($conn, 1, 'قبول طلب من صاحب محطة', $admin_msg, 'info');
+                clevoCreateRoleNotification(
+                    $conn,
+                    'Admin',
+                    'قبول طلب من صاحب محطة',
+                    $admin_msg,
+                    'info',
+                    '../admin/financial-reports.php',
+                    'Order accepted by station owner',
+                    "Station owner ID $owner_id accepted order #$order_num."
+                );
             } catch (Throwable $e) {
                 
             }
@@ -170,11 +190,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             }
 
             $msg = "نعتذر، تم رفض طلبك #$order_num من قبل المحطة. يمكنك حجز محطة أخرى.";
-            clevoCreateNotification($conn, $customer_id, 'رفض الطلب', $msg, 'danger');
+            clevoCreateNotification(
+                $conn,
+                $customer_id,
+                'رفض الطلب',
+                $msg,
+                'danger',
+                null,
+                'Order rejected',
+                "Sorry, your order #$order_num was rejected by the station. You can book another station."
+            );
             
             try {
                 $admin_msg = "قام صاحب المحطة (ID: $owner_id) برفض الطلب #$order_num.";
-                clevoCreateNotification($conn, 1, 'رفض طلب من صاحب محطة', $admin_msg, 'warning');
+                clevoCreateRoleNotification(
+                    $conn,
+                    'Admin',
+                    'رفض طلب من صاحب محطة',
+                    $admin_msg,
+                    'warning',
+                    '../admin/financial-reports.php',
+                    'Order rejected by station owner',
+                    "Station owner ID $owner_id rejected order #$order_num."
+                );
             } catch (Throwable $e) {
                 
             }
@@ -219,7 +257,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 clevoCreditOwnerForBooking($conn, $order_id);
             }
             $order_num = (string) $order_data['Order_Number'];
-            clevoCreateNotification($conn, $customer_id, 'تم إنهاء الطلب', "تم إنهاء طلبك #$order_num. يمكنك الآن تقييم الخدمة.", 'success');
+            clevoCreateNotification(
+                $conn,
+                $customer_id,
+                'تم إنهاء الطلب',
+                "تم إنهاء طلبك #$order_num. يمكنك الآن تقييم الخدمة.",
+                'success',
+                null,
+                'Order completed',
+                "Your order #$order_num was completed. You can now rate the service."
+            );
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'completed']);
             exit;
         }

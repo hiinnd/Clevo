@@ -25,7 +25,7 @@ clevoEnsureNotificationsTargetColumn($conn);
 // Support marking a single notification as read via ?read=ID (used by JS fetch)
 if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     $notif_id = intval($_GET['read']);
-    $stmtRead = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR user_id IS NULL)");
+    $stmtRead = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?");
     $stmtRead->bind_param("ii", $notif_id, $userID);
     $stmtRead->execute();
     // If called via fetch, return a small JSON response
@@ -40,7 +40,7 @@ if (isset($_GET['read']) && is_numeric($_GET['read'])) {
 
 
 
-$stmt = $conn->prepare("SELECT id, title, title_en, body, body_en, type, is_read, created_at, target_url FROM `notifications` WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC");
+$stmt = $conn->prepare("SELECT id, title, title_en, body, body_en, type, is_read, created_at, target_url FROM `notifications` WHERE user_id = ? ORDER BY created_at DESC");
 $stmt->bind_param("i", $userID);
 $stmt->execute();
 $notifications = $stmt->get_result();
