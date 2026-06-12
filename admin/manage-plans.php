@@ -227,26 +227,26 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
                     <?= csrf_input(); ?>
                     <input type="hidden" name="plan_id" id="p_id">
                     <div class="row g-3 text-start">
-                        <div class="col-sm-6"><label class="form-label small fw-bold">الاسم بالعربي</label><input type="text" name="name_ar" id="p_name_ar" class="form-control" required></div>
-                        <div class="col-sm-6"><label class="form-label small fw-bold">English Name <span id="sync_name_loader" class="small opacity-50"></span></label><input type="text" name="name_en" id="p_name_en" class="form-control" required></div>
-                        <div class="col-sm-6"><label class="form-label small fw-bold">الوصف بالعربي</label><textarea name="desc_ar" id="p_desc_ar" class="form-control" rows="2"></textarea></div>
-                        <div class="col-sm-6"><label class="form-label small fw-bold">English Description <span id="sync_desc_loader" class="small opacity-50"></span></label><textarea name="desc_en" id="p_desc_en" class="form-control" rows="2"></textarea></div>
-                        <div class="col-sm-6"><label class="form-label small fw-bold">السعر</label><input type="number" step="0.01" name="price" id="p_price" class="form-control" required></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold" data-i18n="label_name_ar">الاسم بالعربي</label><input type="text" name="name_ar" id="p_name_ar" class="form-control" required></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold"><span data-i18n="label_name_en">English Name</span> <span id="sync_name_loader" class="small opacity-50"></span></label><input type="text" name="name_en" id="p_name_en" class="form-control" required></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold" data-i18n="label_desc_ar">الوصف بالعربي</label><textarea name="desc_ar" id="p_desc_ar" class="form-control" rows="2"></textarea></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold"><span data-i18n="label_desc_en">English Description</span> <span id="sync_desc_loader" class="small opacity-50"></span></label><textarea name="desc_en" id="p_desc_en" class="form-control" rows="2"></textarea></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold" data-i18n="label_price">السعر</label><input type="number" step="0.01" name="price" id="p_price" class="form-control" required></div>
                         <div class="col-sm-6">
-                            <label class="form-label small fw-bold">المدة</label>
-                            <div class="input-group"><input type="number" name="duration" id="p_duration" class="form-control" value="1"><select name="duration_type" id="p_type" class="form-select"><option value="day">يوم</option><option value="month">شهر</option><option value="year">سنة</option></select></div>
+                            <label class="form-label small fw-bold" data-i18n="label_duration">المدة</label>
+                            <div class="input-group"><input type="number" name="duration" id="p_duration" class="form-control" value="1"><select name="duration_type" id="p_type" class="form-select"><option value="day" data-i18n="day">يوم</option><option value="month" data-i18n="month">شهر</option><option value="year" data-i18n="year">سنة</option></select></div>
                         </div>
-                        <div class="col-sm-6"><label class="form-label small fw-bold">عدد الغسلات</label><input type="number" min="1" name="wash_count" id="p_wash_count" class="form-control" value="1" required></div>
-                        <div class="col-sm-6"><label class="form-label small fw-bold">Included washes/services</label><input type="text" name="included_services_en" id="p_included_en" class="form-control" placeholder="Full wash, Oil change, Polish"></div>
-                        <div class="col-12"><label class="form-label small fw-bold">الخدمات المشمولة بالباقة</label><input type="text" name="included_services_ar" id="p_included_ar" class="form-control" placeholder="غسيل شامل، تغيير زيت، تلميع"></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold" data-i18n="label_wash_count">عدد الغسلات</label><input type="number" min="1" name="wash_count" id="p_wash_count" class="form-control" value="1" required></div>
+                        <div class="col-sm-6"><label class="form-label small fw-bold" data-i18n="label_included_en">Included washes/services</label><input type="text" name="included_services_en" id="p_included_en" class="form-control" data-placeholder-i18n="placeholder_included_en" placeholder="Full wash, Oil change, Polish"></div>
+                        <div class="col-12"><label class="form-label small fw-bold" data-i18n="label_included_ar">الخدمات المشمولة بالباقة</label><input type="text" name="included_services_ar" id="p_included_ar" class="form-control" data-placeholder-i18n="placeholder_included_ar" placeholder="غسيل شامل، تغيير زيت، تلميع"></div>
                         <div class="col-12 mt-2">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="is_active" id="p_is_active" value="1" checked>
-                                <label class="form-check-label small fw-bold" for="p_is_active">تفعيل الخطة للزبائن (Active)</label>
+                                <label class="form-check-label small fw-bold" for="p_is_active" data-i18n="label_is_active">تفعيل الخطة للزبائن (Active)</label>
                             </div>
                         </div>
                     </div>
-                    <button type="submit" name="add_plan" id="submitBtn" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mt-4 shadow">حفظ البيانات</button>
+                    <button type="submit" name="add_plan" id="submitBtn" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mt-4 shadow" data-i18n="btn_save">حفظ البيانات</button>
                 </form>
             </div>
         </div>
@@ -261,6 +261,38 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             ar: { plans_title: "الخطط | Clevo", manage_plans_h: "إدارة خطط النظام", btn_add: "إضافة خطة", nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_plans: "الخطط", nav_security: "الأمان", nav_reports: "التقارير", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج", status_active: "نشط", status_inactive: "متوقف", day: "يوم", month: "شهر", year: "سنة", btn_edit: "تعديل", modal_add: "إضافة خطة جديدة", modal_edit: "تعديل الخطة", confirm_del_h: "هل أنت متأكد من الحذف؟", btn_delete: "احذف", btn_cancel: "إلغاء", msg_added: "تمت الإضافة بنجاح", msg_updated: "تم التحديث بنجاح", msg_deleted: "تم الحذف بنجاح", logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", wash_count_label: "غسلات" },
             en: { plans_title: "Plans | Clevo", manage_plans_h: "Plan Management", btn_add: "Add Plan", nav_main: "Dashboard", nav_approvals: "Approvals", nav_plans: "Plans", nav_security: "Security", nav_reports: "Reports", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout", status_active: "Active", status_inactive: "Inactive", day: "Day", month: "Month", year: "Year", btn_edit: "Edit", modal_add: "Add Plan", modal_edit: "Edit Plan", confirm_del_h: "Are you sure?", btn_delete: "Delete", btn_cancel: "Cancel", msg_added: "Added!", msg_updated: "Updated!", msg_deleted: "Deleted!", logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", wash_count_label: "washes" }
         };
+        Object.assign(translations.ar, {
+            label_name_ar: "الاسم بالعربي",
+            label_name_en: "الاسم بالإنجليزي",
+            label_desc_ar: "الوصف بالعربي",
+            label_desc_en: "الوصف بالإنجليزي",
+            label_price: "السعر",
+            label_duration: "المدة",
+            label_wash_count: "عدد الغسلات",
+            label_included_en: "الخدمات المشمولة بالإنجليزي",
+            label_included_ar: "الخدمات المشمولة بالباقة",
+            label_is_active: "تفعيل الخطة للزبائن (Active)",
+            btn_save: "حفظ البيانات",
+            placeholder_included_en: "Full wash, Oil change, Polish",
+            placeholder_included_ar: "غسيل شامل، تغيير زيت، تلميع",
+            translating: "(جاري الترجمة...)"
+        });
+        Object.assign(translations.en, {
+            label_name_ar: "Arabic Name",
+            label_name_en: "English Name",
+            label_desc_ar: "Arabic Description",
+            label_desc_en: "English Description",
+            label_price: "Price",
+            label_duration: "Duration",
+            label_wash_count: "Number of washes",
+            label_included_en: "Included washes/services",
+            label_included_ar: "Included services in Arabic",
+            label_is_active: "Make this plan active for customers",
+            btn_save: "Save Plan",
+            placeholder_included_en: "Full wash, Oil change, Polish",
+            placeholder_included_ar: "غسيل شامل، تغيير زيت، تلميع",
+            translating: "(Translating...)"
+        });
 
         function applySettings() {
             const l = localStorage.getItem('app_lang') || 'ar';
@@ -272,6 +304,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             document.getElementById('bootstrap-css').href = l === 'ar' ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
 
             document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (translations[l][k]) el.innerText = translations[l][k]; });
+            document.querySelectorAll('[data-placeholder-i18n]').forEach(el => { const k = el.getAttribute('data-placeholder-i18n'); if (translations[l][k]) el.setAttribute('placeholder', translations[l][k]); });
             document.querySelectorAll('.plan-title-display').forEach(el => el.innerText = el.getAttribute('data-' + l));
             document.querySelectorAll('.plan-desc-display').forEach(el => el.innerText = el.getAttribute('data-' + l));
             document.querySelectorAll('.plan-includes-display').forEach(el => {
@@ -310,7 +343,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             clearTimeout(nameTimeout);
             const val = this.value;
             const loader = document.getElementById('sync_name_loader');
-            if(val.trim()) loader.innerText = "(جاري الترجمة...)";
+            if(val.trim()) loader.innerText = translations[localStorage.getItem('app_lang') || 'ar'].translating;
             nameTimeout = setTimeout(async () => {
                 if(val.trim()) {
                     const trans = await translateText(val);
@@ -324,7 +357,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
             clearTimeout(descTimeout);
             const val = this.value;
             const loader = document.getElementById('sync_desc_loader');
-            if(val.trim()) loader.innerText = "(جاري الترجمة...)";
+            if(val.trim()) loader.innerText = translations[localStorage.getItem('app_lang') || 'ar'].translating;
             descTimeout = setTimeout(async () => {
                 if(val.trim()) {
                     const trans = await translateText(val);
