@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS `user` (
   `VerificationToken` varchar(255) DEFAULT NULL,
   `DeviceID` varchar(100) DEFAULT NULL,
   `CurrentAccessCode` varchar(10) DEFAULT NULL,
+  `reset_otp` varchar(10) DEFAULT NULL,
+  `reset_otp_expiry` datetime DEFAULT NULL,
   `StationID` int(11) DEFAULT NULL,
   `LastLatitude` decimal(10,8) DEFAULT NULL,
   `LastLongitude` decimal(11,8) DEFAULT NULL,

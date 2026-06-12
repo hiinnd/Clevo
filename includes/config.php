@@ -75,6 +75,36 @@ function clevo_require_csrf_token(bool $json = false): void {
     }
 }
 
+function clevoEnsurePasswordResetColumns(mysqli $conn): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
+    if ($db === '') {
+        return;
+    }
+
+    $columns = [];
+    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'user'");
+    $stmt->bind_param("s", $db);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $columns[$row['COLUMN_NAME']] = true;
+    }
+
+    if (!isset($columns['reset_otp'])) {
+        $conn->query("ALTER TABLE `user` ADD COLUMN reset_otp VARCHAR(10) DEFAULT NULL AFTER CurrentAccessCode");
+    }
+    if (!isset($columns['reset_otp_expiry'])) {
+        $conn->query("ALTER TABLE `user` ADD COLUMN reset_otp_expiry DATETIME DEFAULT NULL AFTER reset_otp");
+    }
+}
+
 function e($value): string {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }

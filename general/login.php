@@ -199,6 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_POST['reset_password_action'])) {
 
     header('Content-Type: application/json');
+    clevoEnsurePasswordResetColumns($conn);
 
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
         echo json_encode([

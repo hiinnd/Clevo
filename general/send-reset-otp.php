@@ -8,6 +8,7 @@ require_once '../vendor/autoload.php';
 include(__DIR__ . "/../Emails/reset_otp.php");
 
 header('Content-Type: application/json');
+clevoEnsurePasswordResetColumns($conn);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
