@@ -104,6 +104,9 @@ function clevo_connect_database(): mysqli
         clevo_env('DB_DATABASE'), (int) clevo_env('DB_PORT', '3306'));
     $conn->set_charset('utf8mb4');
     $conn->query("SET time_zone = '+00:00'");
+    // Do not let a permissive server silently truncate financial amounts or identifiers.
+    // Keep deployment-specific modes (including ONLY_FULL_GROUP_BY) intact.
+    $conn->query("SET SESSION sql_mode = CONCAT_WS(',', NULLIF(@@SESSION.sql_mode, ''), 'STRICT_TRANS_TABLES')");
     return $conn;
 }
 

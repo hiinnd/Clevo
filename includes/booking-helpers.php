@@ -86,13 +86,13 @@ function clevoPreviewPointsDiscount(mysqli $conn, int $userID, float $totalPrice
         return ['points' => 0.0, 'discount' => 0.0, 'payable' => max(0, round($totalPrice, 2))];
     }
 
-    $balance = clevoGetLoyaltyPoints($conn, $userID);
-    $maxPointsForTotal = ceil($totalPrice * 40);
-    $points = min($balance, $maxPointsForTotal);
-    $discount = min($totalPrice, floor($points) / 40);
-    $payable = max(0, round($totalPrice - $discount, 2));
-
-    return ['points' => floor($points), 'discount' => round($discount, 2), 'payable' => $payable];
+    $totalCents=clevo_db_money($totalPrice);
+    $balance=max(0,(int)floor(clevoGetLoyaltyPoints($conn,$userID)));
+    $points=min($balance,intdiv($totalCents*40+99,100));
+    // Preserve 40 points/JOD and half-up two-decimal discount; derive the remainder
+    // from the rounded discount so payable + discount always equals the quote.
+    $discountCents=min($totalCents,intdiv($points*100+20,40));
+    return ['points'=>(float)$points,'discount'=>$discountCents/100,'payable'=>($totalCents-$discountCents)/100];
 }
 
 function clevoApplyPointsDiscount(mysqli $conn, int $bookingID, int $userID, float $totalPrice, bool $usePoints): array
@@ -138,99 +138,47 @@ function clevoBookingHasWalletTransaction(mysqli $conn, int $walletID, string $d
 
 function clevoReverseOwnerPayoutForBooking(mysqli $conn, array $booking): bool
 {
-    $method = (string) ($booking['Payment_Method'] ?? '');
-    if (!in_array($method, ['visa', 'wallet', 'points'], true)) {
-        return false;
-    }
-
-    $ownerID = (int) ($booking['OwnerID'] ?? 0);
-    if ($ownerID <= 0) {
-        return false;
-    }
-
-    $bookingID = (int) ($booking['BookingID'] ?? 0);
-    $orderNumber = clevoBookingReference($booking, $bookingID);
-    $wallet = clevoEnsureWallet($conn, $ownerID);
-    $walletID = (int) $wallet['WalletID'];
-    $earningDescEn = "Owner booking earning #$orderNumber";
-    $reversalDescEn = "Owner booking earning reversal #$orderNumber";
-
-    if (clevoBookingHasWalletTransaction($conn, $walletID, $reversalDescEn)) {
+    $bookingID=(int)($booking['BookingID']??0);
+    return clevo_db_atomic($conn,function()use($conn,$bookingID):bool {
+        $b=clevo_stmt($conn,'SELECT b.BookingID,COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
+        if (!$b) return false;
+        $earning=clevo_stmt($conn,'SELECT Amount FROM wallet_transactions WHERE OperationKey=?','s',["booking:$bookingID:owner_earning"])->get_result()->fetch_assoc();
+        if (!$earning) return false; // Unstructured historical earnings need reconciliation.
+        if (!clevo_db_effect($conn,$bookingID,'owner_reversal')) return true;
+        $wallet=clevoEnsureWallet($conn,(int)$b['OwnerID']);
+        clevo_wallet_entry($conn,(int)$wallet['WalletID'],clevo_db_money($earning['Amount']),'debit',"booking:$bookingID:owner_reversal",$bookingID,"Owner booking earning reversal #$bookingID");
         return true;
-    }
-    if (!clevoBookingHasWalletTransaction($conn, $walletID, $earningDescEn)) {
-        return false;
-    }
-
-    $amount = clevoCalculateOwnerPayout((float) ($booking['Total_Price'] ?? 0), (float) ($booking['Admin_Commission'] ?? 0));
-    if ($amount <= 0 || !clevoDebitWallet($conn, $walletID, $amount)) {
-        return false;
-    }
-
-    $type = "debit";
-    $descAr = "عكس أرباح طلب #$orderNumber";
-    clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $reversalDescEn);
-    return true;
+    });
 }
 
 function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason = 'cancelled'): array
 {
-    clevoEnsurePlanColumns($conn);
-
-    $stmt = $conn->prepare("SELECT b.*, s.UserID AS OwnerID
-        FROM booking b
-        JOIN stations s ON b.StationID = s.StationID
-        WHERE b.BookingID = ? LIMIT 1");
-    $stmt->bind_param("i", $bookingID);
-    $stmt->execute();
-    $booking = $stmt->get_result()->fetch_assoc();
-
-    if (!$booking) {
-        return ['refunded' => false, 'method' => '', 'amount' => 0, 'message' => 'booking_not_found'];
-    }
-
-    $method = (string) ($booking['Payment_Method'] ?? '');
-    $amount = clevoBookingPayableAmount($booking);
-    $pointsUsed = (float) ($booking['Points_Used'] ?? 0);
-    $orderNumber = clevoBookingReference($booking, $bookingID);
-    $result = ['refunded' => false, 'method' => $method, 'amount' => $amount, 'message' => 'no_payment'];
-
-    if ($method === 'plan') {
-        clevoRestorePlanWashForBooking($conn, $bookingID);
-        return ['refunded' => true, 'method' => $method, 'amount' => 0, 'message' => 'plan_restored'];
-    }
-
-    if (in_array($method, ['visa', 'wallet'], true)) {
-        $wallet = clevoEnsureWallet($conn, (int) $booking['UserID']);
-        $walletID = (int) $wallet['WalletID'];
-        $descEn = "Booking refund #$orderNumber";
-
-        if ($amount > 0 && !clevoBookingHasWalletTransaction($conn, $walletID, $descEn)) {
-            if (!clevoCreditWallet($conn, $walletID, $amount)) {
-                return ['refunded' => false, 'method' => $method, 'amount' => $amount, 'message' => 'wallet_refund_failed'];
+    return clevo_db_atomic($conn,function()use($conn,$bookingID):array {
+        $b=clevo_stmt($conn,'SELECT b.*,COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
+        if (!$b) throw new ClevoSecurityException('booking_not_found',404);
+        $method=(string)$b['Payment_Method'];
+        if (!$method || $method==='cash') return ['refunded'=>false,'method'=>$method,'amount'=>0,'message'=>'no_payment'];
+        $payment=clevo_stmt($conn,'SELECT * FROM payments WHERE BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
+        if ($method!=='plan'&&!$payment) throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+        if (!clevo_db_effect($conn,$bookingID,'refund')) return ['refunded'=>true,'method'=>$method,'amount'=>0,'message'=>'already_refunded'];
+        if ($method==='plan') {
+            clevoRestorePlanWashForBooking($conn,$bookingID);
+        } else {
+            if ($payment['Status']!=='recorded') throw new ClevoSecurityException('payment_not_refundable',409);
+            clevo_stmt($conn,'SELECT LoyaltyID FROM loyalty WHERE UserID=? ORDER BY LoyaltyID FOR UPDATE','i',[(int)$b['UserID']])->get_result()->fetch_all(MYSQLI_ASSOC);
+            clevo_lock_wallets($conn,[(int)$b['UserID'],(int)$b['OwnerID']]);
+            $earned=clevo_stmt($conn,"SELECT Amount FROM wallet_transactions WHERE OperationKey=?",'s',["booking:$bookingID:owner_earning"])->get_result()->fetch_assoc();
+            if ($earned) clevoReverseOwnerPayoutForBooking($conn,$b);
+            if (in_array($method,['wallet','visa'],true)) {
+                $wallet=clevoEnsureWallet($conn,(int)$b['UserID']);
+                clevo_wallet_entry($conn,(int)$wallet['WalletID'],clevo_db_money($payment['Amount']),'credit',"booking:$bookingID:refund",$bookingID,"Booking refund #$bookingID");
             }
-            $type = "credit";
-            $descAr = $method === 'visa'
-                ? "استرجاع دفع فيزا للطلب #$orderNumber"
-                : "استرجاع دفع المحفظة للطلب #$orderNumber";
-            clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $descEn);
+            if ((float)$b['Points_Used']>0) clevoAddLoyaltyPoints($conn,(int)$b['UserID'],(float)$b['Points_Used']);
         }
-
-        if ($pointsUsed > 0) {
-            clevoAddLoyaltyPoints($conn, (int) $booking['UserID'], $pointsUsed);
-        }
-        clevoReverseOwnerPayoutForBooking($conn, $booking);
-        return ['refunded' => true, 'method' => $method, 'amount' => $amount, 'message' => 'wallet_refunded'];
-    }
-
-    if ($method === 'points') {
-        $points = $pointsUsed > 0 ? $pointsUsed : (int) ceil((float) ($booking['Total_Price'] ?? 0) * 40);
-        clevoAddLoyaltyPoints($conn, (int) $booking['UserID'], $points);
-        clevoReverseOwnerPayoutForBooking($conn, $booking);
-        return ['refunded' => true, 'method' => $method, 'amount' => $points, 'message' => 'points_refunded'];
-    }
-
-    return $result;
+        clevo_stmt($conn,"UPDATE payments SET Status='refunded',RefundedAt=UTC_TIMESTAMP(6) WHERE BookingID=?",'i',[$bookingID]);
+        clevo_db_audit($conn,null,'booking.refunded','booking',$bookingID);
+        return ['refunded'=>true,'method'=>$method,'amount'=>$payment?(float)$payment['Amount']:0,'message'=>$method==='plan'?'plan_restored':'wallet_refunded'];
+    });
 }
 
 function clevoCancelBookingForUser(mysqli $conn, int $bookingID, int $userID): array
@@ -240,10 +188,10 @@ function clevoCancelBookingForUser(mysqli $conn, int $bookingID, int $userID): a
     }
 
     clevoEnsureBookingWorkflowColumns($conn);
-    $conn->begin_transaction();
+    clevo_db_begin($conn);
 
     try {
-        $stmt = $conn->prepare("SELECT b.*, s.UserID AS OwnerID, s.Name AS StationName
+        $stmt = $conn->prepare("SELECT b.*, COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID, s.Name AS StationName
             FROM booking b
             JOIN stations s ON b.StationID = s.StationID
             WHERE b.BookingID = ? AND b.UserID = ? LIMIT 1 FOR UPDATE");
@@ -286,10 +234,10 @@ function clevoCancelBookingForUser(mysqli $conn, int $bookingID, int $userID): a
             : "تم إلغاء طلبك #$orderNumber بنجاح.";
         clevoCreateNotification($conn, $userID, 'تم إلغاء الحجز', $userBody, 'success', 'order-details.php?id=' . $bookingID);
 
-        $conn->commit();
+        clevo_db_commit($conn);
         return ['status' => 'success', 'message' => 'cancelled', 'refund' => $refund];
     } catch (Throwable $e) {
-        $conn->rollback();
+        clevo_db_rollback($conn);
         return ['status' => 'error', 'message' => $e->getMessage()];
     }
 }
@@ -303,7 +251,7 @@ function clevoParseRescheduleDateTime(string $date, string $time): ?array
     }
 
     $time = substr($time, 0, 5);
-    $dt = DateTimeImmutable::createFromFormat('Y-m-d H:i', "$date $time");
+    $dt = DateTimeImmutable::createFromFormat('!Y-m-d H:i', "$date $time", new DateTimeZone(clevo_env('BOOKING_TIMEZONE','Asia/Amman')));
     if (!$dt || $dt->format('Y-m-d') !== $date || $dt->format('H:i') !== $time) {
         return null;
     }
@@ -326,10 +274,10 @@ function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID
     }
 
     clevoEnsureBookingWorkflowColumns($conn);
-    $conn->begin_transaction();
+    clevo_db_begin($conn);
 
     try {
-        $stmt = $conn->prepare("SELECT b.*, s.UserID AS OwnerID
+        $stmt = $conn->prepare("SELECT b.*, COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID
             FROM booking b
             JOIN stations s ON b.StationID = s.StationID
             WHERE b.BookingID = ? AND b.UserID = ? LIMIT 1 FOR UPDATE");
@@ -345,9 +293,11 @@ function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID
         }
 
         $update = $conn->prepare("UPDATE booking
-            SET Booking_Date = ?, Booking_Time = ?, Status = 'Pending', DriverID = NULL, Accepted_At = NULL, notification_sent = 0
+            SET Booking_Date = ?, Booking_Time = ?, ScheduledAtUtc = ?, BookingTimeZone = ?, Status = 'Pending', DriverID = NULL, Accepted_At = NULL, notification_sent = 0
             WHERE BookingID = ? AND UserID = ? AND Status = 'Pending'");
-        $update->bind_param("ssii", $slot['date'], $slot['time'], $bookingID, $userID);
+        $zone=clevo_env('BOOKING_TIMEZONE','Asia/Amman');
+        $utc=(new DateTimeImmutable($slot['date'].' '.$slot['time'],new DateTimeZone($zone)))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        $update->bind_param("ssssii", $slot['date'], $slot['time'], $utc, $zone, $bookingID, $userID);
         $update->execute();
         if ($update->affected_rows <= 0) {
             throw new RuntimeException('reschedule_failed');
@@ -363,88 +313,27 @@ function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID
         }
         clevoCreateNotification($conn, $userID, 'تم تعديل موعد الحجز', "تم حفظ الموعد الجديد للطلب #$orderNumber مع الحفاظ على طريقة الدفع والمستحقات.", 'success');
 
-        $conn->commit();
+        clevo_db_commit($conn);
         return ['status' => 'success', 'message' => 'rescheduled', 'date' => $slot['date'], 'time' => $slot['time']];
     } catch (Throwable $e) {
-        $conn->rollback();
+        clevo_db_rollback($conn);
         return ['status' => 'error', 'message' => $e->getMessage()];
     }
 }
 
 function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
 {
-    clevoEnsureBookingWorkflowColumns($conn);
-
-    $sql = "SELECT BookingID, UserID, Order_Number
-            FROM booking
-            WHERE Status = 'Pending'
-              AND created_at < (NOW() - INTERVAL 10 MINUTE)
-              AND COALESCE(notification_sent, 0) = 0";
-
-    if ($userID !== null) {
-        $sql .= " AND UserID = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $userID);
-    } else {
-        $stmt = $conn->prepare($sql);
-    }
-
-    $stmt->execute();
-    $expired = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-    foreach ($expired as $booking) {
-        $bookingID = (int) $booking['BookingID'];
-        $customerID = (int) $booking['UserID'];
-        $orderNumber = $booking['Order_Number'] ?: $bookingID;
-
-        $update = $conn->prepare("UPDATE booking SET Status = 'Cancelled_Timeout', notification_sent = 1 WHERE BookingID = ? AND Status = 'Pending'");
-        $update->bind_param("i", $bookingID);
-        $update->execute();
-
-        if ($update->affected_rows > 0) {
-            clevoRestorePlanWashForBooking($conn, $bookingID);
-            $title = "انتهت مهلة الطلب";
-            $body = "لم يتم الرد على طلبك #$orderNumber خلال 10 دقائق. يمكنك حجز محطة أخرى الآن.";
-            $type = "danger";
-            clevoCreateNotification($conn, $customerID, $title, $body, $type, 'order-details.php?id=' . $bookingID);
-        }
-    }
-
-    $paymentSql = "SELECT BookingID, UserID, Order_Number
-            FROM booking
-            WHERE Status = 'Accepted'
-              AND Service_Location IN ('home', 'delivery')
-              AND (Payment_Method IS NULL OR Payment_Method = '')
-              AND COALESCE(Accepted_At, created_at) < (NOW() - INTERVAL 10 MINUTE)
-              AND COALESCE(notification_sent, 0) = 0";
-
-    if ($userID !== null) {
-        $paymentSql .= " AND UserID = ?";
-        $paymentStmt = $conn->prepare($paymentSql);
-        $paymentStmt->bind_param("i", $userID);
-    } else {
-        $paymentStmt = $conn->prepare($paymentSql);
-    }
-
-    $paymentStmt->execute();
-    $paymentExpired = $paymentStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-    foreach ($paymentExpired as $booking) {
-        $bookingID = (int) $booking['BookingID'];
-        $customerID = (int) $booking['UserID'];
-        $orderNumber = $booking['Order_Number'] ?: $bookingID;
-
-        $update = $conn->prepare("UPDATE booking SET Status = 'Cancelled_Timeout', notification_sent = 1 WHERE BookingID = ? AND Status = 'Accepted' AND Service_Location IN ('home', 'delivery') AND (Payment_Method IS NULL OR Payment_Method = '')");
-        $update->bind_param("i", $bookingID);
-        $update->execute();
-
-        if ($update->affected_rows > 0) {
-            clevoRestorePlanWashForBooking($conn, $bookingID);
-            $title = "تم إلغاء الطلب";
-            $body = "تم إلغاء طلبك #$orderNumber لأن الدفع لم يكتمل خلال 10 دقائق بعد الموافقة.";
-            $type = "danger";
-            clevoCreateNotification($conn, $customerID, $title, $body, $type, 'order-details.php?id=' . $bookingID);
-        }
-    }
+    $where=$userID===null?'':' AND UserID=?';
+    $sql="SELECT BookingID FROM booking WHERE Status IN ('Pending','Accepted') AND COALESCE(notification_sent,0)=0 AND created_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE".$where." LIMIT 200";
+    $ids=clevo_stmt($conn,$sql,$userID===null?'':'i',$userID===null?[]:[$userID])->get_result()->fetch_all(MYSQLI_ASSOC);
+    foreach ($ids as $id) clevo_db_atomic($conn,function()use($conn,$id):void {
+        $bookingID=(int)$id['BookingID'];
+        $b=clevo_stmt($conn,"SELECT * FROM booking WHERE BookingID=? AND COALESCE(notification_sent,0)=0 AND ((Status='Pending' AND created_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE) OR (Status='Accepted' AND Service_Location IN ('home','delivery') AND (Payment_Method IS NULL OR Payment_Method='') AND COALESCE(Accepted_At,created_at)<UTC_TIMESTAMP()-INTERVAL 10 MINUTE)) FOR UPDATE",'i',[$bookingID])->get_result()->fetch_assoc();
+        if (!$b) return;
+        if (!empty($b['Payment_Method'])) clevoRefundBookingPayment($conn,$bookingID,'timeout');
+        clevo_stmt($conn,"UPDATE booking SET Status='Cancelled_Timeout',notification_sent=1 WHERE BookingID=?",'i',[$bookingID]);
+        clevo_stmt($conn,'UPDATE driver_assignments SET EndedAt=UTC_TIMESTAMP(6) WHERE BookingID=? AND EndedAt IS NULL','i',[$bookingID]);
+        clevo_db_audit($conn,null,'booking.expired','booking',$bookingID);
+        clevoCreateNotification($conn,(int)$b['UserID'],'انتهت مهلة الطلب','انتهت مهلة الرد أو الدفع للطلب. يمكنك حجز محطة أخرى الآن.','danger',"order-details.php?id=$bookingID",'Order expired','The order response/payment window expired.');
+    });
 }
-?>

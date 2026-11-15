@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__."/database.php";
 function clevoEnsureTrackingColumns(mysqli $conn): void
 {
     clevo_require_schema($conn, 'booking', ['Driver_Lat','Driver_Lon','DriverAccessCode','DriverAccessCodeHash','DriverAccessCodeExpiresAt','DriverAccessCodeUsedAt']);
@@ -56,19 +57,9 @@ function clevoStationImageUrl(?string $image): string
 
 function clevoEnsureWallet(mysqli $conn, int $userID): array
 {
-    $stmt = $conn->prepare("SELECT WalletID, Balance FROM wallet WHERE UserID = ? LIMIT 1");
-    $stmt->bind_param("i", $userID);
-    $stmt->execute();
-    $wallet = $stmt->get_result()->fetch_assoc();
-
-    if (!$wallet) {
-        $insert = $conn->prepare("INSERT INTO wallet (UserID, Balance) VALUES (?, 0)");
-        $insert->bind_param("i", $userID);
-        $insert->execute();
-        return ['WalletID' => $conn->insert_id, 'Balance' => 0];
-    }
-
-    return $wallet;
+    // uq_wallet_user serializes first creation; no SELECT/INSERT race.
+    clevo_stmt($conn,'INSERT INTO wallet (UserID,Balance) VALUES (?,0) ON DUPLICATE KEY UPDATE UserID=VALUES(UserID)','i',[$userID]);
+    return clevo_stmt($conn,'SELECT WalletID,Balance FROM wallet WHERE UserID=?','i',[$userID])->get_result()->fetch_assoc();
 }
 
 function clevoGetLoyaltyPoints(mysqli $conn, int $userID): float
@@ -105,29 +96,19 @@ function clevoAddLoyaltyPoints(mysqli $conn, int $userID, float $points): void
 
 function clevoSpendLoyaltyPoints(mysqli $conn, int $userID, float $points): bool
 {
-    if ($points <= 0.0 || clevoGetLoyaltyPoints($conn, $userID) < $points) {
-        return false;
-    }
-
-    $remaining = $points;
-    $stmt = $conn->prepare("SELECT LoyaltyID, PointsBalance FROM loyalty WHERE UserID = ? AND PointsBalance > 0 ORDER BY LoyaltyID ASC");
-    $stmt->bind_param("i", $userID);
-    $stmt->execute();
-    $rows = $stmt->get_result();
-
-    while ($row = $rows->fetch_assoc()) {
-        $balance = (float) $row['PointsBalance'];
-        $deduct = min($remaining, $balance);
-        $update = $conn->prepare("UPDATE loyalty SET PointsBalance = PointsBalance - ? WHERE LoyaltyID = ?");
-        $update->bind_param("di", $deduct, $row['LoyaltyID']);
-        $update->execute();
-        $remaining -= $deduct;
-        if ($remaining <= 0.0) {
-            return true;
+    if ($points<=0) return false;
+    return clevo_db_atomic($conn,function()use($conn,$userID,$points):bool {
+        $rows=clevo_stmt($conn,'SELECT LoyaltyID,PointsBalance FROM loyalty WHERE UserID=? ORDER BY LoyaltyID FOR UPDATE','i',[$userID])->get_result()->fetch_all(MYSQLI_ASSOC);
+        $remaining=clevo_db_money($points);
+        if (array_sum(array_map(fn($r)=>clevo_db_money($r['PointsBalance']),$rows))<$remaining) return false;
+        foreach ($rows as $row) {
+            $deduct=min($remaining,clevo_db_money($row['PointsBalance']));
+            if ($deduct) clevo_stmt($conn,'UPDATE loyalty SET PointsBalance=PointsBalance-? WHERE LoyaltyID=? AND PointsBalance>=?','sis',[clevo_db_decimal($deduct),(int)$row['LoyaltyID'],clevo_db_decimal($deduct)]);
+            $remaining-=$deduct;
+            if (!$remaining) break;
         }
-    }
-
-    return false;
+        return true;
+    });
 }
 
 function clevoCalculateAdminCommission(float $totalPrice): float
@@ -378,38 +359,18 @@ function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID,
 
 function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
 {
-    $stmt = $conn->prepare("SELECT b.Order_Number, b.Total_Price, b.Admin_Commission, b.Payment_Method, s.UserID AS OwnerID
-        FROM booking b
-        JOIN stations s ON b.StationID = s.StationID
-        WHERE b.BookingID = ? LIMIT 1");
-    $stmt->bind_param("i", $bookingID);
-    $stmt->execute();
-    $booking = $stmt->get_result()->fetch_assoc();
-    if (!$booking || (int) $booking['OwnerID'] <= 0 || empty($booking['Payment_Method']) || $booking['Payment_Method'] === 'cash') {
-        return;
-    }
-
-    $ownerID = (int) $booking['OwnerID'];
-    $wallet = clevoEnsureWallet($conn, $ownerID);
-    $walletID = (int) $wallet['WalletID'];
-    $orderNumber = $booking['Order_Number'] ?: $bookingID;
-    $isPlanPayment = ($booking['Payment_Method'] ?? '') === 'plan';
-    $descEn = "Owner booking earning #$orderNumber";
-
-    $exists = $conn->prepare("SELECT TransactionID FROM wallet_transactions WHERE WalletID = ? AND Description_en = ? LIMIT 1");
-    $exists->bind_param("is", $walletID, $descEn);
-    $exists->execute();
-    if ($exists->get_result()->fetch_assoc()) {
-        return;
-    }
-
-    $amount = clevoCalculateOwnerPayout((float) $booking['Total_Price'], (float) $booking['Admin_Commission']);
-    if (!clevoCreditWallet($conn, $walletID, $amount)) {
-        return;
-    }
-    $type = "credit";
-    $descAr = $isPlanPayment ? "حصة صاحب المحطة من طلب باقة #$orderNumber" : "أرباح طلب #$orderNumber";
-    clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $descEn);
+    clevo_db_atomic($conn,function()use($conn,$bookingID):void {
+        $b=clevo_stmt($conn,'SELECT b.*,COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
+        if (!$b || !in_array($b['Payment_Method'],['wallet','points','plan','visa'],true) || in_array($b['Status'],['Cancelled','Rejected','Cancelled_Timeout'],true)) return;
+        if ($b['Payment_Method']==='plan' && $b['Status']!=='Completed') return;
+        if ($b['Payment_Method']!=='plan' && !clevo_stmt($conn,"SELECT PaymentID FROM payments WHERE BookingID=? AND Status='recorded'",'i',[$bookingID])->get_result()->fetch_assoc()) return;
+        $wallet=clevoEnsureWallet($conn,(int)$b['OwnerID']); $walletID=(int)$wallet['WalletID'];
+        $reference=clevoBookingReference($b,$bookingID);
+        if (clevoBookingHasWalletTransaction($conn,$walletID,"Owner booking earning #$reference") || clevoBookingHasWalletTransaction($conn,$walletID,"Owner booking earning #$bookingID")) return;
+        if (!clevo_db_effect($conn,$bookingID,'owner_payout')) return;
+        $cents=max(0,clevo_db_money($b['Total_Price'])-clevo_db_money($b['Admin_Commission']??'0'));
+        clevo_wallet_entry($conn,$walletID,$cents,'credit',"booking:$bookingID:owner_earning",$bookingID,"Owner booking earning #$reference");
+    });
 }
 
 function clevoProfileImageUrl(?string $image, string $name = 'User'): string

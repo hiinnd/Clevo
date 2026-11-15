@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_location') {
         $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT); $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
         if ($lat === false || $lng === false || abs($lat) > 90 || abs($lng) > 180) throw new ClevoSecurityException('invalid_location', 422);
-        $updated = clevo_stmt($conn, "UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE BookingID = ? AND DriverID = ? AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')", 'ddii', [$lat, $lng, $driver_booking_id, $driver_id]);
+        if (!clevo_record_driver_location($conn,$driver_id,$driver_booking_id,(float)$lat,(float)$lng)) throw new ClevoSecurityException('not_found',404);
         clevo_json_response('success');
     }
     if (in_array($action, ['update_status','update_booking_status'], true)) {

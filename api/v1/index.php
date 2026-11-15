@@ -69,6 +69,14 @@ $identity = clevo_authenticated_token($conn, clevo_bearer_token());
 if (!$identity) clevo_json_response('error', [], 'unauthorized', 401);
 $account = $identity['account']; $user = (int) $account['UserID']; $role = clevo_role($account['Role']);
 clevo_rate_limit($conn, 'api:user', (string) $user, 120, 60);
+if (($route==='bookings' && $method==='POST') || (preg_match('~^bookings/(\d+)/payments$~D',$route,$paymentRoute) && $method==='POST')) {
+    if ($role!=='customer') throw new ClevoSecurityException('forbidden',403);
+    clevo_rate_limit($conn,'api:commerce',(string)$user,30,60);
+    $input=clevo_read_json(); $key=(string)($_SERVER['HTTP_IDEMPOTENCY_KEY']??'');
+    if (isset($paymentRoute[1])) $result=clevo_pay_booking($conn,$user,(int)$paymentRoute[1],clevo_clean_string($input['method']??'',20),filter_var($input['use_points']??false,FILTER_VALIDATE_BOOLEAN),$key);
+    else $result=clevo_create_booking($conn,$user,(int)($input['station_id']??0),$input,$key);
+    clevo_json_response('success',$result);
+}
 if (in_array($method, ['POST', 'PATCH', 'DELETE'], true)) clevo_rate_limit($conn, 'api:sensitive', (string) $user, 30, 60);
 
 if ($route === 'auth/logout' || $route === 'auth/logout-all') {
@@ -132,7 +140,7 @@ if (preg_match('~^owner/stations/(\d+)/services$~D', $route, $station)) {
     if ($role !== 'owner') throw new ClevoSecurityException('forbidden', 403);
     if (!clevo_own_station($conn, $user, (int) $station[1])) throw new ClevoSecurityException('not_found', 404);
     if ($method !== 'GET') { header('Allow: GET'); clevo_json_response('error', [], 'method_not_allowed', 405); }
-    $rows = clevo_stmt($conn, 'SELECT ServiceID, Name_ar, Name_en, Description_ar, Description_en, Price, is_station, is_home, is_pickup FROM services WHERE StationID = ? ORDER BY ServiceID LIMIT 100', 'i', [(int) $station[1]])->get_result()->fetch_all(MYSQLI_ASSOC);
+    $rows = clevo_stmt($conn, 'SELECT ServiceID, Name_ar, Name_en, Description_ar, Description_en, Price, is_station, is_home, is_pickup FROM services WHERE StationID = ? AND ArchivedAt IS NULL ORDER BY ServiceID LIMIT 100', 'i', [(int) $station[1]])->get_result()->fetch_all(MYSQLI_ASSOC);
     clevo_json_response('success', ['services' => $rows]);
 }
 if ($route === 'admin/security-status') {

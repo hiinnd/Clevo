@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
 if (isset($_POST['confirm_delete_id'])) {
     clevo_require_csrf_token();
     $delete_id = intval($_POST['confirm_delete_id']);
-    if($conn->query("DELETE FROM plans WHERE id = $delete_id")) { $show_msg_modal = true; $msg_type = "deleted"; }
+    clevo_archive_catalog($conn,(int)$admin_id,'plan',$delete_id); $show_msg_modal = true; $msg_type = 'deleted';
 }
 
 

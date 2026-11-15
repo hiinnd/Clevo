@@ -17,116 +17,9 @@ clevoEnsurePlanColumns($conn);
 clevoEnsureBookingPaymentColumns($conn);
 clevoEnsureBookingServicesTable($conn);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_payment') {
-    header('Content-Type: application/json; charset=utf-8');
-    clevo_require_csrf_token(true);
-    $method = $_POST['method'] ?? '';
-    $usePoints = ($_POST['use_points'] ?? '') === '1';
-    if (!in_array($method, ['cash', 'wallet', 'visa', 'plan'], true)) {
-        echo json_encode(['status' => 'error']);
-        exit;
-    }
-
-    $stmt = $conn->prepare("SELECT BookingID, Total_Price, Service_Location FROM booking WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
-    $stmt->bind_param("ii", $bookingID, $userID);
-    $stmt->execute();
-    $booking = $stmt->get_result()->fetch_assoc();
-    if (!$booking) {
-        echo json_encode(['status' => 'error']);
-        exit;
-    }
-
-    if ($method === 'cash' && $booking['Service_Location'] !== 'station') {
-        echo json_encode(['status' => 'not_allowed']);
-        exit;
-    }
-
-    if ($method === 'wallet') {
-        $walletPreview = clevoPreviewPointsDiscount($conn, $userID, (float) $booking['Total_Price'], $usePoints);
-        $wallet = clevoEnsureWallet($conn, $userID);
-        if (!$wallet || (float) $wallet['Balance'] < (float) $walletPreview['payable']) {
-            echo json_encode(['status' => 'insufficient']);
-            exit;
-        }
-    }
-
-    $paymentPreview = ['points' => 0.0, 'discount' => 0.0, 'payable' => (float) $booking['Total_Price']];
-    if ($method === 'visa') {
-        $paymentPreview = clevoPreviewPointsDiscount($conn, $userID, (float) $booking['Total_Price'], $usePoints);
-        if ((float) $paymentPreview['payable'] > 0) {
-            echo json_encode(['status' => 'redirect_visa', 'use_points' => $usePoints ? 1 : 0]);
-            exit;
-        }
-    }
-    if ($method !== 'plan') {
-        $conn->begin_transaction();
-        try {
-            $paymentPreview = clevoApplyPointsDiscount($conn, $bookingID, $userID, (float) $booking['Total_Price'], $usePoints);
-            $conn->commit();
-        } catch (Throwable $e) {
-            $conn->rollback();
-            echo json_encode(['status' => 'insufficient_points']);
-            exit;
-        }
-    }
-
-    $amountDue = (float) $paymentPreview['payable'];
-    if ($amountDue <= 0 && $method !== 'plan') {
-        $method = 'points';
-    }
-
-    if ($method === 'wallet') {
-        $wallet = clevoEnsureWallet($conn, $userID);
-        if (!$wallet || (float) $wallet['Balance'] < $amountDue) {
-            echo json_encode(['status' => 'insufficient']);
-            exit;
-        }
-
-        $amount = $amountDue;
-        $walletID = (int) $wallet['WalletID'];
-        if ($amount > 0 && !clevoDebitWallet($conn, $walletID, $amount)) {
-            echo json_encode(['status' => 'insufficient']);
-            exit;
-        }
-        $descAr = "دفع حجز #$bookingID";
-        $descEn = "Booking payment #$bookingID";
-        $type = "debit";
-        clevoRecordWalletTransaction($conn, $walletID, $amount, $type, $descAr, $descEn);
-    }
-
-    if ($method === 'plan') {
-        $conn->begin_transaction();
-        try {
-            $planUse = clevoUsePlanForBooking($conn, $userID);
-            if (!$planUse) {
-                throw new RuntimeException('insufficient_plan');
-            }
-            $userPlanID = (int) $planUse['id'];
-            $planWashesUsed = 1;
-            $update = $conn->prepare("UPDATE booking SET Payment_Method = ?, UserPlanID = ?, Plan_Washes_Used = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
-            $update->bind_param("siiii", $method, $userPlanID, $planWashesUsed, $bookingID, $userID);
-            $update->execute();
-            if ($update->affected_rows <= 0) {
-                throw new RuntimeException('update_failed');
-            }
-            $conn->commit();
-        } catch (Throwable $e) {
-            $conn->rollback();
-            echo json_encode(['status' => $e->getMessage() === 'insufficient_plan' ? 'insufficient_plan' : 'error']);
-            exit;
-        }
-    } else {
-        $update = $conn->prepare("UPDATE booking SET Payment_Method = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
-        $update->bind_param("sii", $method, $bookingID, $userID);
-        $update->execute();
-        if ($update->affected_rows <= 0) {
-            echo json_encode(['status' => 'error']);
-            exit;
-        }
-        clevoCreditOwnerForBooking($conn, $bookingID);
-    }
-    echo json_encode(['status' => 'success']);
-    exit;
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='set_payment') {
+    $result=clevo_pay_booking($conn,$userID,$bookingID,(string)($_POST['method']??''),($_POST['use_points']??'')==='1',(string)($_POST['idempotency_key']??''));
+    header('Content-Type: application/json'); echo json_encode($result); exit;
 }
 
 $stmt = $conn->prepare("SELECT b.*, s.Name as station_name, serv.Name as service_name
@@ -378,6 +271,7 @@ $csrf_token = generate_csrf_token();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/service-translations.js"></script>
     <script>
+        const paymentRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
         const lang = localStorage.getItem('app_lang') || 'ar';
         const theme = localStorage.getItem('global_theme') || 'dark';
         let basePrice = <?= number_format($base_price, 2, '.', '') ?>;
@@ -493,6 +387,7 @@ $csrf_token = generate_csrf_token();
             } else {
                 const params = new URLSearchParams();
                 params.append('action', 'set_payment');
+                params.append('idempotency_key', paymentRequestKey + '_' + selectedMethod + '_' + (usePoints.checked ? '1' : '0'));
                 params.append('method', selectedMethod);
                 params.append('use_points', usePoints.checked ? '1' : '0');
                 params.append('csrf_token', csrfToken);
@@ -503,19 +398,19 @@ $csrf_token = generate_csrf_token();
                         location.href = 'payment-gateway.php?id=' + bookingID + '&use_points=' + (usePoints.checked ? '1' : '0');
                         return;
                     }
-                    if (data.status === 'insufficient') {
+                    if (data.status === 'insufficient' || data.message === 'insufficient') {
                         showMessage('error', 'الرصيد غير كاف', 'Insufficient Balance', 'رصيد المحفظة لا يكفي لإتمام الدفع.', 'Your wallet balance is not enough.');
                         return;
                     }
-                    if (data.status === 'insufficient_points') {
+                    if (data.status === 'insufficient_points' || data.message === 'insufficient_points') {
                         showMessage('error', 'النقاط غير كافية', 'Insufficient Points', 'رصيد نقاط الولاء لا يكفي لإتمام الدفع.', 'Your loyalty points are not enough.');
                         return;
                     }
-                    if (data.status === 'insufficient_plan') {
+                    if (data.status === 'insufficient_plan' || data.message === 'insufficient_plan') {
                         showMessage('error', 'الباقة غير كافية', 'Plan Unavailable', 'لا توجد غسلات متبقية في باقتك.', 'There are no remaining washes in your plan.');
                         return;
                     }
-                    if (data.status === 'not_allowed') {
+                    if (data.status === 'not_allowed' || data.message === 'not_allowed') {
                         showMessage('error', 'طريقة غير متاحة', 'Not Allowed', 'هذه الطريقة غير متاحة لهذا النوع من الخدمة.', 'This payment method is not available for this service.');
                         return;
                     }

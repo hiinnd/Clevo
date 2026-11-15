@@ -10,51 +10,11 @@ $message_type = $message_key ? "success" : "";
 
 clevoEnsurePlanColumns($conn);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_wallet'])) {
-    clevo_require_csrf_token();
-    $planID = (int) ($_POST['plan_id'] ?? 0);
-
-    $stmt_p = $conn->prepare("SELECT * FROM plans WHERE id = ? AND is_active = 1 LIMIT 1");
-    $stmt_p->bind_param("i", $planID);
-    $stmt_p->execute();
-    $plan_data = $stmt_p->get_result()->fetch_assoc();
-
-    if (!$plan_data) {
-        $message_key = "system_error";
-        $message_type = "danger";
-    } else {
-        $price = (float) $plan_data['price'];
-        $wallet = clevoEnsureWallet($conn, $userID);
-        if ((float) $wallet['Balance'] < $price) {
-            $message_key = "insufficient_balance";
-            $message_type = "danger";
-        } else {
-            $conn->begin_transaction();
-            try {
-                $walletID = (int) $wallet['WalletID'];
-                if (!clevoDebitWallet($conn, $walletID, $price)) {
-                    throw new RuntimeException('insufficient_balance');
-                }
-
-                $descAr = "اشتراك باقة " . ($plan_data['name_ar'] ?: "#" . $planID);
-                $descEn = "Plan subscription " . ($plan_data['name_en'] ?: "#" . $planID);
-                clevoRecordWalletTransaction($conn, $walletID, $price, "debit", $descAr, $descEn);
-
-                $subscription = clevoCreateUserPlanSubscription($conn, $userID, $planID);
-                if (!$subscription) {
-                    throw new RuntimeException('subscribe_failed');
-                }
-
-                $conn->commit();
-                $message_key = "success_sub";
-                $message_type = "success";
-            } catch (Throwable $e) {
-                $conn->rollback();
-                $message_key = $e->getMessage() === 'insufficient_balance' ? "insufficient_balance" : "system_error";
-                $message_type = "danger";
-            }
-        }
-    }
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['pay_wallet'])) {
+    try {
+        clevo_purchase_plan($conn,$userID,(int)($_POST['plan_id']??0),(string)($_POST['idempotency_key']??''));
+        $message_key='success_sub'; $message_type='success';
+    } catch (Throwable $e) { $message_key=($e instanceof ClevoSecurityException && $e->reason==='insufficient')?'insufficient_balance':'system_error'; $message_type='danger'; }
 }
 
 $activePlan = clevoGetActiveUserPlan($conn, $userID);
@@ -201,6 +161,7 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
             <div class="modal-content p-4 text-center">
                 <h6 class="fw-bold mb-4" data-i18n="choose_pay_method">اختر طريقة الدفع</h6>
                 <form method="POST">
+<input type="hidden" name="idempotency_key" value="<?= e(bin2hex(random_bytes(24))) ?>">
                     <?= csrf_input(); ?>
                     <input type="hidden" name="plan_id" id="modalPlanID">
                     <button type="submit" name="pay_wallet" class="pay-option d-flex align-items-center mb-3">

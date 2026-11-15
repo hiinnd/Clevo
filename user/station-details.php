@@ -10,7 +10,7 @@ clevoEnsureBookingServicesTable($conn);
 clevoEnsureServiceLanguageColumns($conn);
 
 $stationID = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$query = "SELECT * FROM `stations` WHERE StationID = ?";
+$query = "SELECT * FROM `stations` WHERE StationID = ? AND ArchivedAt IS NULL";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $stationID);
 $stmt->execute();
@@ -26,138 +26,14 @@ if (($station['Status'] ?? 'Closed') !== 'Active') {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_booking') {
-    header('Content-Type: application/json; charset=utf-8');
-    clevo_require_csrf_token(true);
-
-    $serviceIDs = json_decode($_POST['service_ids'] ?? '[]', true);
-    if (!is_array($serviceIDs) || empty($serviceIDs)) {
-        $singleServiceID = (int) ($_POST['service_id'] ?? 0);
-        $serviceIDs = $singleServiceID > 0 ? [$singleServiceID] : [];
-    }
-    $serviceIDs = array_values(array_unique(array_filter(array_map('intval', $serviceIDs))));
-    $serviceID = $serviceIDs[0] ?? 0;
-    $serviceLocation = $_POST['service_location'] ?? '';
-    $bookingDate = $_POST['booking_date'] ?? '';
-    $bookingTime = $_POST['booking_time'] ?? '';
-    $paymentMethod = ''; // Only server-side payment/plan operations may establish payment.
-    $usePlan = ($_POST['use_plan'] ?? '') === '1';
-    $latitude = ($_POST['latitude'] ?? '') !== '' ? (float) $_POST['latitude'] : null;
-    $longitude = ($_POST['longitude'] ?? '') !== '' ? (float) $_POST['longitude'] : null;
-    $addressDetails = trim($_POST['address_details'] ?? '');
-    $allowedLocations = ['station', 'home', 'delivery'];
-
-    if (!$serviceID || !in_array($serviceLocation, $allowedLocations, true) || !$bookingDate || !$bookingTime) {
-        echo json_encode(['status' => 'error', 'message' => 'missing']);
-        exit;
-    }
-    if ($serviceLocation !== 'station' && (!$latitude || !$longitude)) {
-        echo json_encode(['status' => 'error', 'message' => 'location_required']);
-        exit;
-    }
-
-    $placeholders = implode(',', array_fill(0, count($serviceIDs), '?'));
-    $types = str_repeat('i', count($serviceIDs)) . 'i';
-    $serviceStmt = $conn->prepare("SELECT ServiceID, Name, Name_ar, Name_en, Price, is_station, is_home, is_pickup FROM services WHERE ServiceID IN ($placeholders) AND StationID = ?");
-    $params = array_merge($serviceIDs, [$stationID]);
-    $serviceStmt->bind_param($types, ...$params);
-    $serviceStmt->execute();
-    $servicesResult = $serviceStmt->get_result();
-    $selectedDbServices = [];
-    while ($serviceRow = $servicesResult->fetch_assoc()) {
-        $selectedDbServices[(int) $serviceRow['ServiceID']] = $serviceRow;
-    }
-
-    $isSupported = count($selectedDbServices) === count($serviceIDs);
-    foreach ($selectedDbServices as $serviceRow) {
-        $isSupported = $isSupported
-            && (($serviceLocation === 'station' && (int) $serviceRow['is_station'] === 1)
-                || ($serviceLocation === 'home' && (int) $serviceRow['is_home'] === 1)
-                || ($serviceLocation === 'delivery' && (int) $serviceRow['is_pickup'] === 1));
-    }
-
-    if (!$isSupported) {
-        echo json_encode(['status' => 'error', 'message' => 'service_unavailable']);
-        exit;
-    }
-
-    $orderNumber = 'C' . date('ymdHis') . random_int(10, 99);
-    $orderedServices = [];
-    foreach ($serviceIDs as $id) {
-        if (isset($selectedDbServices[$id])) {
-            $orderedServices[] = $selectedDbServices[$id];
-        }
-    }
-    $serviceNamesAr = array_map(fn($item) => $item['Name_ar'] ?: $item['Name'], $orderedServices);
-    $serviceNamesEn = array_map(fn($item) => $item['Name_en'] ?: $item['Name'], $orderedServices);
-    $serviceNames = $serviceNamesEn;
-    $totalPrice = array_reduce($orderedServices, fn($sum, $item) => $sum + (float) $item['Price'], 0);
-    $adminCommission = clevoCalculateAdminCommission($totalPrice);
-    $servicesNote = "الخدمات: " . implode(' + ', $serviceNamesAr);
-    $addressForDb = trim($addressDetails) !== '' ? $addressDetails . "\n" . $servicesNote : $servicesNote;
-
-    $userPlanID = null;
-    $planWashesUsed = 0;
-    $conn->begin_transaction();
-    try {
-        if ($usePlan) {
-            $planUse = clevoUsePlanForBooking($conn, $userID);
-            if (!$planUse) {
-                throw new RuntimeException('plan_unavailable');
-            }
-            $paymentMethod = 'plan';
-            $userPlanID = (int) $planUse['id'];
-            $planWashesUsed = 1;
-        }
-
-        $insert = $conn->prepare("INSERT INTO booking
-            (Order_Number, UserID, StationID, ServiceID, Service_Location, Latitude, Longitude, Address_Details, Booking_Date, Booking_Time, Status, Total_Price, Admin_Commission, Payment_Method, UserPlanID, Plan_Washes_Used)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)");
-        $insert->bind_param(
-            "siiisddsssddsii",
-            $orderNumber,
-            $userID,
-            $stationID,
-            $serviceID,
-            $serviceLocation,
-            $latitude,
-            $longitude,
-            $addressForDb,
-            $bookingDate,
-            $bookingTime,
-            $totalPrice,
-            $adminCommission,
-            $paymentMethod,
-            $userPlanID,
-            $planWashesUsed
-        );
-
-        if (!$insert->execute()) {
-            throw new RuntimeException('db_error');
-        }
-
-        $bookingID = $conn->insert_id;
-        clevoSaveBookingServices($conn, $bookingID, $orderedServices);
-        $ownerID = (int) $station['UserID'];
-        if ($ownerID > 0) {
-            $planNoteAr = $paymentMethod === 'plan' ? " الدفع من باقة العميل." : "";
-            $planNoteEn = $paymentMethod === 'plan' ? " Payment is from the customer's plan." : "";
-            $bodyAr = "وصلك طلب #$orderNumber لخدمات " . implode(' + ', $serviceNamesAr) . " بتاريخ $bookingDate الساعة $bookingTime." . $planNoteAr;
-            $bodyEn = "You received order #$orderNumber for services " . implode(' + ', $serviceNamesEn) . " on $bookingDate at $bookingTime." . $planNoteEn;
-            clevoCreateNotification($conn, $ownerID, "طلب جديد", $bodyAr, "info", 'incoming-orders.php', "New order", $bodyEn);
-        }
-
-        $conn->commit();
-    } catch (Throwable $e) {
-        $conn->rollback();
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage() === 'plan_unavailable' ? 'plan_unavailable' : 'db_error']);
-        exit;
-    }
-
-    echo json_encode(['status' => 'success', 'booking_id' => $bookingID, 'order_number' => $orderNumber, 'payment_method' => $paymentMethod]);
-    exit;
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='create_booking') {
+    $input=$_POST;
+    $input['service_ids']=json_decode($_POST['service_ids']??'[]',true);
+    if (!$input['service_ids'] && (int)($_POST['service_id']??0)>0) $input['service_ids']=[(int)$_POST['service_id']];
+    $key=(string)($_SERVER['HTTP_IDEMPOTENCY_KEY']??$_POST['idempotency_key']??'');
+    $result=clevo_create_booking($conn,$userID,$stationID,$input,$key);
+    header('Content-Type: application/json; charset=utf-8'); echo json_encode($result); exit;
 }
-
 
 $serv_query = "SELECT * FROM `services` WHERE StationID = ?";
 $stmt_s = $conn->prepare($serv_query);
@@ -484,6 +360,7 @@ $csrf_token = generate_csrf_token();
 
 <body>
     <script>
+        const bookingRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
         (function() {
             const savedTheme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
@@ -938,6 +815,7 @@ $csrf_token = generate_csrf_token();
 
             const params = new URLSearchParams();
             params.append('action', 'create_booking');
+            params.append('idempotency_key', bookingRequestKey);
             params.append('csrf_token', csrfToken);
             params.append('service_id', selectedServices[0].id);
             params.append('service_ids', JSON.stringify(selectedServices.map(s => s.id)));

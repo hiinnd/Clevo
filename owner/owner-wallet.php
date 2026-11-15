@@ -22,68 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'withdraw_balance') {
-    header('Content-Type: application/json; charset=utf-8');
-    clevo_require_csrf_token(true);
-
-    $bankAccount = clevoGetOwnerBankAccount($conn, (int) $userID);
-    if (!$bankAccount) {
-        echo json_encode(['status' => 'error', 'message' => 'bank_required'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    $wallet = clevoEnsureWallet($conn, (int) $userID);
-    $walletID = (int) ($wallet['WalletID'] ?? 0);
-    $amount = (float) ($wallet['Balance'] ?? 0);
-
-    if ($walletID <= 0 || $amount <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'empty_balance'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    $conn->begin_transaction();
-    $debited = clevoDebitWallet($conn, $walletID, $amount);
-    $withdrawalRecorded = $debited && clevoRecordOwnerWithdrawalRequest($conn, (int) $userID, $walletID, $amount, $bankAccount);
-    $recorded = $withdrawalRecorded && clevoRecordWalletTransaction(
-        $conn,
-        $walletID,
-        $amount,
-        'debit',
-        'طلب سحب أرباح',
-        'Owner withdrawal request'
-    );
-
-    if ($debited && $recorded) {
-        $admins = $conn->query("SELECT UserID FROM user WHERE LOWER(Role) = 'admin'");
-        while ($admins && $admin = $admins->fetch_assoc()) {
-            clevoCreateNotification(
-                $conn,
-                (int) $admin['UserID'],
-                'طلب سحب أرباح',
-                'وصل طلب سحب أرباح من صاحب مغسلة بقيمة ' . number_format($amount, 2) . ' JOD.',
-                'info',
-                'financial-reports.php',
-                'Withdrawal request',
-                'A station owner requested a profit withdrawal of ' . number_format($amount, 2) . ' JOD. Bank: ' . ($bankAccount['bank_name'] ?? '') . ', IBAN: ' . ($bankAccount['iban'] ?? '')
-            );
-        }
-        clevoCreateNotification(
-            $conn,
-            (int) $userID,
-            'تم إرسال طلب السحب',
-            'تم تسجيل طلب سحب الأرباح بقيمة ' . number_format($amount, 2) . ' JOD وسيتم مراجعته من الإدارة.',
-            'success',
-            'owner-wallet.php',
-            'Withdrawal request sent',
-            'Your profit withdrawal request for ' . number_format($amount, 2) . ' JOD was recorded and will be reviewed by admin.'
-        );
-        $conn->commit();
-        echo json_encode(['status' => 'success', 'amount' => $amount], JSON_UNESCAPED_UNICODE);
-    } else {
-        $conn->rollback();
-        echo json_encode(['status' => 'error', 'message' => 'withdraw_failed'], JSON_UNESCAPED_UNICODE);
-    }
-    exit;
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='withdraw_balance') {
+    $result=clevo_request_withdrawal($conn,(int)$userID,(string)($_POST['idempotency_key']??''));
+    header('Content-Type: application/json'); echo json_encode($result); exit;
 }
 
 if ($userID > 0) {
@@ -168,6 +109,7 @@ if ($userID > 0) {
 
 <body>
     <script>
+const withdrawalRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
         (function() { document.documentElement.setAttribute('data-theme', localStorage.getItem('global_theme') || 'light'); })();
     </script>
 
@@ -353,6 +295,7 @@ if ($userID > 0) {
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             const params = new URLSearchParams();
             params.append('action', 'withdraw_balance');
+            params.append('idempotency_key', withdrawalRequestKey);
             params.append('csrf_token', csrfToken);
 
             fetch(window.location.href, {

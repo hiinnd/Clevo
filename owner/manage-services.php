@@ -14,7 +14,7 @@ $station_id = $station_data['StationID'] ?? 0;
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_service_id'])){
     clevo_require_csrf_token();
     $id = intval($_POST['delete_service_id']);
-    $conn->query("DELETE FROM services WHERE ServiceID = $id AND StationID = $station_id");
+    clevo_archive_catalog($conn,$owner_id,'service',$id);
     header("Location: manage-services.php?msg=deleted");
     exit();
 }
@@ -62,7 +62,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
 }
 
 
-$services_res = $conn->query("SELECT * FROM services WHERE StationID = $station_id ORDER BY ServiceID DESC");
+$services_res = $conn->query("SELECT * FROM services WHERE StationID = $station_id AND ArchivedAt IS NULL ORDER BY ServiceID DESC");
 $db_services = [];
 while($row = $services_res->fetch_assoc()){
     $db_services[] = [

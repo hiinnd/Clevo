@@ -1,5 +1,7 @@
 # Security test results
 
+Subsequent database-phase regression and migration/recovery results are recorded in [DATABASE_TEST_RESULTS.md](DATABASE_TEST_RESULTS.md). Counts below describe the preceding security phase.
+
 Executed: 2026-11-15. Scope: this authentication/security phase. Tests used only synthetic accounts and generated credentials in an isolated database; no production CLEVO database, real mail recipient or payment provider was used. Secret values, tokens and OTPs are deliberately absent from this report.
 
 ## Final results

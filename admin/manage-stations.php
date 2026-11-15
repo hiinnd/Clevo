@@ -36,19 +36,14 @@ $msg_type = "";
 if (isset($_POST['confirm_delete_id'])) {
     clevo_require_csrf_token();
     $delete_id = intval($_POST['confirm_delete_id']);
-    $conn->begin_transaction();
+    clevo_db_begin($conn);
     try {
-        $unlink = $conn->prepare("UPDATE `user` SET StationID = NULL WHERE StationID = ?");
-        $unlink->bind_param("i", $delete_id);
-        $unlink->execute();
-        $delete = $conn->prepare("DELETE FROM stations WHERE StationID = ?");
-        $delete->bind_param("i", $delete_id);
-        $delete->execute();
-        $conn->commit();
+        clevo_archive_catalog($conn,(int)$admin_id,'station',$delete_id);
+        clevo_db_commit($conn);
         $show_msg_modal = true; 
         $msg_type = "deleted";
     } catch (Throwable $e) {
-        $conn->rollback();
+        clevo_db_rollback($conn);
         error_log('CLEVO operation failed.');
         $show_msg_modal = true;
         $msg_type = "error";
@@ -68,7 +63,7 @@ if (isset($_POST['confirm_block_id'])) {
 }
 
 
-$res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations s LEFT JOIN `user` u ON s.UserID = u.UserID ORDER BY s.StationID DESC");
+$res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations s LEFT JOIN `user` u ON s.UserID = u.UserID WHERE s.ArchivedAt IS NULL ORDER BY s.StationID DESC");
 ?>
 
 <!DOCTYPE html>

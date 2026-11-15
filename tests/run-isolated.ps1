@@ -59,6 +59,8 @@ try {
         $scanExit = $LASTEXITCODE
         & php tests/integration.php
         $integrationExit = $LASTEXITCODE
+        & php tests/database.php
+        $databaseExit = $LASTEXITCODE
         $apacheExit = 0
         $apacheRoot = Join-Path (Split-Path -Parent (Split-Path -Parent $MysqlBin)) 'apache'
         $phpRoot = Split-Path -Parent (Get-Command php).Source
@@ -66,7 +68,7 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $integrationExit -ne 0 -or $apacheExit -ne 0) { throw 'Security tests failed. See assertion labels above.' }
+        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $integrationExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/database tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

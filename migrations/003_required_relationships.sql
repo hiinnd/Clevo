@@ -1,0 +1,24 @@
+-- Add missing legacy relationships only. Equivalent existing foreign keys are preserved by runner.
+ALTER TABLE `blacklist` ADD CONSTRAINT `db003_blacklist_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `stations` ADD CONSTRAINT `db003_stations_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `services` ADD CONSTRAINT `db003_services_ibfk_1` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE RESTRICT;
+ALTER TABLE `user_plans` ADD CONSTRAINT `db003_user_plans_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `user_plans` ADD CONSTRAINT `db003_user_plans_ibfk_2` FOREIGN KEY (`plan_id`) REFERENCES `plans` (`id`) ON DELETE RESTRICT;
+ALTER TABLE `booking` ADD CONSTRAINT `db003_booking_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `booking` ADD CONSTRAINT `db003_booking_ibfk_2` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE RESTRICT;
+ALTER TABLE `booking` ADD CONSTRAINT `db003_booking_ibfk_3` FOREIGN KEY (`ServiceID`) REFERENCES `services` (`ServiceID`) ON DELETE RESTRICT;
+ALTER TABLE `booking` ADD CONSTRAINT `db003_booking_ibfk_4` FOREIGN KEY (`DriverID`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `booking` ADD CONSTRAINT `db003_booking_ibfk_5` FOREIGN KEY (`UserPlanID`) REFERENCES `user_plans` (`id`) ON DELETE RESTRICT;
+ALTER TABLE `booking_services` ADD CONSTRAINT `db003_booking_services_booking_fk` FOREIGN KEY (`BookingID`) REFERENCES `booking` (`BookingID`) ON DELETE RESTRICT;
+ALTER TABLE `booking_services` ADD CONSTRAINT `db003_booking_services_service_fk` FOREIGN KEY (`ServiceID`) REFERENCES `services` (`ServiceID`) ON DELETE RESTRICT;
+ALTER TABLE `reviews` ADD CONSTRAINT `db003_reviews_ibfk_1` FOREIGN KEY (`BookingID`) REFERENCES `booking` (`BookingID`) ON DELETE RESTRICT;
+ALTER TABLE `loyalty` ADD CONSTRAINT `db003_loyalty_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `notifications` ADD CONSTRAINT `db003_notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `support_tickets` ADD CONSTRAINT `db003_support_tickets_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `support_messages` ADD CONSTRAINT `db003_support_messages_ticket_fk` FOREIGN KEY (`TicketID`) REFERENCES `support_tickets` (`id`) ON DELETE RESTRICT;
+ALTER TABLE `wallet` ADD CONSTRAINT `db003_wallet_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `wallet_transactions` ADD CONSTRAINT `db003_wallet_transactions_ibfk_1` FOREIGN KEY (`WalletID`) REFERENCES `wallet` (`WalletID`) ON DELETE RESTRICT;
+ALTER TABLE `owner_bank_accounts` ADD CONSTRAINT `db003_owner_bank_accounts_owner_fk` FOREIGN KEY (`owner_id`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `owner_withdrawal_requests` ADD CONSTRAINT `db003_owner_withdrawal_owner_fk` FOREIGN KEY (`owner_id`) REFERENCES `user` (`UserID`) ON DELETE RESTRICT;
+ALTER TABLE `owner_withdrawal_requests` ADD CONSTRAINT `db003_owner_withdrawal_wallet_fk` FOREIGN KEY (`wallet_id`) REFERENCES `wallet` (`WalletID`) ON DELETE RESTRICT;
+ALTER TABLE `user` ADD CONSTRAINT `db003_user_station` FOREIGN KEY (`StationID`) REFERENCES `stations` (`StationID`) ON DELETE RESTRICT;

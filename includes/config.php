@@ -10,6 +10,8 @@ require_once __DIR__ . '/security/uploads.php';
 require_once __DIR__ . '/security/resources.php';
 require_once __DIR__ . '/security/driver.php';
 require_once __DIR__ . '/security/schema.php';
+require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/commerce.php';
 
 set_exception_handler(static function (Throwable $error): void {
     if (PHP_SAPI === 'cli') {
@@ -39,6 +41,9 @@ clevo_start_session();
 $conn = clevo_connect_database();
 $securitySchema = clevo_stmt($conn, "SELECT Version FROM security_schema_migrations WHERE Version = '001_auth_security'")->get_result()->fetch_assoc();
 if (!$securitySchema) throw new RuntimeException('Security migration required.');
+$databaseVersions=clevo_stmt($conn,"SELECT COUNT(*) AS Deployed FROM security_schema_migrations WHERE Version IN ('002_database_integrity','003_required_relationships')")->get_result()->fetch_assoc();
+if ((int)$databaseVersions['Deployed']!==2) throw new RuntimeException('Database migration required.');
+clevo_require_schema($conn, 'request_idempotency', []);
 if (!(defined('CLEVO_API') && CLEVO_API) && PHP_SAPI !== 'cli') {
     clevo_web_identity($conn);
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));

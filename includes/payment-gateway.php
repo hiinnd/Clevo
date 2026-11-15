@@ -18,45 +18,9 @@ clevoEnsurePlanColumns($conn);
 clevoEnsureBookingPaymentColumns($conn);
 $usePoints = ($_GET['use_points'] ?? '') === '1';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_visa_paid') {
-    header('Content-Type: application/json; charset=utf-8');
-    clevo_require_csrf_token(true);
-    if (clevo_production()) throw new ClevoSecurityException('payment_gateway_not_configured', 503);
-    if ($bookingID <= 0) {
-        if ($planID > 0) {
-            $subscription = clevoCreateUserPlanSubscription($conn, $userID, $planID);
-            echo json_encode(['status' => $subscription ? 'success' : 'error', 'type' => 'plan']);
-            exit;
-        }
-        echo json_encode(['status' => 'success']);
-        exit;
-    }
-    $conn->begin_transaction();
-    try {
-        $bookingStmt = $conn->prepare("SELECT Total_Price FROM booking WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '') LIMIT 1 FOR UPDATE");
-        $bookingStmt->bind_param("ii", $bookingID, $userID);
-        $bookingStmt->execute();
-        $bookingForPay = $bookingStmt->get_result()->fetch_assoc();
-        if (!$bookingForPay) {
-            throw new RuntimeException('payment_expired');
-        }
-        clevoApplyPointsDiscount($conn, $bookingID, $userID, (float) $bookingForPay['Total_Price'], $usePoints);
-        $method = 'visa';
-        $stmt = $conn->prepare("UPDATE booking SET Payment_Method = ? WHERE BookingID = ? AND UserID = ? AND Status = 'Accepted' AND (Payment_Method IS NULL OR Payment_Method = '')");
-        $stmt->bind_param("sii", $method, $bookingID, $userID);
-        $stmt->execute();
-        if ($stmt->affected_rows <= 0) {
-            throw new RuntimeException('update_failed');
-        }
-        $conn->commit();
-    } catch (Throwable $e) {
-        $conn->rollback();
-        echo json_encode(['status' => 'error']);
-        exit;
-    }
-    clevoCreditOwnerForBooking($conn, $bookingID);
-    echo json_encode(['status' => 'success']);
-    exit;
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='mark_visa_paid') {
+    // A browser acknowledgement is not gateway settlement evidence in any environment.
+    throw new ClevoSecurityException('payment_gateway_not_configured',503);
 }
 
 if ($bookingID > 0) {

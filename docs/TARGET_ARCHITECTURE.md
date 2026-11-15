@@ -2,6 +2,8 @@
 
 Design date: 2026-11-15. Status: proposed design, not implemented. Read with [AUDIT_REPORT.md](AUDIT_REPORT.md), [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) and [MIGRATION_PLAN.md](MIGRATION_PLAN.md).
 
+Subsequent implementation records: [SECURITY_CHANGES.md](SECURITY_CHANGES.md) and [DATABASE_CHANGES.md](DATABASE_CHANGES.md). The design below remains the original target, not a claim that all integrations exist.
+
 ## Architectural decision
 
 Keep the application as a **PHP modular monolith backed by MySQL/InnoDB**. Add a versioned HTTPS REST API and Flutter Android/iOS clients incrementally. Existing Admin, Owner, User/customer and Driver PHP pages remain supported and call the same application services as the API after extraction. Preserve current web layouts, Arabic/English, RTL/LTR, and dark/light mode. No Node.js backend, Laravel adoption, framework rewrite, or wholesale database replacement is proposed.

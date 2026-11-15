@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     $requestID = (int) ($_POST['request_id'] ?? 0);
     $newStatus = $_POST['status'] ?? '';
     if ($requestID > 0 && in_array($newStatus, ['paid', 'rejected'], true)) {
-        $conn->begin_transaction();
+        clevo_db_begin($conn);
         try {
             $stmt = $conn->prepare("SELECT * FROM owner_withdrawal_requests WHERE id = ? AND status = 'pending' LIMIT 1 FOR UPDATE");
             $stmt->bind_param("i", $requestID);
@@ -31,10 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             if ($newStatus === 'rejected') {
                 $walletID = (int) ($request['wallet_id'] ?? 0);
                 $amount = (float) ($request['amount'] ?? 0);
-                if ($walletID <= 0 || $amount <= 0 || !clevoCreditWallet($conn, $walletID, $amount)) {
-                    throw new RuntimeException('refund_failed');
-                }
-                clevoRecordWalletTransaction($conn, $walletID, $amount, 'credit', 'استرجاع طلب سحب مرفوض', 'Rejected withdrawal refund');
+                if ($walletID<=0 || $amount<=0) throw new RuntimeException('refund_failed');
+                clevo_wallet_entry($conn,$walletID,clevo_db_money($request['amount']),'credit',"withdrawal:$requestID:refund",null,'Rejected withdrawal refund');
             }
 
             $update = $conn->prepare("UPDATE owner_withdrawal_requests SET status = ?, processed_at = NOW() WHERE id = ? AND status = 'pending'");
@@ -43,9 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             if ($update->affected_rows <= 0) {
                 throw new RuntimeException('update_failed');
             }
-            $conn->commit();
+            clevo_db_audit($conn,(int)$admin_id,'withdrawal.processed','owner_withdrawal_requests',$requestID);
+            clevo_db_commit($conn);
         } catch (Throwable $e) {
-            $conn->rollback();
+            clevo_db_rollback($conn);
         }
     }
     header("Location: financial-reports.php");

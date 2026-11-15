@@ -7,7 +7,7 @@ if (!in_array($route, ['stations','bookings'], true)) clevo_json_response('error
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') { header('Allow: GET'); clevo_json_response('error', [], 'method_not_allowed', 405); }
 clevo_rate_limit($conn, 'legacy-api:ip', $_SERVER['REMOTE_ADDR'] ?? '', 120, 60);
 if ($route === 'stations') {
-    $rows = $conn->query("SELECT StationID, Name, Lat, Lon, Location FROM stations WHERE admin_status = 'approved' ORDER BY StationID LIMIT 100")->fetch_all(MYSQLI_ASSOC);
+    $rows = $conn->query("SELECT StationID, Name, Lat, Lon, Location FROM stations WHERE admin_status = 'approved' AND ArchivedAt IS NULL ORDER BY StationID LIMIT 100")->fetch_all(MYSQLI_ASSOC);
     clevo_json_response('success', ['stations' => $rows], 'ok');
 }
 $identity = clevo_authenticated_token($conn, clevo_bearer_token());

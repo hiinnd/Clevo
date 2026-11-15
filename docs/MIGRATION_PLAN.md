@@ -2,6 +2,8 @@
 
 Plan date: 2026-11-15. Status: documentation only; no phase below has been implemented. The audit and four requested documents are this phase's deliverables. Preserve existing PHP/MySQL, all four roles, current working functionality, Arabic/English and dark/light mode throughout.
 
+Subsequent phase results are recorded separately in [SECURITY_CHANGES.md](SECURITY_CHANGES.md) and [DATABASE_CHANGES.md](DATABASE_CHANGES.md); the plan below is the historical dependency roadmap.
+
 Use [AUDIT_REPORT.md](AUDIT_REPORT.md) as the evidence register, [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) as the parity checklist and [TARGET_ARCHITECTURE.md](TARGET_ARCHITECTURE.md) as the design. Audit IDs in this plan refer to those documents. Implementation is ordered by dependencies and release risk, not by screen count.
 
 ## Dependency order

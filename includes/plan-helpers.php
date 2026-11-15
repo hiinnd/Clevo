@@ -137,8 +137,9 @@ function clevoUsePlanForBooking(mysqli $conn, int $userID): ?array
 
 function clevoRestorePlanWashForBooking(mysqli $conn, int $bookingID): void
 {
+    clevo_db_atomic($conn,function()use($conn,$bookingID):void {
     clevoEnsurePlanColumns($conn);
-    $stmt = $conn->prepare("SELECT UserPlanID, Plan_Washes_Used, Payment_Method FROM booking WHERE BookingID = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT UserPlanID, Plan_Washes_Used, Payment_Method FROM booking WHERE BookingID = ? LIMIT 1 FOR UPDATE");
     $stmt->bind_param("i", $bookingID);
     $stmt->execute();
     $booking = $stmt->get_result()->fetch_assoc();
@@ -156,6 +157,7 @@ function clevoRestorePlanWashForBooking(mysqli $conn, int $bookingID): void
     $clear = $conn->prepare("UPDATE booking SET Plan_Washes_Used = 0 WHERE BookingID = ?");
     $clear->bind_param("i", $bookingID);
     $clear->execute();
+    });
 }
 
 function clevoPaymentMethodLabel(?string $method, string $lang = 'ar'): string

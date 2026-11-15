@@ -1,5 +1,7 @@
 # CLEVO authentication and authorization API
 
+Subsequent database-phase booking/payment writes are documented in [DATABASE_API.md](DATABASE_API.md); their shared transactions and migration requirements are in [DATABASE_CHANGES.md](DATABASE_CHANGES.md).
+
 Implemented security phase, 2026-11-15. PHP/MySQL remain the backend. The older audit/architecture files describe the pre-change baseline and target system; this document describes the **implemented** API surface. Setup, migrations, credential rotation and limitations are in [SECURITY_CHANGES.md](SECURITY_CHANGES.md).
 
 ## Transport and routing

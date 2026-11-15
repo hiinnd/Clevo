@@ -11,7 +11,7 @@ $database = clevo_env('DB_DATABASE');
 $setup = new mysqli(clevo_env('DB_HOST'), clevo_env('DB_USERNAME'), clevo_env('DB_PASSWORD', ''), '', (int) clevo_env('DB_PORT'));
 $setup->query('CREATE DATABASE `' . $database . '` CHARACTER SET utf8mb4');
 $conn = clevo_connect_database();
-$schema = file_get_contents(__DIR__ . '/../clevo.sql');
+$schema = file_get_contents(__DIR__ . '/../migrations/000_legacy_schema.sql');
 preg_match_all('/CREATE TABLE(?: IF NOT EXISTS)?[\s\S]*?;/i', $schema, $tables);
 foreach ($tables[0] as $statement) $conn->query($statement);
 $conn->query('ALTER TABLE `user` ADD CONSTRAINT user_station_fk FOREIGN KEY (StationID) REFERENCES stations (StationID) ON DELETE SET NULL');
@@ -28,11 +28,18 @@ check($code === 0 && str_contains($output, 'applied'), 'Additive security migrat
 [$code, $output] = command([PHP_BINARY, __DIR__ . '/../scripts/migrate-security.php']);
 check($code === 0 && str_contains($output, 'already applied'), 'Migration rerun is idempotent');
 if ($code !== 0) finish_tests('Security integration suite');
+[$dbCode, $dbOutput] = command([PHP_BINARY, __DIR__ . '/../scripts/migrate-database.php', '--apply', '--maintenance']);
+check($dbCode === 0, 'Database integrity migration applies before compatibility checks');
 $runtimeUser = clevo_env('TEST_RUNTIME_USERNAME', '') ?? '';
 $runtimePassword = clevo_env('TEST_RUNTIME_PASSWORD', '') ?? '';
 if (!preg_match('/^clevo_rt_[a-f0-9]{12}$/D', $runtimeUser) || !preg_match('/^[a-f0-9]{64}$/D', $runtimePassword)) throw new RuntimeException('Invalid isolated runtime credentials.');
 $setup->query("CREATE USER '$runtimeUser'@'127.0.0.1' IDENTIFIED BY '$runtimePassword'");
-$setup->query("GRANT SELECT, INSERT, UPDATE, DELETE ON `$database`.* TO '$runtimeUser'@'127.0.0.1'");
+foreach ($conn->query('SHOW TABLES')->fetch_all(MYSQLI_NUM) as [$table]) {
+    if (in_array($table,['security_migration_steps','database_migration_steps'],true)) continue;
+    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':($table==='wallet_transactions'?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
+    $setup->query("GRANT $permissions ON `$database`.`$table` TO '$runtimeUser'@'127.0.0.1'");
+}
+$setup->query("GRANT DELETE ON `$database`.blacklist TO '$runtimeUser'@'127.0.0.1'");
 $limited = new mysqli('127.0.0.1', $runtimeUser, $runtimePassword, $database, (int) clevo_env('DB_PORT'));
 require_once __DIR__ . '/../includes/app-helpers.php';
 require_once __DIR__ . '/../includes/booking-helpers.php';
@@ -42,6 +49,8 @@ foreach (['clevoEnsureTrackingColumns','clevoEnsureNotificationsTargetColumn','c
     $helper($limited); check(true, 'Runtime helper needs no DDL privilege: ' . $helper);
 }
 rejects(fn() => $limited->query('CREATE TABLE should_not_be_created (id INT)'), 'Runtime database principal has no CREATE privilege');
+rejects(fn() => $limited->query('DELETE FROM booking WHERE BookingID=-1'), 'Runtime principal cannot delete booking history');
+rejects(fn() => $limited->query('UPDATE audit_logs SET Action=\'changed\' WHERE AuditID=0'), 'Runtime principal cannot rewrite audit records');
 
 $password = 'Aa!' . bin2hex(random_bytes(12));
 function user_fixture(string $role, int $number, string $password): int
@@ -108,6 +117,9 @@ function inline_js_valid(string $html): bool
     fclose($pipes[1]); fclose($pipes[2]); return proc_close($process) === 0 && str_starts_with($result, 'valid_');
 }
 
+$conn->query("UPDATE security_schema_migrations SET Version='003_missing_simulation' WHERE Version='003_required_relationships'");
+[$status]=http('GET','/general/login.php');check($status===503,'Application refuses traffic when database expansion journal is incomplete');
+$conn->query("UPDATE security_schema_migrations SET Version='003_required_relationships' WHERE Version='003_missing_simulation'");
 $pair = login_api('customer1@example.test', $password); $access = $pair['access_token'] ?? '';
 $pairOther = login_api('customer2@example.test', $password);
 $ownerPair = login_api('owner3@example.test', $password); $driverPair = login_api('driver5@example.test', $password);
@@ -131,6 +143,21 @@ check($code === 200 && count($json['data']['notifications']) === 1 && $json['dat
 [$code] = http('GET', '/api/v1/driver/tasks/' . $booking2, null, $driverPair['access_token']); check($code === 404, 'Driver denied unassigned job');
 [$code] = http('GET', '/api/v1/admin/security-status', null, $access); check($code === 403, 'Customer denied admin endpoint');
 [$code] = http('GET', '/api/v1/admin/security-status', null, $adminPair['access_token']); check($code === 200, 'Admin role preserved');
+
+$commerceBody=['station_id'=>$station,'service_ids'=>[$service],'service_location'=>'station','booking_date'=>(new DateTimeImmutable('+2 days'))->format('Y-m-d'),'booking_time'=>'10:00'];
+$commerceKey=bin2hex(random_bytes(16));
+[$code,$json]=http('POST','/api/v1/bookings',$commerceBody,$access,null,['Idempotency-Key: '.$commerceKey]);
+$commerceBooking=(int)($json['data']['booking_id']??0);check($code===200&&$commerceBooking>0,'Bearer booking API uses shared transactional service');
+[$code,$json]=http('POST','/api/v1/bookings',$commerceBody,$access,null,['Idempotency-Key: '.$commerceKey]);
+check($code===200&&(int)($json['data']['booking_id']??0)===$commerceBooking,'HTTP booking retry replays committed result');
+[$code]=http('POST','/api/v1/bookings',array_replace($commerceBody,['booking_time'=>'11:00']),$access,null,['Idempotency-Key: '.$commerceKey]);check($code===409,'HTTP reused key with changed payload conflicts');
+[$code]=http('POST','/api/v1/bookings',$commerceBody,$ownerPair['access_token'],null,['Idempotency-Key: '.bin2hex(random_bytes(16))]);check($code===403,'Owner cannot create customer booking through mobile API');
+$conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$commerceBooking");
+[$code]=http('POST',"/api/v1/bookings/$commerceBooking/payments",['method'=>'wallet'],$pairOther['access_token'],null,['Idempotency-Key: '.bin2hex(random_bytes(16))]);check($code===404,'Payment API denies another customer booking');
+$paymentKey=bin2hex(random_bytes(16));
+[$code]=http('POST',"/api/v1/bookings/$commerceBooking/payments",['method'=>'wallet'],$access,null,['Idempotency-Key: '.$paymentKey]);check($code===200,'Mobile wallet payment commits through runtime DML principal');
+[$code]=http('POST',"/api/v1/bookings/$commerceBooking/payments",['method'=>'wallet'],$access,null,['Idempotency-Key: '.$paymentKey]);
+check($code===200&&(float)$conn->query("SELECT Balance FROM wallet WHERE UserID=$customer")->fetch_assoc()['Balance']===10.0,'HTTP payment replay does not debit twice');
 
 [$code] = http('OPTIONS', '/api/v1/auth/login', null, null, null, ['Origin: https://app.example.test']); check($code === 204, 'Approved CORS preflight');
 [$code] = http('OPTIONS', '/api/v1/auth/login', null, null, null, ['Origin: https://attacker.example.test']); check($code === 403, 'Unapproved CORS preflight denied');
@@ -159,7 +186,20 @@ check($code === 403, 'Legacy login requires CSRF');
 check($code === 302, 'Existing PHP login redirects successfully');
 check(file_get_contents($jar) !== $beforeCookie, 'Web login rotates its session identifier');
 [$code, , $body] = http('GET', '/user/profile.php', null, null, $jar); check($code === 200, 'Existing customer session reads profile');
+foreach(['/user/home.php','/user/search-stations.php','/user/booking-history.php','/user/customer-plans.php','/user/user-wallet.php','/user/station-details.php?id='.$station] as $page){
+    [$status,,$html]=http('GET',$page,null,null,$jar);check($status===200&&inline_js_valid($html),'Migrated customer page and JavaScript remain compatible: '.$page);
+}
 preg_match('/name="csrf_token" value="([a-f0-9]+)"/', $body, $m); $customerCsrf = $m[1] ?? '';
+$webBody=['action'=>'create_booking','service_ids'=>json_encode([$service]),'service_location'=>'station','booking_date'=>(new DateTimeImmutable('+2 days'))->format('Y-m-d'),'booking_time'=>'12:00','csrf_token'=>$customerCsrf,'idempotency_key'=>bin2hex(random_bytes(16))];
+[$status,$json]=http('POST','/user/station-details.php?id='.$station,$webBody,null,$jar,[],true);$webBooking=(int)($json['booking_id']??0);
+check($status===200&&$webBooking>0,'Existing PHP booking form submits transactionally with CSRF and request key');
+[$status,$json]=http('POST','/user/station-details.php?id='.$station,$webBody,null,$jar,[],true);check($status===200&&(int)($json['booking_id']??0)===$webBooking,'Existing PHP booking form retry does not duplicate booking');
+clevo_accept_owner_booking($conn,$owner,$webBooking);
+[$status,,$html]=http('GET','/includes/payment-method.php?id='.$webBooking,null,null,$jar);check($status===200&&inline_js_valid($html),'Existing payment page and generated request key JavaScript compile');
+$webPayment=['action'=>'set_payment','method'=>'wallet','use_points'=>'0','csrf_token'=>$customerCsrf,'idempotency_key'=>bin2hex(random_bytes(16))];
+[$status,$json]=http('POST','/includes/payment-method.php?id='.$webBooking,$webPayment,null,$jar,[],true);check($status===200&&($json['status']??'')==='success','Existing PHP wallet payment form commits');
+[$status,$json]=http('POST','/includes/payment-method.php?id='.$webBooking,$webPayment,null,$jar,[],true);check($status===200&&(float)$conn->query("SELECT Balance FROM wallet WHERE UserID=$customer")->fetch_assoc()['Balance']===0.0,'PHP payment form retry debits once');
+[$status]=http('POST','/includes/payment-gateway.php?id='.$webBooking,['action'=>'mark_visa_paid','csrf_token'=>$customerCsrf],null,$jar,[],true);check($status===503,'Browser card acknowledgement cannot manufacture funds in testing or production');
 [$code] = http('GET', '/admin/admin-dashboard.php', null, null, $jar); check($code === 403, 'Web customer cannot enter admin area');
 [$code] = http('POST', '/user/save-location.php', ['latitude' => 31, 'longitude' => 35], null, $jar, [], true); check($code === 403, 'Location write requires CSRF');
 [$code] = http('GET', '/user/order-details.php?id=' . $booking2, null, null, $jar); check($code === 302, 'Web cross-customer order lookup denied');
@@ -258,7 +298,7 @@ check($driverCsrf !== '', 'Driver mutation test uses a valid CSRF token');
 check($status === 404, 'Driver web mutation cannot target another task');
 [$status] = http('POST', '/owner/manage-services.php', ['save_service' => 1, 'edit_id' => $service + 1, 'name_ar' => 'Changed', 'name_en' => 'Changed', 'price' => 999, 'csrf_token' => $ownerCsrf], null, $ownerJar, [], true);
 check((float) $conn->query('SELECT Price FROM services WHERE ServiceID=' . ($service + 1))->fetch_assoc()['Price'] === 10.0, 'Owner cannot mutate another station service');
-foreach (['/owner/incoming-orders.php', '/owner/owner-reviews.php', '/owner/manage-drivers.php'] as $page) {
+foreach (['/owner/incoming-orders.php', '/owner/owner-reviews.php', '/owner/manage-drivers.php','/owner/owner-wallet.php','/owner/manage-services.php'] as $page) {
     [$status, , $html] = http('GET', $page, null, null, $ownerJar);
     check($status === 200 && inline_js_valid($html), 'Owner page/inline scripts valid: ' . $page);
 }

@@ -14,6 +14,7 @@
     "license": "proprietary",
     "scripts": {
         "test:security": "php tests/security.php",
-        "test:integration": "php tests/integration.php"
+        "test:integration": "php tests/integration.php",
+        "test:database": "php tests/database.php"
     }
 }

@@ -16,14 +16,14 @@ $query = "SELECT s.*,
                  COALESCE(rr.user_rating, s.Rating, 0) AS user_rating,
                  COALESCE(rr.review_count, 0) AS review_count
           FROM stations s
-          LEFT JOIN services sv ON sv.StationID = s.StationID
+          LEFT JOIN services sv ON sv.StationID = s.StationID AND sv.ArchivedAt IS NULL
           LEFT JOIN (
               SELECT b.StationID, AVG(r.Rating) AS user_rating, COUNT(r.ReviewID) AS review_count
               FROM booking b
               JOIN reviews r ON r.BookingID = b.BookingID
               GROUP BY b.StationID
           ) rr ON rr.StationID = s.StationID
-          WHERE s.admin_status = 'approved'
+          WHERE s.admin_status = 'approved' AND s.ArchivedAt IS NULL
           GROUP BY s.StationID
           ORDER BY s.StationID ASC";
 $stmt = $conn->prepare($query);

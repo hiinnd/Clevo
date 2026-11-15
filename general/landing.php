@@ -21,8 +21,8 @@ $stations_query = mysqli_query($conn, "
         MAX(COALESCE(serv.is_pickup, 0)) AS HasServicePickup
     FROM stations s
     LEFT JOIN services serv
-        ON s.StationID = serv.StationID
-    WHERE s.admin_status = 'approved'
+        ON s.StationID = serv.StationID AND serv.ArchivedAt IS NULL
+    WHERE s.admin_status = 'approved' AND s.ArchivedAt IS NULL
       AND s.Status = 'Active'
     GROUP BY
         s.StationID,

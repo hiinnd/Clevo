@@ -58,6 +58,7 @@ try {
     $cases=@(
         @('/.env.example','GET',403),@('/.git/HEAD','GET',403),@('/.GIT/HEAD','GET',403),@('/clevo.sql','GET',403),
         @('/scripts/security-mail-worker.php','GET',403),@('/migrations/001_auth_security.sql','GET',403),
+        @('/database/seeds/development.sql','GET',403),
         @('/includes/security/environment.php','GET',403),@('/uploads/verification/any.pdf','GET',403),
         @('/uploads/profiles/blocked.php','GET',403),@('/api/v1/auth/login','GET',405),
         @('/api/v1/auth/login','OPTIONS',204)

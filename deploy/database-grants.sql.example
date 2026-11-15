@@ -1,0 +1,39 @@
+-- EXAMPLE ONLY: replace database, identity and host through deployment configuration.
+-- Provision credentials using the secret manager. This file contains no passwords.
+-- Apply only to a new runtime identity; broader pre-existing grants must be reviewed/revoked separately.
+GRANT INSERT ON `clevo`.`audit_logs` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_challenges` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_refresh_tokens` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_sessions` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`blacklist` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`booking` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`booking_effects` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`booking_services` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`driver_assignments` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`loyalty` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`notifications` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`notification_reads` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`owner_bank_accounts` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`owner_withdrawal_requests` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`payments` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`plans` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`request_idempotency` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`reviews` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`security_mail_queue` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`security_rate_limits` TO 'clevo_runtime'@'application-host';
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`services` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`stations` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`support_messages` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`support_tickets` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`tracking_records` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`user` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`user_plans` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`wallet` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT ON `clevo`.`wallet_transactions` TO 'clevo_runtime'@'application-host';
+GRANT DELETE ON `clevo`.`blacklist` TO 'clevo_runtime'@'application-host';
+-- Separate mail worker; no catalog, booking or financial DELETE privileges.
+GRANT SELECT, UPDATE ON `clevo`.`security_mail_queue` TO 'clevo_mail_worker'@'worker-host';
+GRANT DELETE ON `clevo`.`security_rate_limits` TO 'clevo_mail_worker'@'worker-host';
+GRANT DELETE ON `clevo`.`auth_challenges` TO 'clevo_mail_worker'@'worker-host';
+GRANT DELETE ON `clevo`.`auth_sessions` TO 'clevo_mail_worker'@'worker-host';

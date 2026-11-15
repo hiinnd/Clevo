@@ -28,67 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    if ($action == 'accept_order') {
-        $order_id = (int) ($_POST['order_id'] ?? 0);
-        $stmt = $conn->prepare("SELECT b.UserID, b.Order_Number, b.Service_Location, b.Payment_Method
-            FROM booking b
-            JOIN stations s ON b.StationID = s.StationID
-            WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
-        $stmt->bind_param("ii", $order_id, $owner_id);
-        $stmt->execute();
-        $order_data = $stmt->get_result()->fetch_assoc();
-
-        if (!$order_data) {
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'order_not_found']);
-            exit;
-        }
-
-        $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Accepted', b.Accepted_At = NOW(), b.notification_sent = 0 WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
-        $update->bind_param("ii", $order_id, $owner_id);
-            if ($update->execute()) {
-            $customer_id = (int) $order_data['UserID'];
-            $order_num = (string) $order_data['Order_Number'];
-            if ($order_data['Payment_Method'] === 'plan') {
-                $msg = "تم قبول طلبك #$order_num وسيتم احتسابه من باقتك.";
-            } else {
-                $msg = "تم قبول طلبك #$order_num. اضغط زر الدفع لاختيار طريقة الدفع خلال 10 دقائق.";
-            }
-            clevoCreateNotification(
-                $conn,
-                $customer_id,
-                'تم قبول الطلب',
-                $msg,
-                'success',
-                null,
-                'Order accepted',
-                $order_data['Payment_Method'] === 'plan'
-                    ? "Your order #$order_num was accepted and will be counted from your plan."
-                    : "Your order #$order_num was accepted. Please choose a payment method within 10 minutes."
-            );
-            
-            try {
-                $admin_msg = "قام صاحب المحطة (ID: $owner_id) بقبول الطلب #$order_num.";
-                clevoCreateRoleNotification(
-                    $conn,
-                    'Admin',
-                    'قبول طلب من صاحب محطة',
-                    $admin_msg,
-                    'info',
-                    '../admin/financial-reports.php',
-                    'Order accepted by station owner',
-                    "Station owner ID $owner_id accepted order #$order_num."
-                );
-            } catch (Throwable $e) {
-                
-            }
-            echo json_encode(['status' => 'success', 'data' => [], 'message' => 'accepted']);
-        } else {
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'db_error']);
-        }
-        exit;
+    if ($action==='accept_order') {
+        clevo_accept_owner_booking($conn,$owner_id,(int)($_POST['order_id']??0));
+        clevo_json_response('success',[],'accepted');
     }
 
-    
     if ($action === 'reissue_driver_code') {
         $code = clevo_issue_driver_code($conn, $owner_id, (int) ($_POST['order_id'] ?? 0));
         clevo_json_response('success', ['driver_code' => $code]);
@@ -97,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $order_id = (int) ($_POST['order_id'] ?? 0);
         $driver_id = (int) ($_POST['driver_id'] ?? 0);
         $order_num = clevo_clean_string($_POST['order_number'] ?? '', 40);
-        $conn->begin_transaction();
+        clevo_db_begin($conn);
         try {
             $update_order = $conn->prepare("UPDATE booking b
                 JOIN stations s ON b.StationID = s.StationID
@@ -118,6 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 throw new RuntimeException('assign_failed');
             }
 
+            clevo_stmt($conn,'INSERT INTO driver_assignments (BookingID,DriverID,StationID,AssignedBy) SELECT BookingID,DriverID,StationID,? FROM booking WHERE BookingID=?','ii',[$owner_id,$order_id]);
+            clevo_db_audit($conn,$owner_id,'driver.assigned','booking',$order_id);
             $new_access_code = clevo_issue_driver_code($conn, $owner_id, $order_id);
             $res = $conn->prepare("SELECT UserID FROM booking WHERE BookingID = ? LIMIT 1");
             $res->bind_param("i", $order_id);
@@ -149,10 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 'A new delivery task is assigned. Contact your station owner for the one-time sign-in code.'
             );
 
-            $conn->commit();
+            clevo_db_commit($conn);
             echo json_encode(['status' => 'success', 'data' => ['driver_code' => $new_access_code], 'message' => 'driver_assigned']);
         } catch (Throwable $e) {
-            $conn->rollback();
+            clevo_db_rollback($conn);
             echo json_encode(['status' => 'error', 'data' => [], 'message' => 'assign_failed']);
         }
         exit;
@@ -172,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $customer_id = (int) $order_data['UserID'];
         $order_num = (string) $order_data['Order_Number'];
 
-        $conn->begin_transaction();
+        clevo_db_begin($conn);
         try {
             $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Rejected' WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
             $update->bind_param("ii", $order_id, $owner_id);
@@ -213,62 +159,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             } catch (Throwable $e) {
                 
             }
-            $conn->commit();
+            clevo_db_commit($conn);
             echo json_encode(['status' => 'success', 'data' => [], 'message' => 'rejected']);
         } catch (Throwable $e) {
-            $conn->rollback();
+            clevo_db_rollback($conn);
             echo json_encode(['status' => 'error', 'data' => [], 'message' => 'db_error']);
         }
         exit;
     }
 
-    if ($action == 'complete_order') {
-        $order_id = (int) ($_POST['order_id'] ?? 0);
-        $res = $conn->prepare("SELECT b.UserID, b.Order_Number, b.Total_Price, b.Service_Location, b.Payment_Method
-            FROM booking b
-            JOIN stations s ON b.StationID = s.StationID
-            WHERE b.BookingID = ?
-              AND b.Status IN ('Accepted','In Progress')
-              AND b.Service_Location IN ('station','home')
-              AND s.UserID = ?");
-        $res->bind_param("ii", $order_id, $owner_id);
-        $res->execute();
-        $order_data = $res->get_result()->fetch_assoc();
-        if (!$order_data) {
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'order_not_found']);
-            exit;
-        }
-
-        if ($order_data['Service_Location'] === 'home' && empty($order_data['Payment_Method'])) {
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'payment_required']);
-            exit;
-        }
-
-        $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Completed' WHERE b.BookingID = ? AND s.UserID = ?");
-        $update->bind_param("ii", $order_id, $owner_id);
-        if ($update->execute()) {
-            $customer_id = (int) $order_data['UserID'];
-            // Award points equal to the total price (1 JOD = 1 point)
-            clevoAddLoyaltyPoints($conn, $customer_id, (float) ($order_data['Total_Price'] ?? 0.0));
-            if ($order_data['Payment_Method'] === 'plan') {
-                clevoCreditOwnerForBooking($conn, $order_id);
-            }
-            $order_num = (string) $order_data['Order_Number'];
-            clevoCreateNotification(
-                $conn,
-                $customer_id,
-                'تم إنهاء الطلب',
-                "تم إنهاء طلبك #$order_num. يمكنك الآن تقييم الخدمة.",
-                'success',
-                null,
-                'Order completed',
-                "Your order #$order_num was completed. You can now rate the service."
-            );
-            echo json_encode(['status' => 'success', 'data' => [], 'message' => 'completed']);
-            exit;
-        }
-        echo json_encode(['status' => 'error', 'data' => [], 'message' => 'db_error']);
-        exit;
+    if ($action==='complete_order') {
+        clevo_complete_owner_booking($conn,$owner_id,(int)($_POST['order_id']??0));
+        clevo_json_response('success',[],'completed');
     }
 }
 
