@@ -174,7 +174,7 @@ function clevo_booking_transition(mysqli $db,?int $actor,int $id,string $target,
             'customer'=>$from==='Pending' && $target==='Cancelled',
             'driver'=>in_array($target,clevo_booking_driver_targets($from),true),
             'admin'=>in_array($from,['Pending','Accepted'],true) && $target==='Cancelled' && empty($b['DriverAcceptedAt']),
-            'system'=>$target==='Cancelled_Timeout' && in_array($reason,['request_expired','payment_expired'],true) && clevo_booking_is_expired($b),
+            'system'=>($target==='Cancelled_Timeout' && in_array($reason,['request_expired','payment_expired'],true) && clevo_booking_is_expired($b)) || ($target==='Cancelled'&&$reason==='provider_refund_confirmed'&&in_array($from,['Pending','Accepted'],true)&&empty($b['DriverAcceptedAt'])&&clevo_finance_verified_refund($db,$id)),
             default=>false,
         };
         // Preserve the web owner's existing safe repeated accept/complete/reject behavior.
@@ -210,6 +210,7 @@ function clevo_booking_transition(mysqli $db,?int $actor,int $id,string $target,
             if (clevo_db_effect($db,$id,'completion_reward')) clevoAddLoyaltyPoints($db,(int)$b['UserID'],(float)$b['Total_Price']);
             if ($b['Payment_Method']==='plan') clevoCreditOwnerForBooking($db,$id);
             clevo_stmt($db,"UPDATE payments SET Status='recorded' WHERE BookingID=? AND Method='cash' AND Status='pending'",'i',[$id]);
+            clevo_finance_complete($db,$b);
         }
         clevo_booking_event($db,$id,$from,$target,$actor,$role,$reason);
         clevo_db_audit($db,$actor,'booking.status_changed','booking',$id);

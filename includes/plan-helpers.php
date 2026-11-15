@@ -62,13 +62,14 @@ function clevoPlanFeatures(array $plan, string $lang = 'ar'): array
 function clevoExpireOldUserPlans(mysqli $conn, int $userID): void
 {
     clevoEnsurePlanColumns($conn);
-    $stmt = $conn->prepare("UPDATE user_plans SET status = 'expired' WHERE user_id = ? AND status = 'active' AND end_date IS NOT NULL AND end_date < CURDATE()");
+    $stmt = $conn->prepare("UPDATE user_plans SET status = 'expired' WHERE user_id = ? AND status = 'active' AND ((ExpiresAtUtc IS NOT NULL AND ExpiresAtUtc<=UTC_TIMESTAMP(6)) OR (ExpiresAtUtc IS NULL AND end_date IS NOT NULL AND end_date<CURDATE()))");
     $stmt->bind_param("i", $userID);
     $stmt->execute();
 }
 
 function clevoGetActiveUserPlan(mysqli $conn, int $userID, bool $lock = false): ?array
 {
+    if(clevo_production())return null; // No sandbox/legacy entitlement can become live stored value.
     clevoExpireOldUserPlans($conn, $userID);
     $lockSql = $lock ? " FOR UPDATE" : "";
     $stmt = $conn->prepare("SELECT up.*, p.name_ar, p.name_en, p.price, p.duration, p.duration_type, p.description_ar, p.description_en,
@@ -79,11 +80,15 @@ function clevoGetActiveUserPlan(mysqli $conn, int $userID, bool $lock = false): 
         JOIN plans p ON p.id = up.plan_id
         WHERE up.user_id = ?
           AND up.status = 'active'
+          AND up.PaymentHold = 0
+          AND (up.ExpiresAtUtc IS NULL OR up.ExpiresAtUtc>UTC_TIMESTAMP(6))
+          AND (?=1 OR EXISTS (SELECT 1 FROM payment_orders po WHERE po.OrderID=up.FundingOrderID AND po.UserID=up.user_id AND po.Purpose='subscription' AND po.State='succeeded' AND po.VerifiedAt IS NOT NULL))
           AND up.remaining_washes > 0
           AND (up.end_date IS NULL OR up.end_date >= CURDATE())
         ORDER BY up.created_at DESC, up.id DESC
         LIMIT 1" . $lockSql);
-    $stmt->bind_param("i", $userID);
+    $fixture=clevo_finance_fixture_allowed($conn)?1:0;
+    $stmt->bind_param("ii", $userID,$fixture);
     $stmt->execute();
     $plan = $stmt->get_result()->fetch_assoc();
     return $plan ?: null;
@@ -91,6 +96,7 @@ function clevoGetActiveUserPlan(mysqli $conn, int $userID, bool $lock = false): 
 
 function clevoCreateUserPlanSubscription(mysqli $conn, int $userID, int $planID): ?array
 {
+    clevo_finance_require_legacy_fixture($conn,'payment_confirmation_required');
     clevoEnsurePlanColumns($conn);
     $stmt = $conn->prepare("SELECT * FROM plans WHERE id = ? AND is_active = 1 LIMIT 1");
     $stmt->bind_param("i", $planID);
@@ -116,12 +122,14 @@ function clevoCreateUserPlanSubscription(mysqli $conn, int $userID, int $planID)
     return $plan;
 }
 
-function clevoUsePlanForBooking(mysqli $conn, int $userID): ?array
+function clevoUsePlanForBooking(mysqli $conn, int $userID,array $context=[]): ?array
 {
     $plan = clevoGetActiveUserPlan($conn, $userID, true);
     if (!$plan) {
         return null;
     }
+    if(!empty($plan['FundingOrderID']))clevo_finance_plan_validate($conn,$plan,$context);
+    else clevo_finance_require_legacy_fixture($conn,'subscription_funding_requires_reconciliation');
 
     $userPlanID = (int) $plan['id'];
     $stmt = $conn->prepare("UPDATE user_plans SET remaining_washes = remaining_washes - 1 WHERE id = ? AND user_id = ? AND status = 'active' AND remaining_washes > 0");
@@ -150,8 +158,11 @@ function clevoRestorePlanWashForBooking(mysqli $conn, int $bookingID): void
         return;
     }
     if(!clevo_stmt($conn,'SELECT id FROM user_plans WHERE id=? AND user_id=? FOR UPDATE','ii',[$userPlanID,(int)$booking['UserID']])->get_result()->fetch_assoc())throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+    $funded=clevo_stmt($conn,'SELECT FundingOrderID FROM user_plans WHERE id=?','i',[$userPlanID])->get_result()->fetch_assoc();
+    if(!empty($funded['FundingOrderID']))clevo_finance_plan_release($conn,$bookingID,$userPlanID);
+    else clevo_finance_require_legacy_fixture($conn,'subscription_funding_requires_reconciliation');
 
-    $restore = $conn->prepare("UPDATE user_plans SET remaining_washes = remaining_washes + ?, status = IF(status = 'expired' AND end_date >= CURDATE(), 'active', status) WHERE id = ?");
+    $restore = $conn->prepare("UPDATE user_plans SET remaining_washes = IF(PaymentHold=1 AND status='cancelled',remaining_washes,remaining_washes + ?), status = IF(status = 'expired' AND end_date >= CURDATE(), 'active', status) WHERE id = ?");
     $restore->bind_param("ii", $used, $userPlanID);
     $restore->execute();
 

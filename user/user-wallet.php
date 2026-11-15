@@ -3,6 +3,8 @@ include_once(__DIR__ . "/../includes/config.php");
 
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
+require_once __DIR__.'/../includes/finance.php';
+$walletEnabled = clevo_finance_fixture_allowed($conn);
 
 
 $stmt = $conn->prepare("SELECT Balance, WalletID FROM `wallet` WHERE UserID = ?");
@@ -96,8 +98,9 @@ $transactions = $trans_stmt->get_result();
             <div class="balance-amount"><?= $currentBalance ?> <small class="fs-6">JOD</small></div>
 
             <div class="mt-4">
-                <input type="number" id="amt" class="form-control-custom" value="10" placeholder="0.00">
-                <button onclick="charge()" class="btn-charge shadow" data-i18n="btn_charge_wallet">شحن الرصيد الآن +</button>
+                <?php if (!$walletEnabled): ?><p data-i18n="wallet_frozen">الرصيد والسجل التاريخيان للعرض فقط. الشحن والإنفاق متوقفان لحين الاعتماد.</p><?php endif; ?>
+                <input type="number" id="amt" class="form-control-custom" value="10" placeholder="0.00" <?= $walletEnabled ? '' : 'disabled' ?>>
+                <button onclick="charge()" <?= $walletEnabled ? '' : 'disabled' ?> class="btn-charge shadow" data-i18n="btn_charge_wallet">شحن الرصيد الآن +</button>
             </div>
         </div>
 
@@ -141,10 +144,10 @@ $transactions = $trans_stmt->get_result();
     <script>
         const translations = {
             ar: {
-                wallet_page_title: "محفظتي | Clevo", wallet_header: "محفظة Clevo", avail_balance_label: "الرصيد المتاح حالياً", btn_charge_wallet: "شحن رصيد المحفظة +", recent_ops_label: "آخر العمليات", redirecting_t: "جاري التحويل لبوابة الدفع...", no_trans: "لا توجد عمليات سابقة"
+                wallet_frozen: "الرصيد والسجل التاريخيان للعرض فقط. الشحن والإنفاق متوقفان لحين الاعتماد.", wallet_page_title: "محفظتي | Clevo", wallet_header: "محفظة Clevo", avail_balance_label: "الرصيد التاريخي", btn_charge_wallet: "شحن رصيد المحفظة +", recent_ops_label: "آخر العمليات", redirecting_t: "جاري التحويل لبوابة الدفع...", no_trans: "لا توجد عمليات سابقة"
             },
             en: {
-                wallet_page_title: "My Wallet | Clevo", wallet_header: "Clevo Wallet", avail_balance_label: "Current Available Balance", btn_charge_wallet: "Top Up Wallet +", recent_ops_label: "Recent Transactions", redirecting_t: "Redirecting to gateway...", no_trans: "No transactions found"
+                wallet_frozen: "Historical balance and transactions are read-only. Top-ups and spending await approval.", wallet_page_title: "My Wallet | Clevo", wallet_header: "Clevo Wallet", avail_balance_label: "Historical Balance", btn_charge_wallet: "Top Up Wallet +", recent_ops_label: "Recent Transactions", redirecting_t: "Redirecting to gateway...", no_trans: "No transactions found"
             }
         };
 

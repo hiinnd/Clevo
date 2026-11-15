@@ -196,7 +196,8 @@ if($weekly_res) {
                         </div>
                         <div class="col-md-4">
                             <div class="stat-card shadow-sm text-center" style="border-inline-start: 5px solid #fd7e14 !important;">
-                                <small class="opacity-75 d-block" data-i18n="net_profit">صافي أرباحك (10%)</small>
+                                <p class="small" data-i18n="financial_basis_notice">قيم الحجوزات الاسمية لا تثبت التحصيل أو صافي الأرباح. تقرير المطابقة يفصل النقد والاختبار والاسترجاع؛ التحويلات غير مفعّلة.</p>
+                                <small class="opacity-75 d-block" data-i18n="net_profit">العمولات الاسمية</small>
                                 <h2 class="fw-bold mt-1" style="color: #fd7e14 !important;"><?php echo number_format($net_profit, 2); ?> <small class="fs-6">JOD</small></h2>
                                 <p class="small mb-0 opacity-75"><span data-i18n="your_earnings">أرباحكِ يا</span> <span class="u-name-display fw-bold text-primary"><?php echo htmlspecialchars($admin_name); ?></span></p>
                             </div>
@@ -278,14 +279,14 @@ if($weekly_res) {
                                                                 <input type="hidden" name="action" value="update_withdrawal_status">
                                                                 <input type="hidden" name="request_id" value="<?= (int) $wr['id'] ?>">
                                                                 <input type="hidden" name="status" value="paid">
-                                                                <button class="btn btn-sm btn-success rounded-pill px-3" data-i18n="btn_mark_paid">Paid</button>
+                                                                <button <?= clevo_finance_fixture_allowed($conn) ? '' : 'disabled' ?> class="btn btn-sm btn-success rounded-pill px-3" data-i18n="btn_mark_paid">Paid</button>
                                                             </form>
                                                             <form method="POST">
                                                                 <?= csrf_input(); ?>
                                                                 <input type="hidden" name="action" value="update_withdrawal_status">
                                                                 <input type="hidden" name="request_id" value="<?= (int) $wr['id'] ?>">
                                                                 <input type="hidden" name="status" value="rejected">
-                                                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" data-i18n="btn_reject">Reject</button>
+                                                                <button <?= clevo_finance_fixture_allowed($conn) ? '' : 'disabled' ?> class="btn btn-sm btn-outline-danger rounded-pill px-3" data-i18n="btn_reject">Reject</button>
                                                             </form>
                                                         </div>
                                                     <?php else: ?>
@@ -357,7 +358,7 @@ if($weekly_res) {
         const translations = {
             ar: {
                 fin_reports_title: "التقارير المالية | Clevo", header_main_title: "التقارير المالية", btn_export_excel: "تصدير Excel",
-                total_gmv: "إجمالي المبيعات (GMV)", net_profit: "صافي أرباحك (10%)", your_earnings: "أرباحكِ يا", completed_orders: "الطلبات المكتملة",
+                financial_basis_notice: "قيم الحجوزات الاسمية لا تثبت التحصيل أو صافي الأرباح. تقرير المطابقة يفصل النقد والاختبار والاسترجاع؛ التحويلات غير مفعّلة.", total_gmv: "إجمالي قيم الحجوزات (GMV)", net_profit: "العمولات الاسمية", your_earnings: "أرباحكِ يا", completed_orders: "الطلبات المكتملة",
                 weekly_analysis: "تحليل المبيعات الأسبوعي", top_stations: "أعلى المحطات دخلاً", payment_history_title: "سجل العمليات الأخير",
                 th_date: "التاريخ", th_customer: "الزبون", th_value: "القيمة", th_commission: "عمولة", th_status: "الحالة",
                 withdrawal_requests_title: "طلبات سحب أرباح الأونر", th_owner: "الأونر", th_amount: "المبلغ", th_bank: "بيانات البنك", th_requested_at: "تاريخ الطلب", th_action: "الإجراء", btn_mark_paid: "تم الدفع", btn_reject: "رفض", no_withdrawals: "لا توجد طلبات سحب بعد",
@@ -367,7 +368,7 @@ if($weekly_res) {
             },
             en: {
                 fin_reports_title: "Financial Reports | Clevo", header_main_title: "Financial Reports", btn_export_excel: "Export Excel",
-                total_gmv: "Total Sales (GMV)", net_profit: "Net Profit (10%)", your_earnings: "Your Earnings,", completed_orders: "Completed Orders",
+                financial_basis_notice: "Nominal booking values do not establish collection or net profit. Reconciliation separates cash, sandbox and refunds; transfers are disabled.", total_gmv: "Nominal booking GMV", net_profit: "Nominal commission", your_earnings: "Your Earnings,", completed_orders: "Completed Orders",
                 weekly_analysis: "Weekly Sales Analysis", top_stations: "Top Earning Stations", payment_history_title: "Recent Transactions",
                 th_date: "Date", th_customer: "Customer", th_value: "Value", th_commission: "Comm.", th_status: "Status",
                 withdrawal_requests_title: "Owner Withdrawal Requests", th_owner: "Owner", th_amount: "Amount", th_bank: "Bank details", th_requested_at: "Requested at", th_action: "Action", btn_mark_paid: "Paid", btn_reject: "Reject", no_withdrawals: "No withdrawal requests yet",

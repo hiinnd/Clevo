@@ -45,6 +45,7 @@ if (!$securitySchema) throw new RuntimeException('Security migration required.')
 $databaseVersions=clevo_stmt($conn,"SELECT COUNT(*) AS Deployed FROM security_schema_migrations WHERE Version IN ('002_database_integrity','003_required_relationships')")->get_result()->fetch_assoc();
 if ((int)$databaseVersions['Deployed']!==2) throw new RuntimeException('Database migration required.');
 if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='005_booking_workflow'")->get_result()->fetch_assoc()) throw new RuntimeException('Booking workflow migration required.');
+if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='006_commercial_payments'")->get_result()->fetch_assoc()) throw new RuntimeException('Commercial finance migration required.');
 clevo_require_schema($conn, 'request_idempotency', []);
 if (!(defined('CLEVO_API') && CLEVO_API) && PHP_SAPI !== 'cli') {
     clevo_web_identity($conn);

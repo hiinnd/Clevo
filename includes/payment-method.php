@@ -18,6 +18,13 @@ clevoEnsureBookingPaymentColumns($conn);
 clevoEnsureBookingServicesTable($conn);
 
 if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='set_payment') {
+    if(($_POST['method']??'')==='visa'){
+        clevo_payment_provider();
+        if(($_POST['use_points']??'')==='1')throw new ClevoSecurityException('online_points_not_approved',503);
+        $row=clevo_stmt($conn,"SELECT BookingID FROM booking WHERE BookingID=? AND UserID=? AND Status='Accepted' AND (Payment_Method IS NULL OR Payment_Method='')",'ii',[$bookingID,$userID])->get_result()->fetch_assoc();
+        if(!$row)throw new ClevoSecurityException('not_found',404);
+        header('Content-Type: application/json');echo json_encode(['status'=>'redirect_visa','use_points'=>0]);exit;
+    }
     $result=clevo_pay_booking($conn,$userID,$bookingID,(string)($_POST['method']??''),($_POST['use_points']??'')==='1',(string)($_POST['idempotency_key']??''));
     header('Content-Type: application/json'); echo json_encode($result); exit;
 }

@@ -1,8 +1,8 @@
 # CLEVO schema inventory
 
-Generated from actual migrated disposable metadata on 2026-11-16. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 37; columns: 345; index columns: 180; foreign-key columns: 55. This is not a live production inventory.
+Generated from actual migrated disposable metadata on 2026-11-16. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 45; columns: 443; index columns: 228; foreign-key columns: 75. This is not a live production inventory.
 
-Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking migration 005 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md) and [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking 005 and commercial payments 006 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
 
 ## `audit_logs`
 
@@ -167,6 +167,11 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `AdditionalFee` | `decimal(10,2)` | NO | `0.00` |  |
 | `RequestFingerprint` | `char(64)` | YES | `NULL` |  |
 | `ActiveRequestFingerprint` | `char(64)` | YES | `NULL` | STORED GENERATED |
+| `FinancialVersion` | `smallint(5) unsigned` | YES | `NULL` |  |
+| `CommissionRateBps` | `smallint(5) unsigned` | YES | `NULL` |  |
+| `CommissionBasisMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `CommissionMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `OwnerAmountMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -310,6 +315,119 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `fk_assignment_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
 | `fk_assignment_driver` | `DriverID` | `user.UserID` | RESTRICT / RESTRICT |
 | `fk_assignment_station` | `StationID` | `stations.StationID` | RESTRICT / RESTRICT |
+
+## `financial_entries`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `EntryID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `JournalID` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `AccountKey` | `varchar(100)` | NO | `NULL` |  |
+| `SignedMinor` | `bigint(20)` | NO | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_entry_account` | INDEX | `AccountKey`, `EntryID` |
+| `idx_entry_journal` | INDEX | `JournalID` |
+| `PRIMARY` | PRIMARY | `EntryID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_entry_journal` | `JournalID` | `financial_journals.JournalID` | RESTRICT / RESTRICT |
+
+## `financial_journals`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `JournalID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `OperationKey` | `varchar(150)` | NO | `NULL` |  |
+| `Kind` | `varchar(40)` | NO | `NULL` |  |
+| `ContentHash` | `char(64)` | NO | `NULL` |  |
+| `Book` | `enum('sandbox','cash','legacy_fixture')` | NO | `NULL` |  |
+| `BookingID` | `int(11)` | YES | `NULL` |  |
+| `OrderID` | `char(48)` | YES | `NULL` |  |
+| `OwnerID` | `int(11)` | YES | `NULL` |  |
+| `GrossMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `CommissionMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `OwnerMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `DebitMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `CreditMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `Currency` | `char(3)` | NO | `'JOD'` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_journal_booking` | INDEX | `BookingID` |
+| `fk_journal_order` | INDEX | `OrderID` |
+| `idx_journal_owner` | INDEX | `OwnerID`, `Kind`, `CreatedAt` |
+| `PRIMARY` | PRIMARY | `JournalID` |
+| `uq_journal_operation` | UNIQUE | `OperationKey` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_journal_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+| `fk_journal_order` | `OrderID` | `payment_orders.OrderID` | RESTRICT / RESTRICT |
+| `fk_journal_owner` | `OwnerID` | `user.UserID` | RESTRICT / RESTRICT |
+
+## `financial_receipts`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `ReceiptID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `ReceiptNumber` | `varchar(40)` | NO | `NULL` |  |
+| `JournalID` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `BookingID` | `int(11)` | YES | `NULL` |  |
+| `OrderID` | `char(48)` | YES | `NULL` |  |
+| `AmountMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `EvidenceKind` | `varchar(40)` | NO | `NULL` |  |
+| `IssuedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_fin_receipt_booking` | INDEX | `BookingID` |
+| `fk_fin_receipt_order` | INDEX | `OrderID` |
+| `idx_receipt_user` | INDEX | `UserID`, `ReceiptID` |
+| `PRIMARY` | PRIMARY | `ReceiptID` |
+| `uq_financial_receipt_journal` | UNIQUE | `JournalID` |
+| `uq_financial_receipt_number` | UNIQUE | `ReceiptNumber` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_fin_receipt_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+| `fk_fin_receipt_journal` | `JournalID` | `financial_journals.JournalID` | RESTRICT / RESTRICT |
+| `fk_fin_receipt_order` | `OrderID` | `payment_orders.OrderID` | RESTRICT / RESTRICT |
+| `fk_fin_receipt_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
+
+## `financial_settlements`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `SettlementID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `OwnerID` | `int(11)` | NO | `NULL` |  |
+| `AmountMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `State` | `enum('blocked','pending','verified','cancelled')` | NO | `'blocked'` |  |
+| `ProviderReference` | `varchar(150)` | YES | `NULL` |  |
+| `EvidenceHash` | `char(64)` | YES | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_settlement_owner` | INDEX | `OwnerID`, `SettlementID` |
+| `PRIMARY` | PRIMARY | `SettlementID` |
+| `uq_settlement_reference` | UNIQUE | `ProviderReference` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_settlement_owner` | `OwnerID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `loyalty`
 
@@ -481,6 +599,9 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `ProviderReference` | `varchar(150)` | YES | `NULL` |  |
 | `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
 | `RefundedAt` | `datetime(6)` | YES | `NULL` |  |
+| `FundingOrderID` | `char(48)` | YES | `NULL` |  |
+| `VerificationKind` | `varchar(40)` | YES | `NULL` |  |
+| `VerifiedAt` | `datetime(6)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -488,11 +609,82 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `PRIMARY` | PRIMARY | `PaymentID` |
 | `uq_payment_booking` | UNIQUE | `BookingID` |
 | `uq_payment_provider` | UNIQUE | `Provider`, `ProviderReference` |
+| `uq_receipt_funding` | UNIQUE | `FundingOrderID` |
 
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
 | `fk_payment_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
 | `fk_payment_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_receipt_funding` | `FundingOrderID` | `payment_orders.OrderID` | RESTRICT / RESTRICT |
+
+## `payment_evidence`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `EvidenceID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `OrderID` | `char(48)` | NO | `NULL` |  |
+| `EventHash` | `char(64)` | NO | `NULL` |  |
+| `Source` | `enum('signed_webhook','authenticated_query')` | NO | `NULL` |  |
+| `ProviderReference` | `varchar(150)` | NO | `NULL` |  |
+| `TransactionType` | `varchar(20)` | NO | `NULL` |  |
+| `ResultCode` | `varchar(8)` | NO | `NULL` |  |
+| `AmountMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `ReceivedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_evidence_order` | INDEX | `OrderID`, `EvidenceID` |
+| `PRIMARY` | PRIMARY | `EvidenceID` |
+| `uq_evidence_event` | UNIQUE | `EventHash` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_evidence_order` | `OrderID` | `payment_orders.OrderID` | RESTRICT / RESTRICT |
+
+## `payment_orders`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `OrderID` | `char(48)` | NO | `NULL` |  |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `BookingID` | `int(11)` | YES | `NULL` |  |
+| `PlanID` | `int(11)` | YES | `NULL` |  |
+| `Purpose` | `enum('booking','subscription')` | NO | `NULL` |  |
+| `Provider` | `varchar(20)` | NO | `NULL` |  |
+| `Environment` | `enum('sandbox')` | NO | `NULL` |  |
+| `State` | `enum('prepared','creating','pending','succeeded','failed','cancelled','unknown','refund_due','refunded')` | NO | `'prepared'` |  |
+| `AmountMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `Currency` | `char(3)` | NO | `'JOD'` |  |
+| `ProviderReference` | `varchar(150)` | YES | `NULL` |  |
+| `CheckoutCipher` | `text` | YES | `[redacted]` |  |
+| `TermsSnapshot` | `longtext` | YES | `NULL` |  |
+| `IntentKey` | `varchar(100)` | NO | `NULL` |  |
+| `ActiveIntent` | `varchar(100)` | YES | `NULL` | STORED GENERATED |
+| `CancelRequestedAt` | `datetime(6)` | YES | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `UpdatedAt` | `datetime(6)` | NO | `current_timestamp(6)` | on update current_timestamp(6) |
+| `ExpiresAt` | `datetime(6)` | NO | `NULL` |  |
+| `VerifiedAt` | `datetime(6)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_order_booking` | INDEX | `BookingID` |
+| `fk_order_plan` | INDEX | `PlanID` |
+| `idx_order_reconciliation` | INDEX | `State`, `UpdatedAt` |
+| `idx_order_user` | INDEX | `UserID`, `CreatedAt` |
+| `PRIMARY` | PRIMARY | `OrderID` |
+| `uq_order_intent` | UNIQUE | `ActiveIntent` |
+| `uq_order_provider_reference` | UNIQUE | `Provider`, `Environment`, `ProviderReference` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_order_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+| `fk_order_plan` | `PlanID` | `plans.id` | RESTRICT / RESTRICT |
+| `fk_order_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `payment_sessions`
 
@@ -544,12 +736,45 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `included_services_en` | `text` | YES | `NULL` |  |
 | `is_active` | `tinyint(1)` | YES | `1` |  |
 | `created_at` | `datetime` | YES | `current_timestamp()` |  |
+| `SandboxPolicy` | `longtext` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
 | `PRIMARY` | PRIMARY | `id` |
 
 No declared outbound foreign key.
+
+## `provider_refunds`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `RefundID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `OrderID` | `char(48)` | NO | `NULL` |  |
+| `RequestedBy` | `int(11)` | NO | `NULL` |  |
+| `Origin` | `enum('customer_request','provider_notification')` | NO | `'customer_request'` |  |
+| `Reason` | `varchar(500)` | NO | `NULL` |  |
+| `State` | `enum('requested','submitting','pending','succeeded','failed','unknown')` | NO | `'requested'` |  |
+| `AmountMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `ProviderReference` | `varchar(150)` | YES | `NULL` |  |
+| `SubmittedBy` | `int(11)` | YES | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `UpdatedAt` | `datetime(6)` | NO | `current_timestamp(6)` | on update current_timestamp(6) |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_provider_refund_actor` | INDEX | `RequestedBy` |
+| `fk_provider_refund_admin` | INDEX | `SubmittedBy` |
+| `PRIMARY` | PRIMARY | `RefundID` |
+| `uq_provider_refund_order` | UNIQUE | `OrderID` |
+| `uq_provider_refund_reference` | UNIQUE | `ProviderReference` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_provider_refund_actor` | `RequestedBy` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_provider_refund_admin` | `SubmittedBy` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_provider_refund_order` | `OrderID` | `payment_orders.OrderID` | RESTRICT / RESTRICT |
 
 ## `refund_requests`
 
@@ -795,6 +1020,33 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 |---|---|---|---|
 | `stations_ibfk_1` | `UserID` | `user.UserID` | CASCADE / RESTRICT |
 
+## `subscription_redemptions`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `RedemptionID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `UserPlanID` | `int(11)` | NO | `NULL` |  |
+| `BookingID` | `int(11)` | NO | `NULL` |  |
+| `SlotNumber` | `int(11)` | NO | `NULL` |  |
+| `AmountMinor` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `State` | `enum('reserved','completed','released')` | NO | `'reserved'` |  |
+| `ActiveSlot` | `int(11)` | YES | `NULL` | STORED GENERATED |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `UpdatedAt` | `datetime(6)` | NO | `current_timestamp(6)` | on update current_timestamp(6) |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `PRIMARY` | PRIMARY | `RedemptionID` |
+| `uq_redemption_booking` | UNIQUE | `BookingID` |
+| `uq_redemption_slot` | UNIQUE | `UserPlanID`, `ActiveSlot` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_redemption_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+| `fk_redemption_plan` | `UserPlanID` | `user_plans.id` | RESTRICT / RESTRICT |
+
 ## `support_messages`
 
 Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
@@ -940,16 +1192,23 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `PurchasePrice` | `decimal(10,2)` | YES | `NULL` |  |
 | `PurchasedWashes` | `int(11)` | YES | `NULL` |  |
 | `PlanNameSnapshot` | `varchar(255)` | YES | `NULL` |  |
+| `FundingOrderID` | `char(48)` | YES | `NULL` |  |
+| `TermsSnapshot` | `longtext` | YES | `NULL` |  |
+| `PaymentHold` | `tinyint(1)` | NO | `0` |  |
+| `StartsAtUtc` | `datetime(6)` | YES | `NULL` |  |
+| `ExpiresAtUtc` | `datetime(6)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
 | `idx_user_plan_active` | INDEX | `user_id`, `status`, `end_date`, `created_at` |
 | `plan_id` | INDEX | `plan_id` |
 | `PRIMARY` | PRIMARY | `id` |
+| `uq_subscription_funding` | UNIQUE | `FundingOrderID` |
 | `user_id` | INDEX | `user_id` |
 
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
+| `fk_subscription_funding` | `FundingOrderID` | `payment_orders.OrderID` | RESTRICT / RESTRICT |
 | `user_plans_ibfk_1` | `user_id` | `user.UserID` | CASCADE / RESTRICT |
 | `user_plans_ibfk_2` | `plan_id` | `plans.id` | CASCADE / RESTRICT |
 

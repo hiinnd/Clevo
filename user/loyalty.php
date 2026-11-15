@@ -40,42 +40,14 @@ $currentPoints = clevoGetLoyaltyPoints($conn, (int)$userID);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
     clevo_require_csrf_token();
-    $requiredPoints = intval($_POST['points_to_deduct']);
-    $rewardValue = $requiredPoints / 40; 
-
-    if ($currentPoints >= $requiredPoints) {
-        $conn->begin_transaction();
-        try {
-            $wallet = clevoEnsureWallet($conn, $userID);
-            if (!clevoSpendLoyaltyPoints($conn, $userID, $requiredPoints)) {
-                throw new RuntimeException('not_enough_points');
-            }
-
-            
-            $upd_w = $conn->prepare("UPDATE `wallet` SET Balance = Balance + ? WHERE WalletID = ?");
-            $walletID = (int) $wallet['WalletID'];
-            $upd_w->bind_param("di", $rewardValue, $walletID);
-            $upd_w->execute();
-
-            
-            $desc_ar = "استبدال " . $requiredPoints . " نقطة مكافآت";
-            $desc_en = "Redeemed " . $requiredPoints . " loyalty points";
-            $ins_trans = $conn->prepare("INSERT INTO `wallet_transactions` (WalletID, Amount, TransactionType, Description_ar, Description_en) 
-                                        VALUES (?, ?, 'credit', ?, ?)");
-            $ins_trans->bind_param("idss", $walletID, $rewardValue, $desc_ar, $desc_en);
-            $ins_trans->execute();
-
-            $conn->commit();
-            $success = true;
-            $currentPoints -= $requiredPoints; 
-        } catch (Exception $e) {
-            $conn->rollback();
-            $error = "system_error";
-        }
-    } else {
-        $error = "not_enough_points";
+    try {
+        clevo_redeem_loyalty_wallet($conn,$userID,(int)($_POST['points_to_deduct']??0),(string)($_POST['idempotency_key']??''));
+        $success=true;$currentPoints=clevoGetLoyaltyPoints($conn,$userID);
+    } catch (Throwable $e) {
+        $error=$e instanceof ClevoSecurityException && $e->reason==='wallet_regulatory_review_required'?'wallet_frozen':'system_error';
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -202,9 +174,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 <i class="fas fa-coins text-warning fa-4x mb-3"></i>
                 <h6 class="fw-bold mb-3 text-custom-title text-center" data-i18n="redeem_confirm_t">تأكيد تحويل النقاط لرصيد؟</h6>
                 <form method="POST">
+                    <input type="hidden" name="idempotency_key" value="<?= e(bin2hex(random_bytes(24))) ?>">
                     <?= csrf_input(); ?>
                     <input type="hidden" name="points_to_deduct" id="modalPoints">
-                    <button type="submit" name="redeem_points" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mb-2 text-white" data-i18n="btn_confirm">تأكيد الاستبدال</button>
+                    <button type="submit" name="redeem_points" <?= clevo_finance_fixture_allowed($conn) ? '' : 'disabled' ?> class="btn btn-primary w-100 rounded-pill py-2 fw-bold mb-2 text-white" data-i18n="btn_confirm">تأكيد الاستبدال</button>
                     <button type="button" class="btn btn-light w-100 rounded-pill border py-2 fw-bold text-custom-muted text-center" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </form>
             </div>
@@ -233,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 reward_1_t: "رصيد 1 دينار بالمحفظة", reward_2_t: "رصيد 5 دنانير بالمحفظة",
                 points_unit: "نقطة", btn_redeem: "استبدال", btn_confirm: "تأكيد", btn_cancel: "إلغاء",
                 redeem_confirm_t: "تأكيد تحويل النقاط لرصيد؟", redeem_success_msg: "تم تحويل النقاط بنجاح!",
-                not_enough_points: "عذراً، رصيدك غير كافٍ للاستبدال.", system_error: "حدث خطأ في النظام، يرجى المحاولة لاحقاً.",
+                wallet_frozen: "تحويل النقاط إلى رصيد متوقف لحين اعتماد النموذج التجاري.", not_enough_points: "عذراً، رصيدك غير كافٍ للاستبدال.", system_error: "حدث خطأ في النظام، يرجى المحاولة لاحقاً.",
                 btn_invite: "دعوة", share_msg: "سجل في تطبيق Clevo واستخدم كود الدعوة الخاص بي للحصول على مكافآت متبادلة عند حجزك الأول! الكود: ", copied_title: "تم النسخ", copied_body: "تم نسخ رابط وكود الدعوة الخاص بك بنجاح!", btn_ok: "موافق"
             },
             en: {
@@ -244,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['redeem_points'])) {
                 reward_1_t: "1 JOD Wallet Credit", reward_2_t: "5 JOD Wallet Credit",
                 points_unit: "Points", btn_redeem: "Redeem", btn_confirm: "Confirm", btn_cancel: "Cancel",
                 redeem_confirm_t: "Confirm points conversion?", redeem_success_msg: "Points redeemed successfully!",
-                not_enough_points: "Sorry, insufficient points.", system_error: "System error, please try again.",
+                wallet_frozen: "Converting points into money awaits commercial approval.", not_enough_points: "Sorry, insufficient points.", system_error: "System error, please try again.",
                 btn_invite: "Invite", share_msg: "Register on Clevo using my referral link and enjoy rewards on your first booking! Code: ", copied_title: "Copied", copied_body: "Your referral link and code were copied successfully.", btn_ok: "OK"
             }
         };

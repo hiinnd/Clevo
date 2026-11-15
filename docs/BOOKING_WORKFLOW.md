@@ -1,5 +1,7 @@
 # CLEVO shared booking workflow
 
+Subsequent payment phase (2026-11-16): [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) and [PAYMENT_TEST_RESULTS.md](PAYMENT_TEST_RESULTS.md) are authoritative for migration 006, the approved new-booking 5% commission in integer JOD fils, sandbox hosted checkout, verified funding, refunds, ledger and commercial blockers. The API now has 145 operations across 125 paths. Earlier phase counts and retained financial rules below are historical where superseded.
+
 Implemented booking phase, 2026-11-16. PHP/mysqli, MySQL, the existing PHP pages, Arabic/English, themes and all four roles remain. Flutter is not built. No real database was migrated or reset. Validation uses isolated MariaDB copies; production deployment requires the checks below.
 
 ## One authoritative workflow

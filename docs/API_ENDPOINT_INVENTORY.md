@@ -1,6 +1,6 @@
 # API endpoint inventory
 
-Generated from the runtime route registry and preserved authentication controllers. `modified` means an endpoint existed before this API phase and now receives pagination/validation/envelope improvements; `unchanged` retains its business behavior; `added` had no `/api/v1` route. Legacy PHP pages remain available. Files: modules under `includes/api/`, shared services `includes/marketplace.php`, auth/commerce/security helpers. Gateway session creation for cards returns an explicit 503; it is not a simulated settlement.
+Generated from the runtime route registry and preserved authentication controllers. `modified` means an endpoint existed before this API phase and now receives pagination/validation/envelope improvements; `unchanged` retains its business behavior; `added` had no `/api/v1` route. Legacy PHP pages remain available. Files: modules under `includes/api/`, shared services `includes/marketplace.php`, auth/commerce/security helpers. Legacy card shortcuts return 503; configured sandbox hosted checkout uses payment-orders. Production online/wallet/settlement activation is blocked; see PAYMENT_INTEGRATION.md.
 
 | Method | /api/v1 path | Change | Roles | Request | Idempotency-Key | Handler |
 |---|---|---|---|---|---|---|
@@ -77,6 +77,24 @@ Generated from the runtime route registry and preserved authentication controlle
 | PATCH | `/driver/tasks/{id}/status` | added | driver | DriverStatus | required | `driver.status` |
 | POST | `/driver/tasks/{id}/location` | added | driver | Location | required | `driver.location` |
 | POST | `/payment-sessions` | added | customer | PaymentSession | required | `payments.session_create` |
+| POST | `/webhooks/paytabs` | added | public | none | not required | `finance.webhook` |
+| POST | `/payment-orders` | added | customer | OnlineCheckout | required | `finance.checkout` |
+| GET | `/payment-orders` | added | customer | none | not required | `finance.orders` |
+| GET | `/payment-orders/{session}` | added | customer | none | not required | `finance.order` |
+| POST | `/payment-orders/{session}/cancel` | added | customer | Empty | required | `finance.cancel` |
+| POST | `/payment-orders/{session}/reconcile` | added | customer | Empty | not required | `finance.reconcile` |
+| POST | `/payment-orders/{session}/refund-requests` | added | customer | OnlineRefund | required | `finance.refund_request` |
+| GET | `/payment-refunds` | added | customer | none | not required | `finance.refunds` |
+| GET | `/financial-receipts` | added | customer | none | not required | `finance.receipts` |
+| GET | `/financial-receipts/{id}` | added | customer | none | not required | `finance.receipt` |
+| GET | `/owner/financial-statement` | added | owner | none | not required | `finance.owner_statement` |
+| GET | `/owner/settlements` | added | owner | none | not required | `finance.settlements` |
+| GET | `/admin/payment-reconciliation` | added | admin | none | not required | `finance.report` |
+| GET | `/admin/payment-refunds` | added | admin | none | not required | `finance.refunds` |
+| POST | `/admin/payment-refunds/{id}/submit` | added | admin | Empty | required | `finance.refund_submit` |
+| GET | `/admin/financial-receipts/{id}` | added | admin | none | not required | `finance.receipt` |
+| GET | `/admin/settlements` | added | admin | none | not required | `finance.settlements` |
+| POST | `/admin/settlements` | added | admin | SettlementRequest | required | `finance.settlement_request` |
 | GET | `/payment-sessions/{session}` | added | customer | none | not required | `payments.session` |
 | POST | `/payment-sessions/{session}/confirm` | added | customer | Empty | required | `payments.confirm` |
 | GET | `/payments` | added | customer | none | not required | `payments.list` |

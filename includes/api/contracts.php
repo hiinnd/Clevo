@@ -12,7 +12,12 @@ function clevo_api_contracts():array
     $service=['name_ar'=>$s(100),'name_en'=>$s(100),'description_ar'=>$s(5000,0),'description_en'=>$s(5000,0),'price'=>$money,'duration'=>['type'=>'integer','minimum'=>1,'maximum'=>1440],'is_station'=>$b,'is_home'=>$b,'is_pickup'=>$b];
     $plan=['name_ar'=>$s(255),'name_en'=>$s(255),'price'=>$money,'duration'=>['type'=>'integer','minimum'=>1,'maximum'=>120],'duration_type'=>['type'=>'string','enum'=>['day','month','year']],'wash_count'=>['type'=>'integer','minimum'=>1,'maximum'=>10000],'description_ar'=>$s(5000,0),'description_en'=>$s(5000,0),'included_services_ar'=>$s(5000,0),'included_services_en'=>$s(5000,0),'is_active'=>$b];
     $empty=clevo_api_schema([]);
+    $policy=clevo_api_schema(['tier'=>['type'=>'string','enum'=>['silver','gold','diamond']],'service_ids'=>['type'=>'array','items'=>$id,'minItems'=>1,'maxItems'=>100,'uniqueItems'=>true],'modes'=>['type'=>'array','items'=>['type'=>'string','enum'=>['station','home','delivery']],'minItems'=>1,'maxItems'=>3,'uniqueItems'=>true],'allow_multiple'=>$b,'max_booking_amount'=>['type'=>'string','pattern'=>'^(0|[1-9][0-9]{0,7})(\.[0-9]{1,3})?$']],['tier','service_ids','modes','allow_multiple','max_booking_amount']);
+    $plan['sandbox_policy']=$policy;
     return [
+        'OnlineCheckout'=>clevo_api_schema(['purpose'=>['type'=>'string','enum'=>['booking','subscription']],'booking_id'=>$id,'plan_id'=>$id],['purpose']),
+        'OnlineRefund'=>clevo_api_schema(['reason'=>$s(500)],['reason']),
+        'SettlementRequest'=>clevo_api_schema(['owner_id'=>$id,'amount'=>['type'=>'string','pattern'=>'^(0|[1-9][0-9]{0,7})(\.[0-9]{1,3})?$']],['owner_id','amount']),
         'Empty'=>$empty,
         'Avatar'=>clevo_api_schema(['avatar'=>['type'=>'string','format'=>'binary']],['avatar']),
         'StationImage'=>clevo_api_schema(['image'=>['type'=>'string','format'=>'binary']],['image']),

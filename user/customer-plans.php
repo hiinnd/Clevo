@@ -5,7 +5,7 @@ include_once(__DIR__ . "/../includes/app-helpers.php");
 include_once(__DIR__ . "/../includes/plan-helpers.php");
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
-$message_key = isset($_GET['subscribed']) ? "success_sub" : "";
+$message_key = "";
 $message_type = $message_key ? "success" : "";
 
 clevoEnsurePlanColumns($conn);
@@ -164,7 +164,7 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
 <input type="hidden" name="idempotency_key" value="<?= e(bin2hex(random_bytes(24))) ?>">
                     <?= csrf_input(); ?>
                     <input type="hidden" name="plan_id" id="modalPlanID">
-                    <button type="submit" name="pay_wallet" class="pay-option d-flex align-items-center mb-3">
+                    <button type="submit" name="pay_wallet" class="pay-option d-flex align-items-center mb-3" <?= clevo_finance_fixture_allowed($conn) ? '' : 'disabled' ?>>
                         <i class="fas fa-wallet fa-2x text-success ms-3 me-3"></i>
                         <div class="text-start">
                             <h6 class="fw-bold mb-0 small" data-i18n="app_wallet">محفظة التطبيق</h6>

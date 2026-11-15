@@ -36,7 +36,7 @@ if (!preg_match('/^clevo_rt_[a-f0-9]{12}$/D', $runtimeUser) || !preg_match('/^[a
 $setup->query("CREATE USER '$runtimeUser'@'127.0.0.1' IDENTIFIED BY '$runtimePassword'");
 foreach ($conn->query('SHOW TABLES')->fetch_all(MYSQLI_NUM) as [$table]) {
     if (in_array($table,['security_migration_steps','database_migration_steps'],true)) continue;
-    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':(in_array($table,['wallet_transactions','booking_status_history'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
+    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':(in_array($table,['wallet_transactions','booking_status_history','financial_journals','financial_entries','financial_receipts','payment_evidence','financial_settlements'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
     $setup->query("GRANT $permissions ON `$database`.`$table` TO '$runtimeUser'@'127.0.0.1'");
 }
 $setup->query("GRANT DELETE ON `$database`.blacklist TO '$runtimeUser'@'127.0.0.1'");
@@ -309,7 +309,7 @@ foreach (['/owner/incoming-orders.php', '/owner/owner-reviews.php', '/owner/mana
 }
 [$status, , $html] = http('GET', '/admin/notifications.php', null, null, $adminJar);
 check($status === 200 && inline_js_valid($html), 'Admin notification page/inline scripts valid');
-$publicJar = __DIR__ . '/../.security-test/public.cookies'; $publicCsrf = csrf($publicJar);
+$publicJar = __DIR__ . '/../.security-test/public-' . $database . '.cookies'; $publicCsrf = csrf($publicJar);
 $countBefore = (int) $conn->query('SELECT COUNT(*) AS c FROM user')->fetch_assoc()['c'];
 [$status] = http('POST', '/general/register.php', ['register_action' => 1, 'role' => 'Admin', 'full_name' => 'Public attempt', 'email' => 'attempt@example.test', 'phone_suffix' => '99999999', 'password' => $password, 'confirm_password' => $password, 'csrf_token' => $publicCsrf], null, $publicJar, [], true);
 check($status === 200 && (int) $conn->query('SELECT COUNT(*) AS c FROM user')->fetch_assoc()['c'] === $countBefore, 'Legacy registration cannot self-provision an administrator');

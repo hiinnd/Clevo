@@ -113,7 +113,8 @@ function clevoSpendLoyaltyPoints(mysqli $conn, int $userID, float $points): bool
 
 function clevoCalculateAdminCommission(float $totalPrice): float
 {
-    return round(max(0, $totalPrice) * 0.10, 2);
+    require_once __DIR__.'/finance.php';
+    return clevo_finance_commission(clevo_finance_minor(max(0, $totalPrice))) / 1000;
 }
 
 function clevoCalculateOwnerPayout(float $totalPrice, float $adminCommission): float
@@ -123,6 +124,7 @@ function clevoCalculateOwnerPayout(float $totalPrice, float $adminCommission): f
 
 function clevoCreditWallet(mysqli $conn, int $walletID, float $amount): bool
 {
+    clevo_finance_require_legacy_fixture($conn);
     if ($walletID <= 0 || $amount <= 0) {
         return false;
     }
@@ -134,6 +136,7 @@ function clevoCreditWallet(mysqli $conn, int $walletID, float $amount): bool
 
 function clevoDebitWallet(mysqli $conn, int $walletID, float $amount): bool
 {
+    clevo_finance_require_legacy_fixture($conn);
     if ($walletID <= 0 || $amount <= 0) {
         return false;
     }
@@ -146,6 +149,7 @@ function clevoDebitWallet(mysqli $conn, int $walletID, float $amount): bool
 
 function clevoRecordWalletTransaction(mysqli $conn, int $walletID, float $amount, string $type, string $descriptionAr, string $descriptionEn): bool
 {
+    clevo_finance_require_legacy_fixture($conn);
     $stmt = $conn->prepare("INSERT INTO wallet_transactions (WalletID, Amount, TransactionType, Description_ar, Description_en) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("idsss", $walletID, $amount, $type, $descriptionAr, $descriptionEn);
     return $stmt->execute();
@@ -363,9 +367,14 @@ function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID,
 
 function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
 {
+    // Commercial earnings are recognized to the exact-fils payable ledger on completion.
+    // Preserve legacy wallet exercises only inside the guarded disposable test harness.
+    if(!clevo_finance_fixture_allowed($conn))return;
     clevo_db_atomic($conn,function()use($conn,$bookingID):void {
         $b=clevo_stmt($conn,'SELECT b.*,COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
         if (!$b || !in_array($b['Payment_Method'],['wallet','points','plan','visa'],true) || in_array($b['Status'],['Cancelled','Rejected','Cancelled_Timeout'],true)) return;
+        if(clevo_stmt($conn,'SELECT PaymentID FROM payments WHERE BookingID=? AND FundingOrderID IS NOT NULL','i',[$bookingID])->get_result()->fetch_assoc())return;
+        if($b['Payment_Method']==='plan'&&clevo_stmt($conn,'SELECT id FROM user_plans WHERE id=? AND FundingOrderID IS NOT NULL','i',[(int)$b['UserPlanID']])->get_result()->fetch_assoc())return;
         if ($b['Payment_Method']==='plan' && $b['Status']!=='Completed') return;
         if ($b['Payment_Method']==='plan') clevo_assert_booking_payment($conn,$b);
         if ($b['Payment_Method']!=='plan' && !clevo_stmt($conn,"SELECT PaymentID FROM payments WHERE BookingID=? AND Status='recorded'",'i',[$bookingID])->get_result()->fetch_assoc()) return;
@@ -373,7 +382,9 @@ function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
         $reference=clevoBookingReference($b,$bookingID);
         if (clevoBookingHasWalletTransaction($conn,$walletID,"Owner booking earning #$reference") || clevoBookingHasWalletTransaction($conn,$walletID,"Owner booking earning #$bookingID")) return;
         if (!clevo_db_effect($conn,$bookingID,'owner_payout')) return;
-        $cents=max(0,clevo_db_money($b['Total_Price'])-clevo_db_money($b['Admin_Commission']??'0'));
+        $fresh=clevo_stmt($conn,'SELECT * FROM booking WHERE BookingID=?','i',[$bookingID])->get_result()->fetch_assoc();
+        $base=$b['Payment_Method']==='plan'?clevo_db_money($b['Total_Price']):clevo_db_money(clevoBookingPayableAmount($b));
+        $cents=max(0,$base-clevo_db_money($fresh['Admin_Commission']??'0'));
         clevo_wallet_entry($conn,$walletID,$cents,'credit',"booking:$bookingID:owner_earning",$bookingID,"Owner booking earning #$reference");
     });
 }

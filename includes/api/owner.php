@@ -17,6 +17,7 @@ function clevo_api_owner(mysqli $db,string $action,array $ctx,array $args,array 
         $wallet=clevo_stmt($db,'SELECT WalletID,Balance FROM wallet WHERE UserID=?','i',[$user])->get_result()->fetch_assoc();
         $summary=clevo_stmt($db,"SELECT COALESCE(SUM(CASE WHEN b.Status='Completed' THEN b.Total_Price ELSE 0 END),0) nominal_completed_gmv,COALESCE(SUM(CASE WHEN b.Status='Completed' THEN b.Admin_Commission ELSE 0 END),0) nominal_commission,COUNT(*) booking_count FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE COALESCE(b.OwnerIDSnapshot,s.UserID)=?",'i',[$user])->get_result()->fetch_assoc();
         $summary['available_balance']=$wallet['Balance']??'0.00';
+        $summary['legacy_withdrawals_enabled']=clevo_finance_fixture_allowed($db);$summary['financial_statement']=clevo_finance_owner_summary($db,$user);
         clevo_api_result(['earnings'=>$summary,'transactions'=>clevo_api_list($db,'t.TransactionID,t.Amount,t.TransactionType,t.Description_ar,t.Description_en,t.CreatedAt,t.BookingID','FROM wallet_transactions t JOIN wallet w ON w.WalletID=t.WalletID','w.UserID=?','i',[$user],['id'=>'t.TransactionID','created_at'=>'t.CreatedAt','amount'=>'t.Amount'],'id','t.TransactionID')]);
     }
     if($action==='reviews')clevo_api_result(['reviews'=>clevo_api_list($db,'r.ReviewID,r.BookingID,r.Rating,r.Comment,r.Owner_Reply','FROM reviews r JOIN booking b ON b.BookingID=r.BookingID JOIN stations s ON s.StationID=b.StationID','s.UserID=?','i',[$user],['id'=>'r.ReviewID','rating'=>'r.Rating'],'id','r.ReviewID')]);

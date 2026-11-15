@@ -46,7 +46,7 @@ try {
     $runtimePassword = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
     $settings = @(
         'APP_ENV=testing', "APP_URL=http://127.0.0.1:$HttpPort", ('APP_KEY=' + (New-TestKey)), ('JWT_SECRET=' + (New-TestKey)),
-        'JWT_ISSUER=clevo', 'JWT_AUDIENCE=clevo-mobile', 'DB_HOST=127.0.0.1', "DB_PORT=$DatabasePort", "DB_DATABASE=$databaseName", 'DB_USERNAME=root', 'DB_PASSWORD=',
+        'JWT_ISSUER=clevo', 'JWT_AUDIENCE=clevo-mobile', 'DB_HOST=127.0.0.1', "DB_PORT=$DatabasePort", "DB_DATABASE=$databaseName", 'DB_USERNAME=root', 'DB_PASSWORD=', 'CLEVO_SYNTHETIC_FINANCE=1',
         ('PRIVATE_STORAGE_PATH=' + $privateRoot.Replace('\','/')), 'MAIL_TRANSPORT=null', 'CORS_ALLOWED_ORIGINS=https://app.example.test',
         "TEST_RUNTIME_USERNAME=$runtimeUser", "TEST_RUNTIME_PASSWORD=$runtimePassword"
     )
@@ -73,6 +73,8 @@ try {
         if ($integrationExit -eq 0) { & php tests/api.php; $apiExit = $LASTEXITCODE }
         $bookingExit = 0
         if ($integrationExit -eq 0) { & php tests/booking.php; $bookingExit = $LASTEXITCODE }
+        $financialExit = 0
+        if ($integrationExit -eq 0) { & php tests/payments.php; $financialExit = $LASTEXITCODE }
         & php tests/database.php
         $databaseExit = $LASTEXITCODE
         $apacheExit = 0
@@ -82,7 +84,7 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/API/booking/database tests failed. See assertion labels above.' }
+        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/API/booking/payment/database tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

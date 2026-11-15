@@ -39,6 +39,18 @@ erDiagram
     driver_assignments {
         bigint AssignmentID PK
     }
+    financial_entries {
+        bigint EntryID PK
+    }
+    financial_journals {
+        bigint JournalID PK
+    }
+    financial_receipts {
+        bigint ReceiptID PK
+    }
+    financial_settlements {
+        bigint SettlementID PK
+    }
     loyalty {
         int LoyaltyID PK
     }
@@ -61,11 +73,20 @@ erDiagram
     payments {
         bigint PaymentID PK
     }
+    payment_evidence {
+        bigint EvidenceID PK
+    }
+    payment_orders {
+        char OrderID PK
+    }
     payment_sessions {
         char SessionID PK
     }
     plans {
         int id PK
+    }
+    provider_refunds {
+        bigint RefundID PK
     }
     refund_requests {
         bigint RefundID PK
@@ -100,6 +121,9 @@ erDiagram
     }
     stations {
         int StationID PK
+    }
+    subscription_redemptions {
+        bigint RedemptionID PK
     }
     support_messages {
         int MessageID PK
@@ -143,6 +167,15 @@ erDiagram
     booking ||--o{ driver_assignments : "BookingID"
     user ||--o{ driver_assignments : "DriverID"
     stations ||--o{ driver_assignments : "StationID"
+    financial_journals ||--o{ financial_entries : "JournalID"
+    booking |o--o{ financial_journals : "BookingID"
+    payment_orders |o--o{ financial_journals : "OrderID"
+    user |o--o{ financial_journals : "OwnerID"
+    booking |o--o{ financial_receipts : "BookingID"
+    financial_journals ||--o| financial_receipts : "JournalID"
+    payment_orders |o--o{ financial_receipts : "OrderID"
+    user ||--o{ financial_receipts : "UserID"
+    user ||--o{ financial_settlements : "OwnerID"
     user ||--o{ loyalty : "UserID"
     user |o--o{ notifications : "user_id"
     notifications |o--o{ notification_outbox : "NotificationID"
@@ -154,9 +187,17 @@ erDiagram
     wallet |o--o{ owner_withdrawal_requests : "wallet_id"
     booking ||--o| payments : "BookingID"
     user ||--o{ payments : "UserID"
+    payment_orders |o--o| payments : "FundingOrderID"
+    payment_orders ||--o{ payment_evidence : "OrderID"
+    booking |o--o{ payment_orders : "BookingID"
+    plans |o--o{ payment_orders : "PlanID"
+    user ||--o{ payment_orders : "UserID"
     booking ||--o{ payment_sessions : "BookingID"
     payments |o--o{ payment_sessions : "PaymentID"
     user ||--o{ payment_sessions : "UserID"
+    user ||--o{ provider_refunds : "RequestedBy"
+    user |o--o{ provider_refunds : "SubmittedBy"
+    payment_orders ||--o| provider_refunds : "OrderID"
     user |o--o{ refund_requests : "ProcessedBy"
     booking ||--o| refund_requests : "BookingID"
     user ||--o{ refund_requests : "UserID"
@@ -165,6 +206,8 @@ erDiagram
     user ||--o{ saved_addresses : "UserID"
     stations |o--o{ services : "StationID"
     user |o--o{ stations : "UserID"
+    booking ||--o| subscription_redemptions : "BookingID"
+    user_plans ||--o{ subscription_redemptions : "UserPlanID"
     user |o--o{ support_messages : "SenderID"
     support_tickets ||--o{ support_messages : "TicketID"
     booking |o--o{ support_tickets : "BookingID"
@@ -172,6 +215,7 @@ erDiagram
     booking ||--o{ tracking_records : "BookingID"
     user ||--o{ tracking_records : "DriverID"
     stations |o--o{ user : "StationID"
+    payment_orders |o--o| user_plans : "FundingOrderID"
     user |o--o{ user_plans : "user_id"
     plans |o--o{ user_plans : "plan_id"
     user |o--o| wallet : "UserID"

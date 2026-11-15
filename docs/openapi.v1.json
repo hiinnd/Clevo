@@ -3,7 +3,7 @@
     "info": {
         "title": "CLEVO PHP REST API",
         "version": "1.0.0",
-        "description": "Existing PHP/MySQL marketplace API. All server event times are UTC; civil booking dates/times use BookingTimeZone. Card/provider/bank settlement is not configured. See API_INTEGRATION.md. Decimal money is serialized as strings; legacy numeric IDs may be strings."
+        "description": "Existing PHP/MySQL marketplace API. All server event times are UTC; civil booking dates/times use BookingTimeZone. Sandbox hosted checkout requires actual provider onboarding; production online payments, stored value and bank settlement are blocked. See PAYMENT_INTEGRATION.md. Decimal money is serialized as strings; legacy numeric IDs may be strings."
     },
     "servers": [
         {
@@ -947,6 +947,115 @@
                 }
             }
         },
+        "/admin/financial-receipts/{id}": {
+            "get": {
+                "operationId": "get_admin_financial_receipts_id_",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: receipt",
+                "description": "Allowed roles: admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "receipt": {
+                                                            "$ref": "#/components/schemas/FinancialReceipt"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "receipt"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        }
+                    }
+                ]
+            }
+        },
         "/admin/financial-reports": {
             "get": {
                 "operationId": "get_admin_financial_reports",
@@ -1060,6 +1169,378 @@
                         "description": "Validated bounded filter; see integration guide."
                     }
                 ]
+            }
+        },
+        "/admin/payment-reconciliation": {
+            "get": {
+                "operationId": "get_admin_payment_reconciliation",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: report",
+                "description": "Allowed roles: admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "reconciliation": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "reconciliation"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            }
+        },
+        "/admin/payment-refunds": {
+            "get": {
+                "operationId": "get_admin_payment_refunds",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: refunds",
+                "description": "Allowed roles: admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "refunds": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/ProviderRefund"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "refunds"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
+            }
+        },
+        "/admin/payment-refunds/{id}/submit": {
+            "post": {
+                "operationId": "post_admin_payment_refunds_id_submit",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: refund submit",
+                "description": "Allowed roles: admin. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "refund": {
+                                                            "$ref": "#/components/schemas/ProviderRefund"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "refund"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Empty"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/admin/refund-requests": {
@@ -1438,6 +1919,285 @@
                     },
                     "503": {
                         "$ref": "#/components/responses/Error503"
+                    }
+                }
+            }
+        },
+        "/admin/settlements": {
+            "get": {
+                "operationId": "get_admin_settlements",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: settlements",
+                "description": "Allowed roles: admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "settlements": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/Settlement"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "settlements"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "post_admin_settlements",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: settlement request",
+                "description": "Allowed roles: admin. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "settlement_id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "state": {
+                                                            "const": "blocked"
+                                                        },
+                                                        "blocker": {
+                                                            "const": "provider_marketplace_contract_not_approved"
+                                                        },
+                                                        "funds_transferred": {
+                                                            "const": false
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "settlement_id",
+                                                        "state",
+                                                        "blocker",
+                                                        "funds_transferred"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SettlementRequest"
+                            },
+                            "example": {
+                                "owner_id": 12,
+                                "amount": "1.187"
+                            }
+                        }
                     }
                 }
             }
@@ -8458,6 +9218,260 @@
                 }
             }
         },
+        "/financial-receipts": {
+            "get": {
+                "operationId": "get_financial_receipts",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: receipts",
+                "description": "Allowed roles: customer. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "receipts": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/FinancialReceipt"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "receipts"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
+            }
+        },
+        "/financial-receipts/{id}": {
+            "get": {
+                "operationId": "get_financial_receipts_id_",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: receipt",
+                "description": "Allowed roles: customer. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "receipt": {
+                                                            "$ref": "#/components/schemas/FinancialReceipt"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "receipt"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        }
+                    }
+                ]
+            }
+        },
         "/me": {
             "get": {
                 "operationId": "get_me",
@@ -12251,6 +13265,97 @@
                 }
             }
         },
+        "/owner/financial-statement": {
+            "get": {
+                "operationId": "get_owner_financial_statement",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: owner statement",
+                "description": "Allowed roles: owner. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "owner",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": [
+                                                        "object",
+                                                        "array"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            }
+        },
         "/owner/reviews": {
             "get": {
                 "operationId": "get_owner_reviews",
@@ -12792,6 +13897,151 @@
                         }
                     }
                 }
+            }
+        },
+        "/owner/settlements": {
+            "get": {
+                "operationId": "get_owner_settlements",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: settlements",
+                "description": "Allowed roles: owner. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "owner",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "settlements": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/Settlement"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "settlements"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
             }
         },
         "/owner/stations": {
@@ -13893,6 +15143,911 @@
                         }
                     }
                 }
+            }
+        },
+        "/payment-orders": {
+            "post": {
+                "operationId": "post_payment_orders",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: checkout",
+                "description": "Allowed roles: customer. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "payment_order": {
+                                                            "$ref": "#/components/schemas/OnlinePaymentOrder"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "payment_order"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OnlineCheckout"
+                            },
+                            "example": {
+                                "purpose": "booking",
+                                "booking_id": 123
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "get_payment_orders",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: orders",
+                "description": "Allowed roles: customer. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "payment_orders": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/OnlinePaymentOrder"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "payment_orders"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
+            }
+        },
+        "/payment-orders/{session}": {
+            "get": {
+                "operationId": "get_payment_orders_session_",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: order",
+                "description": "Allowed roles: customer. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "payment_order": {
+                                                            "$ref": "#/components/schemas/OnlinePaymentOrder"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "payment_order"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "session",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{48}$"
+                        }
+                    }
+                ]
+            }
+        },
+        "/payment-orders/{session}/cancel": {
+            "post": {
+                "operationId": "post_payment_orders_session_cancel",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: cancel",
+                "description": "Allowed roles: customer. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "order_id": {
+                                                            "type": "string"
+                                                        },
+                                                        "state": {
+                                                            "type": "string"
+                                                        },
+                                                        "cancel_requested": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "provider_cancellation_confirmed": {
+                                                            "const": false
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "order_id",
+                                                        "state",
+                                                        "cancel_requested",
+                                                        "provider_cancellation_confirmed"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "session",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{48}$"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Empty"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-orders/{session}/reconcile": {
+            "post": {
+                "operationId": "post_payment_orders_session_reconcile",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: reconcile",
+                "description": "Allowed roles: customer. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": [
+                                                        "object",
+                                                        "array"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "session",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{48}$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Empty"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-orders/{session}/refund-requests": {
+            "post": {
+                "operationId": "post_payment_orders_session_refund_requests",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: refund request",
+                "description": "Allowed roles: customer. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "refund_id": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "refund_id"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "session",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{48}$"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OnlineRefund"
+                            },
+                            "example": {
+                                "reason": "Cancel before service"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-refunds": {
+            "get": {
+                "operationId": "get_payment_refunds",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: refunds",
+                "description": "Allowed roles: customer. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "refunds": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/ProviderRefund"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "refunds"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
             }
         },
         "/payment-sessions": {
@@ -16575,6 +18730,126 @@
                     }
                 }
             }
+        },
+        "/webhooks/paytabs": {
+            "post": {
+                "operationId": "post_webhooks_paytabs",
+                "tags": [
+                    "finance"
+                ],
+                "summary": "finance: webhook",
+                "description": "Public server-to-server PayTabs sandbox callback. Signature is HMAC-SHA256 of the exact raw body using the protected profile server key. JWT/cookies/browser return data are not payment evidence. Production processing is disabled.",
+                "x-roles": "public",
+                "x-task-session-allowed": true,
+                "x-change": "added",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "received": {
+                                                            "const": true
+                                                        },
+                                                        "state": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "received",
+                                                        "state"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "Signature",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[a-fA-F0-9]{64}$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "Provider sale/refund payload; maximum 64 KiB. Signed amount, merchant/profile, currency, type and order/reference must match.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -16586,6 +18861,65 @@
             }
         },
         "schemas": {
+            "OnlineCheckout": {
+                "type": "object",
+                "properties": {
+                    "purpose": {
+                        "type": "string",
+                        "enum": [
+                            "booking",
+                            "subscription"
+                        ]
+                    },
+                    "booking_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "plan_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    }
+                },
+                "required": [
+                    "purpose"
+                ],
+                "additionalProperties": false
+            },
+            "OnlineRefund": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "additionalProperties": false
+            },
+            "SettlementRequest": {
+                "type": "object",
+                "properties": {
+                    "owner_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "amount": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]{0,7})(\\.[0-9]{1,3})?$"
+                    }
+                },
+                "required": [
+                    "owner_id",
+                    "amount"
+                ],
+                "additionalProperties": false
+            },
             "Empty": {
                 "type": "object",
                 "properties": {},
@@ -17454,6 +19788,59 @@
                     },
                     "is_active": {
                         "type": "boolean"
+                    },
+                    "sandbox_policy": {
+                        "type": "object",
+                        "properties": {
+                            "tier": {
+                                "type": "string",
+                                "enum": [
+                                    "silver",
+                                    "gold",
+                                    "diamond"
+                                ]
+                            },
+                            "service_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 2147483647
+                                },
+                                "minItems": 1,
+                                "maxItems": 100,
+                                "uniqueItems": true
+                            },
+                            "modes": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "station",
+                                        "home",
+                                        "delivery"
+                                    ]
+                                },
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "uniqueItems": true
+                            },
+                            "allow_multiple": {
+                                "type": "boolean"
+                            },
+                            "max_booking_amount": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,7})(\\.[0-9]{1,3})?$"
+                            }
+                        },
+                        "required": [
+                            "tier",
+                            "service_ids",
+                            "modes",
+                            "allow_multiple",
+                            "max_booking_amount"
+                        ],
+                        "additionalProperties": false
                     }
                 },
                 "required": [
@@ -17529,6 +19916,59 @@
                     },
                     "is_active": {
                         "type": "boolean"
+                    },
+                    "sandbox_policy": {
+                        "type": "object",
+                        "properties": {
+                            "tier": {
+                                "type": "string",
+                                "enum": [
+                                    "silver",
+                                    "gold",
+                                    "diamond"
+                                ]
+                            },
+                            "service_ids": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 2147483647
+                                },
+                                "minItems": 1,
+                                "maxItems": 100,
+                                "uniqueItems": true
+                            },
+                            "modes": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "station",
+                                        "home",
+                                        "delivery"
+                                    ]
+                                },
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "uniqueItems": true
+                            },
+                            "allow_multiple": {
+                                "type": "boolean"
+                            },
+                            "max_booking_amount": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,7})(\\.[0-9]{1,3})?$"
+                            }
+                        },
+                        "required": [
+                            "tier",
+                            "service_ids",
+                            "modes",
+                            "allow_multiple",
+                            "max_booking_amount"
+                        ],
+                        "additionalProperties": false
                     }
                 },
                 "required": [],
@@ -19620,6 +22060,218 @@
                     "ActorRole",
                     "Reason",
                     "ChangedAt"
+                ],
+                "additionalProperties": true
+            },
+            "OnlinePaymentOrder": {
+                "type": "object",
+                "properties": {
+                    "OrderID": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{48}$"
+                    },
+                    "State": {
+                        "type": "string",
+                        "enum": [
+                            "prepared",
+                            "creating",
+                            "pending",
+                            "succeeded",
+                            "failed",
+                            "cancelled",
+                            "unknown",
+                            "refund_due",
+                            "refunded"
+                        ]
+                    },
+                    "Purpose": {
+                        "type": "string",
+                        "enum": [
+                            "booking",
+                            "subscription"
+                        ]
+                    },
+                    "amount_minor": {
+                        "type": "integer"
+                    },
+                    "amount": {
+                        "type": "string"
+                    },
+                    "sandbox": {
+                        "const": true
+                    },
+                    "checkout_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "VerifiedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "OrderID",
+                    "State",
+                    "Purpose",
+                    "amount_minor",
+                    "amount",
+                    "sandbox",
+                    "checkout_url"
+                ],
+                "additionalProperties": true
+            },
+            "FinancialReceipt": {
+                "type": "object",
+                "properties": {
+                    "ReceiptID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "ReceiptNumber": {
+                        "type": "string",
+                        "maxLength": 40
+                    },
+                    "BookingID": {
+                        "type": [
+                            "integer",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "OrderID": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "AmountMinor": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "EvidenceKind": {
+                        "type": "string",
+                        "maxLength": 40
+                    },
+                    "IssuedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "ReceiptID",
+                    "ReceiptNumber",
+                    "AmountMinor",
+                    "EvidenceKind",
+                    "IssuedAt"
+                ],
+                "additionalProperties": true
+            },
+            "ProviderRefund": {
+                "type": "object",
+                "properties": {
+                    "RefundID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "OrderID": {
+                        "type": "string",
+                        "maxLength": 48
+                    },
+                    "State": {
+                        "type": "string",
+                        "enum": [
+                            "requested",
+                            "submitting",
+                            "pending",
+                            "succeeded",
+                            "failed",
+                            "unknown"
+                        ]
+                    },
+                    "AmountMinor": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "Reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "CreatedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "UpdatedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "RefundID",
+                    "OrderID",
+                    "State",
+                    "AmountMinor"
+                ],
+                "additionalProperties": true
+            },
+            "Settlement": {
+                "type": "object",
+                "properties": {
+                    "SettlementID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "OwnerID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "State": {
+                        "type": "string",
+                        "enum": [
+                            "blocked",
+                            "pending",
+                            "verified",
+                            "cancelled"
+                        ]
+                    },
+                    "AmountMinor": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "CreatedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "SettlementID",
+                    "OwnerID",
+                    "State",
+                    "AmountMinor"
                 ],
                 "additionalProperties": true
             }

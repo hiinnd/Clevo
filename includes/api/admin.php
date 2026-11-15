@@ -10,6 +10,14 @@ function clevo_market_plan(mysqli $db,int $actor,int $id,array $input):int
     $params=[$v['name_ar'],$v['name_en'],$price,$v['duration'],$v['duration_type'],$v['wash_count'],$v['description_ar'],$v['description_en'],$v['included_services_ar'],$v['included_services_en'],(int)$v['is_active']];
     if($id){$params[]=$id;clevo_stmt($db,'UPDATE plans SET name_ar=?,name_en=?,price=?,duration=?,duration_type=?,wash_count=?,description_ar=?,description_en=?,included_services_ar=?,included_services_en=?,is_active=? WHERE id=?','sssisissssii',$params);}
     else{clevo_stmt($db,'INSERT INTO plans (name_ar,name_en,price,duration,duration_type,wash_count,description_ar,description_en,included_services_ar,included_services_en,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?)','sssisissssi',$params);$id=(int)$db->insert_id;}
+    if(isset($input['sandbox_policy'])){
+        $policy=$input['sandbox_policy'];$ids=$policy['service_ids'];
+        $slots=implode(',',array_fill(0,count($ids),'?'));
+        $count=(int)clevo_stmt($db,"SELECT COUNT(*) n FROM services WHERE ArchivedAt IS NULL AND ServiceID IN ($slots)",str_repeat('i',count($ids)),$ids)->get_result()->fetch_assoc()['n'];
+        if($count!==count($ids))throw new ClevoSecurityException('subscription_service_unavailable',422);
+        clevo_finance_plan_terms(array_replace($v,['id'=>$id,'SandboxPolicy'=>json_encode($policy,JSON_THROW_ON_ERROR)]));
+        clevo_stmt($db,'UPDATE plans SET SandboxPolicy=? WHERE id=?','si',[json_encode($policy,JSON_THROW_ON_ERROR),$id]);
+    }
     clevo_db_audit($db,$actor,'plan.saved','plans',$id);return $id;
 }
 function clevo_market_account_status(mysqli $db,int $actor,int $id,string $status):void

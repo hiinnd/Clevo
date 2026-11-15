@@ -12,6 +12,7 @@ $monthly_profit = 0.00;
 $bankAccount = null;
 
 clevoEnsureOwnerPayoutTables($conn);
+$commercialStatement=clevo_finance_owner_summary($conn,(int)$userID);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_bank_account') {
     header('Content-Type: application/json; charset=utf-8');
@@ -69,7 +70,7 @@ if ($userID > 0) {
             --badge-bg: #334155; --border-card: #334155; --border-color: #334155;
             --wallet-grad: linear-gradient(135deg, #020617 0%, #1e293b 100%); 
         }
-        
+
         body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Cairo', sans-serif; transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-wrapper { display: flex; min-height: 100vh; }
 
@@ -83,18 +84,18 @@ if ($userID > 0) {
         .content-area { flex: 1; padding: 0; }
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
-        
+
         .wallet-card { background: var(--wallet-grad); color: white; border-radius: 24px; padding: 45px 20px; box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15); }
-        
+
         .transaction-item { background: var(--bg-card); border-radius: 24px; padding: 20px; margin-bottom: 15px; border: 1px solid var(--border-color); color: var(--text-main); transition: 0.3s; }
         [dir="rtl"] .transaction-item { border-right: 5px solid #28a745; }
         [dir="ltr"] .transaction-item { border-left: 5px solid #28a745; }
         .transaction-item.debit-item { border-color: #dc3545 !important; }
         [dir="rtl"] .transaction-item.debit-item { border-right: 5px solid #dc3545; }
         [dir="ltr"] .transaction-item.debit-item { border-left: 5px solid #dc3545; }
-        
+
         .stat-box { background: var(--bg-card); padding: 20px; border-radius: 24px; border: 1px solid var(--border-color); color: var(--text-main); height: 100%; }
-        
+
 
         .modal-content { border-radius: 30px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
 
@@ -115,7 +116,7 @@ const withdrawalRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
 
     <div class="container-fluid p-0">
         <div class="main-wrapper">
-            
+
             <?php include __DIR__ . '/../includes/shared_owner_sidebar.php'; ?>
 
             <main class="content-area">
@@ -131,14 +132,15 @@ const withdrawalRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
 
                 <div class="container mt-4 px-4 mx-auto" style="max-width: 900px;">
                     <div class="wallet-card text-center mb-4 shadow-sm">
-                        <small class="d-block mb-2 opacity-75 fw-bold" style="color: white !important;" data-i18n="available_balance">الرصيد المتاح للسحب</small>
+                        <small class="d-block mb-2 opacity-75 fw-bold" style="color: white !important;" data-i18n="available_balance">رصيد تاريخي — السحب غير مفعّل</small>
                         <h1 class="mb-4 fw-bold" style="color: white !important; font-size: 2.8rem;"><?php echo $balance; ?> JOD</h1>
-                        <button class="btn btn-warning rounded-pill px-5 fw-bold shadow-sm" onclick="showM('withdrawModal')" data-i18n="btn_withdraw" <?= $balanceValue <= 0 ? 'disabled' : '' ?>>سحب الأرباح</button>
+                        <button class="btn btn-warning rounded-pill px-5 fw-bold shadow-sm" onclick="showM('withdrawModal')" data-i18n="btn_withdraw" <?= $balanceValue <= 0 || !clevo_finance_fixture_allowed($conn) ? 'disabled' : '' ?>>سحب الأرباح</button>
                     </div>
 
+                    <div class="stat-box mb-3"><span lang="ar">مستحقات إلكترونية تجريبية / Sandbox payable:</span> <?= e(clevo_finance_decimal(max(0,$commercialStatement['sandbox_payable_minor']))) ?> JOD<br><span lang="ar">عمولات نقدية مستحقة / Cash commission due:</span> <?= e(clevo_finance_decimal(max(0,$commercialStatement['cash_commission_due_minor']))) ?> JOD</div>
                     <div class="row g-3 mb-4 text-center">
-                        <div class="col-6"><div class="stat-box border-bottom border-success border-4 shadow-sm"><small class="text-muted-custom d-block mb-1 fw-bold" data-i18n="monthly_profit">أرباح الشهر</small><strong class="text-success fs-5"><?php echo number_format($monthly_profit, 2); ?> JOD</strong></div></div>
-                        <div class="col-6"><div class="stat-box border-bottom border-primary border-4 shadow-sm"><small class="text-muted-custom d-block mb-1 fw-bold" data-i18n="commission_label">العمولة</small><strong class="text-primary fs-5">10%</strong></div></div>
+                        <div class="col-6"><div class="stat-box border-bottom border-success border-4 shadow-sm"><small class="text-muted-custom d-block mb-1 fw-bold" data-i18n="monthly_profit">إيداعات تاريخية هذا الشهر</small><strong class="text-success fs-5"><?php echo number_format($monthly_profit, 2); ?> JOD</strong></div></div>
+                        <div class="col-6"><div class="stat-box border-bottom border-primary border-4 shadow-sm"><small class="text-muted-custom d-block mb-1 fw-bold" data-i18n="commission_label">العمولة</small><strong class="text-primary fs-5">5% <small data-i18n="new_bookings_only">للحجوزات الجديدة</small></strong></div></div>
                     </div>
 
                     <div class="stat-box shadow-sm mb-4">
@@ -253,7 +255,7 @@ const withdrawalRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
         const translations = {
             ar: { 
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", nav_notifications: "الإشعارات",
-                wallet_page_title: "محفظتي المالية", available_balance: "الرصيد المتاح للسحب", btn_withdraw: "سحب الأرباح", monthly_profit: "أرباح الشهر", commission_label: "العمولة", recent_history: "السجل الأخير", 
+                wallet_page_title: "محفظتي المالية", available_balance: "رصيد تاريخي — السحب غير مفعّل", btn_withdraw: "سحب الأرباح", monthly_profit: "إيداعات تاريخية هذا الشهر", commission_label: "العمولة", recent_history: "السجل الأخير",
                 logout_title: "تأكيد الخروج", logout_msg: "هل أنت متأكد من الخروج من النظام؟", btn_confirm_logout: "نعم، خروج", btn_cancel: "إلغاء", 
                 no_transactions_yet: "لا توجد حركات بعد", confirm_withdraw_title: "تأكيد سحب الأرباح", confirm_withdraw_msg: "هل تريد سحب الرصيد المتاح لحسابك؟", btn_withdraw_now: "نعم، سحب الآن", btn_ok: "موافق",
                 withdraw_success_title: "تم إرسال الطلب", withdraw_success_body: "تم إرسال طلب السحب للإدارة وتسجيله في المحفظة.", withdraw_error_title: "تعذر تنفيذ الطلب", withdraw_error_body: "لا يوجد رصيد متاح للسحب أو تعذر تنفيذ الطلب.", request_failed_body: "تعذر تنفيذ الطلب.",
@@ -263,7 +265,7 @@ const withdrawalRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
             },
             en: { 
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
-                wallet_page_title: "My Wallet", available_balance: "Available Balance", btn_withdraw: "Withdraw", monthly_profit: "Monthly Profit", commission_label: "Commission", recent_history: "Recent History", 
+                wallet_page_title: "My Wallet", available_balance: "Historical balance — withdrawals unavailable", btn_withdraw: "Withdraw", monthly_profit: "Historical credits this month", commission_label: "Commission", recent_history: "Recent History",
                 logout_title: "Logout Confirmation", logout_msg: "Are you sure you want to log out?", btn_confirm_logout: "Yes, Logout", btn_cancel: "Cancel", 
                 no_transactions_yet: "No transactions found", confirm_withdraw_title: "Confirm Withdrawal", confirm_withdraw_msg: "Do you want to withdraw the available balance to your account?", btn_withdraw_now: "Yes, Withdraw Now", btn_ok: "OK",
                 withdraw_success_title: "Request Sent", withdraw_success_body: "Withdrawal request was sent to admin and recorded in your wallet.", withdraw_error_title: "Request Failed", withdraw_error_body: "No available balance or withdrawal failed.", request_failed_body: "Request failed.",
@@ -327,14 +329,14 @@ const withdrawalRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
             const lang = localStorage.getItem('app_lang') || 'ar';
             const theme = localStorage.getItem('global_theme') || 'light';
             const isRtl = lang === 'ar';
-            
+
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('lang', lang);
             document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
             document.getElementById('bootstrap-css').href = isRtl ? "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" : "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css";
-            
+
             document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if (translations[lang][key]) el.innerText = translations[lang][key]; });
-            
+
 
             document.querySelectorAll('.db-tx-desc').forEach(el => {
                 const arText = el.getAttribute('data-ar');

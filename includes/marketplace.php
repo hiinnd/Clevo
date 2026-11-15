@@ -142,6 +142,7 @@ function clevo_market_review_reply(mysqli $db,int $owner,int $review,string $rep
 }
 function clevo_market_withdrawal_status(mysqli $db,int $admin,int $id,string $status):void
 {
+    clevo_finance_require_legacy_fixture($db,'provider_settlements_not_approved');
     clevo_db_atomic($db,function()use($db,$admin,$id,$status):void{
         $r=clevo_stmt($db,'SELECT * FROM owner_withdrawal_requests WHERE id=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc();
         if(!$r)throw new ClevoSecurityException('not_found',404);if($r['status']===$status)return;

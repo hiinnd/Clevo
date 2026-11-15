@@ -49,6 +49,7 @@ function clevo_api_dispatch(mysqli $db,string $path,string $method):never
             'owner'=>clevo_api_owner($db,$handler,$ctx,$args,$input),
             'driver'=>clevo_api_driver($db,$handler,$ctx,$args,$input),
             'payments'=>clevo_api_payments($db,$handler,$ctx,$args,$input),
+            'finance'=>clevo_api_finance($db,$handler,$ctx,$args,$input),
             'admin'=>clevo_api_admin($db,$handler,$ctx,$args,$input),
             default=>throw new LogicException('Unknown API module.'),
         };

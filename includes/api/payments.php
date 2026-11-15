@@ -33,10 +33,10 @@ function clevo_api_payments(mysqli $db,string $action,array $ctx,array $args,arr
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);$session=$args['session']??'';
     if($action==='wallet'){
         $wallets=clevo_stmt($db,'SELECT Balance FROM wallet WHERE UserID=?','i',[$user])->get_result()->fetch_all(MYSQLI_ASSOC);if(count($wallets)>1)throw new ClevoSecurityException('wallet_requires_reconciliation',409);
-        clevo_api_result(['wallet'=>$wallets[0]??['Balance'=>'0.00']]);
+        clevo_api_result(['wallet'=>($wallets[0]??['Balance'=>'0.00'])+['spendable'=>clevo_finance_fixture_allowed($db),'commercial_stored_value_enabled'=>false]]);
     }
     if($action==='wallet_transactions')clevo_api_result(['transactions'=>clevo_api_list($db,'t.TransactionID,t.Amount,t.TransactionType,t.Description_ar,t.Description_en,t.CreatedAt,t.BookingID','FROM wallet_transactions t JOIN wallet w ON w.WalletID=t.WalletID','w.UserID=?','i',[$user],['id'=>'t.TransactionID','amount'=>'t.Amount','created_at'=>'t.CreatedAt'],'id','t.TransactionID')]);
-    if($action==='subscriptions')clevo_api_result(['subscriptions'=>clevo_api_list($db,'id,plan_id,start_date,end_date,status,remaining_washes,PurchasePrice,PurchasedWashes,PlanNameSnapshot,created_at','FROM user_plans','user_id=?','i',[$user],['id'=>'id','created_at'=>'created_at'],'id','id')]);
+    if($action==='subscriptions')clevo_api_result(['subscriptions'=>clevo_api_list($db,'id,plan_id,start_date,end_date,status,remaining_washes,PurchasePrice,PurchasedWashes,PlanNameSnapshot,FundingOrderID,StartsAtUtc,ExpiresAtUtc,PaymentHold,(FundingOrderID IS NOT NULL) funding_recorded,created_at','FROM user_plans','user_id=?','i',[$user],['id'=>'id','created_at'=>'created_at'],'id','id')]);
     if($action==='purchase'){
         if($input['method']!=='wallet')throw new ClevoSecurityException('payment_gateway_not_configured',503);
         clevo_api_result(clevo_purchase_plan($db,$user,$input['plan_id'],clevo_api_key()),201);

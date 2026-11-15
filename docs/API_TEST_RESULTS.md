@@ -1,5 +1,7 @@
 # REST API phase validation results
 
+Subsequent payment phase (2026-11-16): [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) and [PAYMENT_TEST_RESULTS.md](PAYMENT_TEST_RESULTS.md) are authoritative for migration 006, the approved new-booking 5% commission in integer JOD fils, sandbox hosted checkout, verified funding, refunds, ledger and commercial blockers. The API now has 145 operations across 125 paths. Earlier phase counts and retained financial rules below are historical where superseded.
+
 Subsequent booking phase (2026-11-16): [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) is authoritative for migration 005, configured interval capacity, status events, post-commit notification delivery and later test results. Earlier counts/availability descriptions below are historical where superseded.
 
 Executed 2026-11-15. PHP CLI/mod_php 8.2.12, MariaDB 10.4.32, Windows PowerShell, Node 24.22.3 and development-only Redocly CLI 2.78.0. These are observed test versions, not production patch-level recommendations. PHP/MySQL remain the runtime stack.

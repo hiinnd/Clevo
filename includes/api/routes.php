@@ -75,6 +75,24 @@ function clevo_api_routes():array
         $add('POST','driver/'.$alias.'/{id}/location','driver.location','driver','Location',true);
     }
     $add('POST','payment-sessions','payments.session_create','customer','PaymentSession',true,201);
+    $add('POST','webhooks/paytabs','finance.webhook','public');
+    $add('POST','payment-orders','finance.checkout','customer','OnlineCheckout',true,201);
+    $add('GET','payment-orders','finance.orders','customer');
+    $add('GET','payment-orders/{session}','finance.order','customer');
+    $add('POST','payment-orders/{session}/cancel','finance.cancel','customer','Empty',true);
+    $add('POST','payment-orders/{session}/reconcile','finance.reconcile','customer','Empty');
+    $add('POST','payment-orders/{session}/refund-requests','finance.refund_request','customer','OnlineRefund',true,201);
+    $add('GET','payment-refunds','finance.refunds','customer');
+    $add('GET','financial-receipts','finance.receipts','customer');
+    $add('GET','financial-receipts/{id}','finance.receipt','customer');
+    $add('GET','owner/financial-statement','finance.owner_statement','owner');
+    $add('GET','owner/settlements','finance.settlements','owner');
+    $add('GET','admin/payment-reconciliation','finance.report','admin');
+    $add('GET','admin/payment-refunds','finance.refunds','admin');
+    $add('POST','admin/payment-refunds/{id}/submit','finance.refund_submit','admin','Empty',true);
+    $add('GET','admin/financial-receipts/{id}','finance.receipt','admin');
+    $add('GET','admin/settlements','finance.settlements','admin');
+    $add('POST','admin/settlements','finance.settlement_request','admin','SettlementRequest',true,201);
     $add('GET','payment-sessions/{session}','payments.session','customer');
     $add('POST','payment-sessions/{session}/confirm','payments.confirm','customer','Empty',true);
     $add('GET','payments','payments.list','customer');

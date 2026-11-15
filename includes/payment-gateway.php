@@ -23,6 +23,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='mark_visa_p
     throw new ClevoSecurityException('payment_gateway_not_configured',503);
 }
 
+if ($usePoints) throw new ClevoSecurityException('online_points_not_approved',503);
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='start_checkout') {
+    $result=clevo_checkout_create($conn,$userID,$bookingID>0?['purpose'=>'booking','booking_id'=>$bookingID]:['purpose'=>'subscription','plan_id'=>$planID],(string)($_POST['idempotency_key']??''));
+    clevo_json_response('success',$result);
+}
 if ($bookingID > 0) {
     $stmt = $conn->prepare("SELECT Total_Price, Status, Payment_Method FROM booking WHERE BookingID = ? AND UserID = ?");
     $stmt->bind_param("ii", $bookingID, $userID);
@@ -58,7 +63,7 @@ $csrf_token = generate_csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Clevo | Payment</title>
-    
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
@@ -74,7 +79,7 @@ $csrf_token = generate_csrf_token();
             --text-muted: #9ca3af; --border-color: #334155; --input-bg: #1e293b;
             --visa-grad: linear-gradient(135deg, #0f172a 0%, #3b82f6 100%);
         }
-        
+
         body { 
             font-family: 'Cairo', sans-serif; background-color: var(--bg-body); 
             color: var(--text-main); min-height: 100vh; transition: 0.3s ease; 
@@ -93,7 +98,7 @@ $csrf_token = generate_csrf_token();
         }
 
         .payment-container { max-width: 450px; margin: 80px auto 40px; padding: 0 15px; }
-        
+
         .payment-card { 
             background: var(--bg-card); border-radius: 30px; padding: 25px; 
             border: 1px solid var(--border-color); box-shadow: 0 20px 40px rgba(0,0,0,0.1);
@@ -146,48 +151,9 @@ $csrf_token = generate_csrf_token();
                 </div>
             </div>
 
-            <!-- Virtual Card -->
-            <div class="credit-card-view">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div style="width: 45px; height: 35px; background: linear-gradient(135deg, #ffd700, #ffc107); border-radius: 8px;"></div>
-                    <i class="fab fa-cc-visa fa-3x"></i>
-                </div>
-                <div class="text-center fw-bold fs-4" id="mirrorNum" style="letter-spacing: 2px;">**** **** **** ****</div>
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <small class="d-block opacity-75" style="font-size: 10px;">CARD HOLDER</small>
-                        <span id="mirrorName" class="text-uppercase" style="font-size: 13px;">YOUR NAME</span>
-                    </div>
-                    <div class="text-end">
-                        <small class="d-block opacity-75" style="font-size: 10px;">EXPIRES</small>
-                        <span id="mirrorDate" style="font-size: 13px;">MM/YY</span>
-                    </div>
-                </div>
-            </div>
+            <p class="text-center" id="hostedNotice">سيتم إدخال بيانات البطاقة لدى مزود الدفع. لا تجمع CLEVO رقم البطاقة أو رمز الأمان.</p>
+            <button type="button" id="payBtn" class="btn btn-pay shadow-sm" onclick="handlePay(this)"><span id="btnPayText">متابعة إلى الدفع الآمن</span></button>
 
-            <form id="payForm">
-                <div class="mb-3">
-                    <label class="small fw-bold mb-1" id="labelName">اسم صاحب البطاقة</label>
-                    <input type="text" class="form-control" id="cardHolder" oninput="updateCard()" placeholder="Name on card">
-                </div>
-                <div class="mb-3">
-                    <label class="small fw-bold mb-1" id="labelCard">رقم البطاقة</label>
-                    <input type="text" class="form-control" id="cardNum" maxlength="19" oninput="updateCard()" placeholder="0000 0000 0000 0000">
-                </div>
-                <div class="row g-2 mb-4">
-                    <div class="col-7">
-                        <label class="small fw-bold mb-1" id="labelDate">تاريخ الانتهاء</label>
-                        <input type="text" class="form-control" id="cardDate" maxlength="5" oninput="formatDate(this)" placeholder="MM/YY">
-                    </div>
-                    <div class="col-5">
-                        <label class="small fw-bold mb-1">CVV</label>
-                        <input type="password" class="form-control text-center" id="cardCVV" maxlength="3" placeholder="***">
-                    </div>
-                </div>
-                <button type="button" onclick="handlePay(this)" class="btn btn-pay shadow-sm">
-                    <span id="btnPayText">تأكيد الدفع</span> <i class="fas fa-lock ms-2"></i>
-                </button>
-            </form>
         </div>
     </div>
 
@@ -246,19 +212,7 @@ $csrf_token = generate_csrf_token();
             document.documentElement.setAttribute('lang', lang);
             document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
             document.title = `${translations[lang].title} | Clevo`;
-            
-            if (!bookingID && !planID) {
-                const storedFinalPrice = localStorage.getItem('finalPrice');
-                if (storedFinalPrice && !isNaN(parseFloat(storedFinalPrice))) {
-                    document.getElementById('displayPrice').innerText = parseFloat(storedFinalPrice).toFixed(2) + " JOD";
-                }
-                const pendingBooking = JSON.parse(localStorage.getItem('pending_booking'));
-                if (pendingBooking && pendingBooking.services) {
-                    const total = pendingBooking.services.reduce((sum, s) => sum + parseFloat(s.price), 0);
-                    document.getElementById('displayPrice').innerText = total.toFixed(2) + " JOD";
-                }
-            }
-            
+
             applyLanguage();
         };
 
@@ -266,11 +220,13 @@ $csrf_token = generate_csrf_token();
             const t = translations[lang];
             document.getElementById('pageTitle').innerText = t.title;
             document.getElementById('priceLabel').innerText = t.price;
-            document.getElementById('labelName').innerText = t.labelName;
-            document.getElementById('labelCard').innerText = t.labelCard;
-            document.getElementById('labelDate').innerText = t.labelDate;
+
+
+
             document.getElementById('btnPayText').innerText = t.btnPay;
             document.getElementById('modalBtn').innerText = t.btnOk;
+            document.getElementById('btnPayText').innerText = lang==='ar'?'متابعة إلى الدفع الآمن':'Continue to secure checkout';
+            document.getElementById('hostedNotice').innerText = lang==='ar'?'سيتم إدخال بيانات البطاقة لدى مزود الدفع. لا تجمع CLEVO رقم البطاقة أو رمز الأمان.':'Enter card details only on the provider hosted page. CLEVO does not collect card numbers or security codes.';
         }
 
         function showModal(icon, title, body) {
@@ -280,62 +236,18 @@ $csrf_token = generate_csrf_token();
             new bootstrap.Modal(document.getElementById('statusModal')).show();
         }
 
+        const checkoutKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
         function handlePay(btn) {
-            const t = translations[lang];
-            const cardNum = document.getElementById('cardNum').value;
-            const cardHolder = document.getElementById('cardHolder').value;
-            
-            if (cardNum.length < 19 || cardHolder.trim() === "") {
-                showModal('<i class="fas fa-exclamation-circle text-warning fa-3x"></i>', t.errorTitle, t.errorMsg);
-                return;
-            }
-            const originalBtn = btn ? btn.innerHTML : '';
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${lang === 'ar' ? 'جاري الدفع...' : 'Processing...'}`;
-            }
-
-
-
-            
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=mark_visa_paid&csrf_token=' + encodeURIComponent(csrfToken)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status !== 'success') {
-                    showModal('<i class="fas fa-exclamation-circle text-warning fa-3x"></i>', t.errorTitle, data.message === 'payment_gateway_not_configured' ? (lang === 'ar' ? 'الدفع بالبطاقات غير متاح حالياً.' : 'Card payments are currently unavailable.') : (lang === 'ar' ? 'انتهت مهلة الدفع أو تم دفع الطلب مسبقاً.' : 'Payment expired or was already completed.'));
-                    return;
-                }
-                showModal('<i class="fas fa-check-circle text-success fa-3x"></i>', t.successTitle, planID ? t.planSuccessMsg : t.successMsg);
-                setTimeout(() => {
-                    location.href = planID ? '../user/customer-plans.php?subscribed=1' : '../user/booking-history.php';
-                }, 1200);
-            })
-            .catch(() => showModal('<i class="fas fa-exclamation-circle text-warning fa-3x"></i>', t.errorTitle, t.errorMsg))
-            .finally(() => {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = originalBtn;
-                }
-            });
-        }
-
-        function updateCard() {
-            let nInput = document.getElementById('cardNum');
-            let val = nInput.value.replace(/\D/g, '').match(/.{1,4}/g)?.join(' ') || "";
-            nInput.value = val;
-            document.getElementById('mirrorNum').innerText = val || "**** **** **** ****";
-            document.getElementById('mirrorName').innerText = document.getElementById('cardHolder').value || "YOUR NAME";
-        }
-
-        function formatDate(el) {
-            let val = el.value.replace(/\D/g, '');
-            if (val.length > 2) val = val.substring(0, 2) + '/' + val.substring(2, 4);
-            el.value = val;
-            document.getElementById('mirrorDate').innerText = val || "MM/YY";
+            btn.disabled=true;
+            const params=new URLSearchParams({action:'start_checkout',csrf_token:csrfToken,idempotency_key:checkoutKey});
+            fetch(window.location.href,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params.toString()})
+            .then(r=>r.json()).then(data=>{
+                const order=data.data?.payment_order;
+                if(data.status==='success'&&order?.checkout_url){window.location.assign(order.checkout_url);return;}
+                const message=lang==='ar'?'لم يُؤكد الدفع. قد تكون الخدمة غير مهيأة أو تحتاج العملية إلى التحقق. افتح الحجز لمعرفة حالته.':'Payment is not confirmed. Checkout may be unavailable or require reconciliation. Check your booking status.';
+                showModal('<i class="fas fa-info-circle text-primary fa-3x"></i>',lang==='ar'?'حالة الدفع':'Payment status',message);
+            }).catch(()=>showModal('<i class="fas fa-info-circle text-primary fa-3x"></i>',lang==='ar'?'حالة الدفع':'Payment status',lang==='ar'?'تعذر التحقق من النتيجة. لا تعِد إنشاء دفعة أخرى؛ تحقق من الحجز.':'Unable to verify the outcome. Check your booking before starting another payment.'))
+            .finally(()=>{btn.disabled=false;});
         }
     </script>
     <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>

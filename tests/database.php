@@ -93,7 +93,7 @@ $conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$id");
 $job=['op'=>'payment','user'=>1,'booking'=>$id,'key'=>bin2hex(random_bytes(16))];$race=db_race($job,$job);
 check($race[0]['ok']&&$race[1]['ok'],'Concurrent same-key payment retries both return committed response');
 check($conn->query('SELECT Balance FROM wallet WHERE UserID=1')->fetch_assoc()['Balance']==='90.00','Customer wallet debited exactly once');
-check($conn->query('SELECT Balance FROM wallet WHERE UserID=2')->fetch_assoc()['Balance']==='9.00','Owner credited once with stored commission');
+check($conn->query('SELECT Balance FROM wallet WHERE UserID=2')->fetch_assoc()['Balance']==='9.50','Synthetic legacy owner credit reflects the newly approved five percent commission');
 check((int)$conn->query("SELECT COUNT(*) n FROM payments WHERE BookingID=$id")->fetch_assoc()['n']===1,'One typed payment record exists');
 rejects(fn()=>clevo_pay_booking($conn,1,$id,'wallet',false,bin2hex(random_bytes(16))),'A different payment key cannot debit a paid booking');
 clevoRefundBookingPayment($conn,$id);clevoRefundBookingPayment($conn,$id);

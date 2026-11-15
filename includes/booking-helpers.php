@@ -160,10 +160,14 @@ function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason 
         $method=(string)$b['Payment_Method'];
         if (!$method || $method==='cash') return ['refunded'=>false,'method'=>$method,'amount'=>0,'message'=>'no_payment'];
         $payment=clevo_stmt($conn,'SELECT * FROM payments WHERE BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
+        if($method==='visa'&&!empty($payment['FundingOrderID'])){
+            if(!clevo_finance_verified_refund($conn,$bookingID))throw new ClevoSecurityException('provider_refund_confirmation_required',409);
+            return ['refunded'=>true,'method'=>'visa','amount'=>(float)$payment['Amount'],'message'=>'provider_refunded'];
+        }
         if ($method!=='plan'&&!$payment) throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
         if (!clevo_db_effect($conn,$bookingID,'refund')) return ['refunded'=>true,'method'=>$method,'amount'=>0,'message'=>'already_refunded'];
         if (!in_array($b['Status'],['Pending','Accepted','Rejected','Cancelled','Cancelled_Timeout'],true) || !in_array($method,['wallet','points','plan'],true)) throw new ClevoSecurityException('manual_refund_required',409);
-        clevo_assert_booking_payment($conn,$b);
+        if($method!=='plan')clevo_assert_booking_payment($conn,$b);
         if ($method==='plan') {
             clevoRestorePlanWashForBooking($conn,$bookingID);
         } else {

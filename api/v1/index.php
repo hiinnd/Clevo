@@ -6,7 +6,7 @@ $GLOBALS['clevo_request_id']=bin2hex(random_bytes(16));
 require_once __DIR__.'/../../includes/config.php';
 if(!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='004_mobile_api'")->get_result()->fetch_assoc()) throw new RuntimeException('API migration required.');
 require_once __DIR__.'/../../includes/marketplace.php';
-foreach(['http','contracts','routes','catalog','bookings','customer','owner','driver','payments','admin','router'] as $module) require_once __DIR__.'/../../includes/api/'.$module.'.php';
+foreach(['http','contracts','routes','catalog','bookings','customer','owner','driver','payments','admin','finance','router'] as $module) require_once __DIR__.'/../../includes/api/'.$module.'.php';
 try {
 require __DIR__.'/auth.php';
 if(in_array($route,['auth/logout','auth/logout-all'],true)){
