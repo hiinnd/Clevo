@@ -31,6 +31,7 @@ Generated from the runtime route registry and preserved authentication controlle
 | POST | `/bookings` | modified | customer | Booking | required | `bookings.create` |
 | GET | `/bookings/{id}` | modified | any | none | not required | `bookings.detail` |
 | GET | `/bookings/{id}/status` | added | any | none | not required | `bookings.status` |
+| GET | `/bookings/{id}/events` | added | customer,owner,admin | none | not required | `bookings.events` |
 | GET | `/bookings/{id}/price-breakdown` | added | customer,owner,admin | none | not required | `bookings.price` |
 | POST | `/bookings/{id}/cancel` | added | customer | Empty | required | `bookings.cancel` |
 | POST | `/bookings/{id}/reschedule` | added | customer | Reschedule | required | `bookings.reschedule` |
@@ -98,6 +99,7 @@ Generated from the runtime route registry and preserved authentication controlle
 | DELETE | `/admin/stations/{id}` | added | admin | Empty | required | `admin.station_archive` |
 | GET | `/admin/bookings` | added | admin | none | not required | `admin.bookings` |
 | GET | `/admin/bookings/{id}` | added | admin | none | not required | `admin.booking` |
+| POST | `/admin/bookings/{id}/cancel` | added | admin | BookingCancellation | required | `admin.booking_cancel` |
 | GET | `/admin/financial-reports` | added | admin | none | not required | `admin.financial` |
 | GET | `/admin/subscription-plans` | added | admin | none | not required | `admin.plans` |
 | POST | `/admin/subscription-plans` | added | admin | PlanCreate | required | `admin.plan_create` |

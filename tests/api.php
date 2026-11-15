@@ -44,11 +44,14 @@ function api_login(int $id,string $password):string
 function api_booking_fixture(int $customer,int $station,int $service,string $status='Pending',string $mode='station',?int $driver=null):int
 {
     global $conn;
-    clevo_stmt($conn,"INSERT INTO booking (UserID,StationID,ServiceID,DriverID,Order_Number,Status,Service_Location,Booking_Date,Booking_Time,Total_Price,Admin_Commission,Accepted_At,OwnerIDSnapshot) SELECT ?,?,?,?, ?,?,?,CURDATE()+INTERVAL 2 DAY,'10:00:00',10,1,IF(?='Accepted',UTC_TIMESTAMP(),NULL),UserID FROM stations WHERE StationID=?",'iiiissssi',[$customer,$station,$service,$driver,'API'.bin2hex(random_bytes(7)),$status,$mode,$status,$station]);return (int)$conn->insert_id;
+    clevo_stmt($conn,"INSERT INTO booking (UserID,StationID,ServiceID,DriverID,Order_Number,Status,Service_Location,Booking_Date,Booking_Time,Total_Price,Admin_Commission,Accepted_At,OwnerIDSnapshot) SELECT ?,?,?,?, ?,?,?,CURDATE()+INTERVAL 2 DAY,'10:00:00',10,1,IF(?='Accepted',UTC_TIMESTAMP(),NULL),UserID FROM stations WHERE StationID=?",'iiiissssi',[$customer,$station,$service,$driver,'API'.bin2hex(random_bytes(7)),$status,$mode,$status,$station]);
+    $id=(int)$conn->insert_id;static $slot=0;$slot++;$when=(new DateTimeImmutable('+2 days 00:00:00'))->modify('+'.$slot.' hours');
+    clevo_stmt($conn,'UPDATE booking SET Booking_Date=?,Booking_Time=? WHERE BookingID=?','ssi',[$when->format('Y-m-d'),$when->format('H:i:s'),$id]);return $id;
 }
 $password='Api!'.bin2hex(random_bytes(12));
 $customer=api_user('customer',$password);$other=api_user('User',$password);$owner=api_user('owner',$password);$owner2=api_user('owner',$password);$driver=api_user('driver',$password);$driver2=api_user('driver',$password);$admin=api_user('Admin',$password);
 foreach([$owner,$owner2]as $uid)clevo_stmt($conn,"INSERT INTO stations (UserID,Name,Location,Lat,Lon,Status,admin_status,Has_At_Station,Has_Home_Service,Has_Delivery) VALUES (?,'API fixture','Amman',31.95,35.91,'Active','approved',1,1,1)",'i',[$uid]);
+$conn->query('UPDATE stations SET BookingCapacity=1000,HomeCapacity=1000');
 $station=(int)clevo_stmt($conn,'SELECT StationID FROM stations WHERE UserID=?','i',[$owner])->get_result()->fetch_assoc()['StationID'];$station2=$station+1;
 clevo_stmt($conn,'UPDATE user SET StationID=? WHERE UserID=?','ii',[$station,$driver]);clevo_stmt($conn,'UPDATE user SET StationID=? WHERE UserID=?','ii',[$station2,$driver2]);
 foreach([$station,$station2]as $sid)clevo_stmt($conn,"INSERT INTO services (StationID,Name,Name_ar,Name_en,Price,is_station,is_home,is_pickup) VALUES (?,'API wash','API wash','API wash',10,1,1,1)",'i',[$sid]);

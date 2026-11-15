@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/booking-helpers.php';
+require_once __DIR__.'/booking-workflow.php';
 
 function clevo_create_booking(mysqli $conn,int $user,int $station,array $input,string $key): array
 {
@@ -11,40 +12,41 @@ function clevo_create_booking(mysqli $conn,int $user,int $station,array $input,s
     $mode=(string)($input['service_location']??''); $date=(string)($input['booking_date']??''); $time=(string)($input['booking_time']??'');
     if (!in_array($mode,['station','home','delivery'],true)) throw new ClevoSecurityException('invalid_location',422);
     if (strlen($time)===5) $time.=':00';
-    $zone=new DateTimeZone(clevo_env('BOOKING_TIMEZONE','Asia/Amman'));
-    $when=DateTimeImmutable::createFromFormat('!Y-m-d H:i:s',"$date $time",$zone);
-    if (!$when || $when->format('Y-m-d H:i:s')!=="$date $time") throw new ClevoSecurityException('invalid_booking_time',422);
+    $when=clevo_booking_datetime($date,$time);$zone=$when->getTimezone();
     $lat=$input['latitude']??null; $lon=$input['longitude']??null;
     if ($mode!=='station' && (!is_numeric($lat)||!is_numeric($lon)||abs((float)$lat)>90||abs((float)$lon)>180)) throw new ClevoSecurityException('location_required',422);
     $lat=is_numeric($lat)?(float)$lat:null; $lon=is_numeric($lon)?(float)$lon:null;
     if (($lat!==null&&(!is_finite($lat)||abs($lat)>90))||($lon!==null&&(!is_finite($lon)||abs($lon)>180))) throw new ClevoSecurityException('invalid_coordinates',422);
+    if ($mode==='station') {$lat=null;$lon=null;}
+    else {$lat=round($lat,8);$lon=round($lon,8);}
     $address=clevo_clean_string($input['address_details']??'',2000); $usePlan=filter_var($input['use_plan']??false,FILTER_VALIDATE_BOOLEAN);
     $body=[$station,$ids,$mode,$date,$time,$lat,$lon,$address,$usePlan];
     return clevo_db_idempotent($conn,$user,'booking.create',$key,$body,function()use($conn,$user,$station,$ids,$mode,$date,$time,$when,$zone,$lat,$lon,$address,$usePlan):array {
         if ($when<=new DateTimeImmutable('now',$zone)) throw new ClevoSecurityException('invalid_booking_time',422);
         $s=clevo_stmt($conn,"SELECT * FROM stations WHERE StationID=? AND ArchivedAt IS NULL AND admin_status='approved' AND Status='Active' FOR UPDATE",'i',[$station])->get_result()->fetch_assoc();
         if (!$s) throw new ClevoSecurityException('station_unavailable',409);
-        $flag=['station'=>'Has_At_Station','home'=>'Has_Home_Service','delivery'=>'Has_Delivery'][$mode];
-        if (!(int)$s[$flag]) throw new ClevoSecurityException('service_unavailable',409);
-        if ($s['OpeningTime'] && $s['ClosingTime']) {
-            $open=$s['OpeningTime']; $close=$s['ClosingTime'];
-            $inside=$open<$close?($time>=$open&&$time<$close):($open===$close||$time>=$open||$time<$close);
-            if (!$inside) throw new ClevoSecurityException('outside_opening_hours',422);
-        }
+        $account=clevo_booking_actor($conn,$user);
+        if (clevo_role($account['Role'])!=='customer') throw new ClevoSecurityException('forbidden',403);
+        cancelExpiredBookings($conn,null,$station);
+        $fingerprint=clevo_booking_intent($user,$station,$ids,$mode,$when,$lat,$lon,$address,$usePlan);
+        $existing=clevo_stmt($conn,'SELECT BookingID,Order_Number,Payment_Method FROM booking WHERE ActiveRequestFingerprint=? FOR UPDATE','s',[$fingerprint])->get_result()->fetch_assoc();
+        if ($existing) return ['status'=>'success','booking_id'=>(int)$existing['BookingID'],'order_number'=>$existing['Order_Number'],'payment_method'=>$existing['Payment_Method']];
         $placeholders=implode(',',array_fill(0,count($ids),'?'));
         $services=clevo_stmt($conn,"SELECT * FROM services WHERE StationID=? AND ServiceID IN ($placeholders) AND ArchivedAt IS NULL ORDER BY ServiceID FOR UPDATE",str_repeat('i',count($ids)+1),array_merge([$station],$ids))->get_result()->fetch_all(MYSQLI_ASSOC);
         if (count($services)!==count($ids)) throw new ClevoSecurityException('service_unavailable',409);
-        $total=0; $kind=['station'=>'is_station','home'=>'is_home','delivery'=>'is_pickup'][$mode];
-        foreach ($services as $service) { if (!(int)$service[$kind] || $service['Price']===null) throw new ClevoSecurityException('service_unavailable',409); $total+=clevo_db_money($service['Price']); }
-        if ($total>9999999999) throw new ClevoSecurityException('invalid_amount',422);
+        $quote=clevo_booking_schedule($s,$services,$mode,$when);$total=$quote['total'];
+        clevo_booking_assert_capacity($conn,$s,$mode,$when,$quote['end']);
         $plan=$usePlan?clevoUsePlanForBooking($conn,$user):null;
         if ($usePlan&&!$plan) throw new ClevoSecurityException('plan_unavailable',409);
         $method=$usePlan?'plan':''; $planId=$plan?(int)$plan['id']:null; $used=$usePlan?1:0;
         $order='C'.strtoupper(bin2hex(random_bytes(9))); $utc=$when->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
         clevo_stmt($conn,"INSERT INTO booking (Order_Number,UserID,StationID,ServiceID,Service_Location,Latitude,Longitude,Address_Details,Booking_Date,Booking_Time,Total_Price,Admin_Commission,Payment_Method,UserPlanID,Plan_Washes_Used,ScheduledAtUtc,BookingTimeZone) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",'siiisddssssssiiss',[$order,$user,$station,$ids[0],$mode,$lat,$lon,$address,$date,$time,clevo_db_decimal($total),clevo_db_decimal((int)round($total/10)),$method,$planId,$used,$utc,$zone->getName()]);
         $booking=(int)$conn->insert_id;
-        clevo_stmt($conn,'UPDATE booking SET OwnerIDSnapshot=? WHERE BookingID=?','ii',[(int)$s['UserID'],$booking]);
+        $end=$quote['end']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        clevo_stmt($conn,'UPDATE booking SET OwnerIDSnapshot=?,DurationMinutes=?,ScheduledEndAtUtc=?,ServicesSubtotal=?,AdditionalFee=?,RequestFingerprint=? WHERE BookingID=?','iissssi',[(int)$s['UserID'],$quote['duration'],$end,clevo_db_decimal($quote['subtotal']),clevo_db_decimal($quote['fee']),$fingerprint,$booking]);
+        foreach ($services as &$service) $service['DurationMinutes']=$quote['durations'][(int)$service['ServiceID']];unset($service);
         clevoSaveBookingServices($conn,$booking,$services);
+        clevo_booking_event($conn,$booking,null,'Pending',$user,'customer','booking_requested');
         if ($plan) clevo_stmt($conn,"INSERT INTO payments (BookingID,UserID,Method,Status,Amount) VALUES (?,?,'plan','recorded',0)",'ii',[$booking,$user]);
         clevoCreateNotification($conn,(int)$s['UserID'],'طلب جديد',"وصلك طلب جديد #$order بتاريخ $date الساعة $time.",'info','incoming-orders.php','New order',"Order #$order on $date at $time.");
         clevo_db_audit($conn,$user,'booking.created','booking',$booking);
@@ -145,19 +147,7 @@ function clevo_lock_wallets(mysqli $conn,array $users): void
 
 function clevo_complete_owner_booking(mysqli $conn,int $owner,int $booking): void
 {
-    clevo_db_atomic($conn,function()use($conn,$owner,$booking):void {
-        $b=clevo_stmt($conn,"SELECT b.* FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? AND s.UserID=? AND b.Service_Location IN ('station','home') FOR UPDATE",'ii',[$booking,$owner])->get_result()->fetch_assoc();
-        if (!$b) throw new ClevoSecurityException('not_found',404);
-        if ($b['Status']==='Completed') return;
-        if (!in_array($b['Status'],['Accepted','In Progress'],true)||empty($b['Payment_Method'])) throw new ClevoSecurityException('payment_or_state_required',409);
-        clevo_assert_booking_payment($conn,$b,true);
-        clevo_stmt($conn,"UPDATE booking SET Status='Completed' WHERE BookingID=?",'i',[$booking]);
-        if (clevo_db_effect($conn,$booking,'completion_reward')) clevoAddLoyaltyPoints($conn,(int)$b['UserID'],(float)$b['Total_Price']);
-        if ($b['Payment_Method']==='plan') clevoCreditOwnerForBooking($conn,$booking);
-        clevo_stmt($conn,"UPDATE payments SET Status='recorded' WHERE BookingID=? AND Method='cash' AND Status='pending'",'i',[$booking]);
-        clevo_db_audit($conn,$owner,'booking.completed','booking',$booking);
-        clevoCreateNotification($conn,(int)$b['UserID'],'اكتمل الطلب','تم إكمال الخدمة بنجاح. يمكنك تقييمها الآن.','success',"order-details.php?id=$booking",'Order completed','Your service is complete.');
-    });
+    clevo_booking_transition($conn,$owner,$booking,'Completed','owner_completed');
 }
 
 function clevo_assert_booking_payment(mysqli $conn,array $booking,bool $cashCollection=false):void
@@ -186,20 +176,7 @@ function clevo_assert_booking_payment(mysqli $conn,array $booking,bool $cashColl
 
 function clevo_accept_owner_booking(mysqli $conn,int $owner,int $booking): void
 {
-    clevo_db_atomic($conn,function()use($conn,$owner,$booking):void {
-        $b=clevo_stmt($conn,'SELECT b.* FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? AND s.UserID=? AND s.ArchivedAt IS NULL FOR UPDATE','ii',[$booking,$owner])->get_result()->fetch_assoc();
-        if (!$b) throw new ClevoSecurityException('not_found',404);
-        if ($b['Status']==='Accepted') return;
-        if ($b['Status']!=='Pending') throw new ClevoSecurityException('invalid_transition',409);
-        if(strtotime($b['created_at'].' UTC')<time()-600)throw new ClevoSecurityException('booking_expired',409);
-        clevo_stmt($conn,"UPDATE booking SET Status='Accepted',Accepted_At=UTC_TIMESTAMP(),notification_sent=0 WHERE BookingID=?",'i',[$booking]);
-        $order=clevoBookingReference($b,$booking);
-        $message=$b['Payment_Method']==='plan'?"Order #$order accepted using your plan.":"Order #$order accepted. Choose a payment method within 10 minutes.";
-        $arabic=$b['Payment_Method']==='plan'?"تم قبول طلبك #$order وسيتم احتسابه من باقتك.":"تم قبول طلبك #$order. يرجى اختيار طريقة الدفع خلال 10 دقائق.";
-        clevoCreateNotification($conn,(int)$b['UserID'],'تم قبول الطلب',$arabic,'success',"order-details.php?id=$booking",'Order accepted',$message);
-        clevoCreateRoleNotification($conn,'Admin','قبول طلب من صاحب محطة',"تم قبول الطلب #$order.",'info','financial-reports.php','Order accepted by station owner',"Order #$order accepted.");
-        clevo_db_audit($conn,$owner,'booking.accepted','booking',$booking);
-    });
+    clevo_booking_transition($conn,$owner,$booking,'Accepted','owner_accepted');
 }
 
 function clevo_payment_window(array $booking):void

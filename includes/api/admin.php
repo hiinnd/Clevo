@@ -32,13 +32,11 @@ function clevo_market_refund_decision(mysqli $db,int $admin,int $id,array $input
     $r=clevo_api_require_row(clevo_stmt($db,'SELECT * FROM refund_requests WHERE RefundID=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc());
     if($r['Status']!=='pending')throw new ClevoSecurityException('refund_already_processed',409);
     if($input['status']==='approved'){
-        $b=clevo_api_require_row(clevo_stmt($db,'SELECT Status,Payment_Method FROM booking WHERE BookingID=? FOR UPDATE','i',[(int)$r['BookingID']])->get_result()->fetch_assoc());
+        $b=clevo_booking_lock($db,(int)$r['BookingID']);
         if(!in_array($b['Status'],['Pending','Accepted','Rejected','Cancelled','Cancelled_Timeout'],true))throw new ClevoSecurityException('manual_refund_required',409);
         if(!in_array($b['Payment_Method'],['wallet','points','plan'],true))throw new ClevoSecurityException('manual_refund_required',409);
-        clevoRefundBookingPayment($db,(int)$r['BookingID'],'approved_refund');
-        clevo_stmt($db,"UPDATE booking SET Status='Cancelled',notification_sent=1 WHERE BookingID=?",'i',[(int)$r['BookingID']]);
-        clevo_stmt($db,'UPDATE driver_assignments SET EndedAt=UTC_TIMESTAMP(6) WHERE BookingID=? AND EndedAt IS NULL','i',[(int)$r['BookingID']]);
-        clevo_stmt($db,'UPDATE auth_sessions SET RevokedAt=UTC_TIMESTAMP() WHERE DriverBookingID=?','i',[(int)$r['BookingID']]);
+        if(in_array($b['Status'],['Pending','Accepted'],true))clevo_booking_transition($db,$admin,(int)$r['BookingID'],'Cancelled','approved_refund');
+        else clevoRefundBookingPayment($db,(int)$r['BookingID'],'approved_refund');
     }
     clevo_stmt($db,'UPDATE refund_requests SET Status=?,DecisionNote=?,ProcessedBy=?,ProcessedAt=UTC_TIMESTAMP(6) WHERE RefundID=?','ssii',[$input['status'],$input['note'],$admin,$id]);
     clevoCreateNotification($db,(int)$r['UserID'],'تحديث طلب الاسترجاع','تم تحديث حالة طلب الاسترجاع.','info','booking-history.php','Refund request update','Your refund request was reviewed.');clevo_db_audit($db,$admin,'refund.reviewed','refund_requests',$id);
@@ -86,6 +84,7 @@ function clevo_api_admin(mysqli $db,string $action,array $ctx,array $args,array 
     }
     $result=clevo_api_mutate($db,$ctx,'admin.'.$action,['id'=>$id]+$input,function()use($db,$user,$id,$action,$input):array{
         switch($action){
+            case 'booking_cancel':clevo_booking_transition($db,$user,$id,'Cancelled',$input['reason']);return ['booking_id'=>$id];
             case 'user_status':clevo_market_account_status($db,$user,$id,$input['status']);return ['user_id'=>$id];
             case 'station_status':
                 $s=clevo_api_require_row(clevo_stmt($db,'SELECT UserID,ArchivedAt FROM stations WHERE StationID=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc());

@@ -1,5 +1,7 @@
 # REST API phase validation results
 
+Subsequent booking phase (2026-11-16): [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) is authoritative for migration 005, configured interval capacity, status events, post-commit notification delivery and later test results. Earlier counts/availability descriptions below are historical where superseded.
+
 Executed 2026-11-15. PHP CLI/mod_php 8.2.12, MariaDB 10.4.32, Windows PowerShell, Node 24.22.3 and development-only Redocly CLI 2.78.0. These are observed test versions, not production patch-level recommendations. PHP/MySQL remain the runtime stack.
 
 Tests used generated identities, keys and credentials in disposable databases reconstructed from the repository schema/development snapshot. MariaDB used workspace-private `.security-test/mysql` on loopback port 13379, the PHP HTTP server used 18089 and isolated Apache/mod_php used 18090. The runner verifies the actual datadir before testing, waits for a successful database connection and attempts graceful shutdown of its own database process. The readiness probe separately rejected port 3306 without connecting. No live production database, real payment provider, bank account, mail recipient or Flutter application was tested or modified. Reports contain no credential values.

@@ -15,6 +15,10 @@ function clevo_db_commit(mysqli $conn): void
     if ($depth<0) throw new LogicException('No domain transaction.');
     if ($depth===0) $conn->commit(); else $conn->query('RELEASE SAVEPOINT clevo_domain_'.$depth);
     $map[$conn]=$depth;
+    if ($depth===0 && function_exists('clevo_flush_notifications')) {
+        try { clevo_flush_notifications($conn); }
+        catch (Throwable $e) { error_log('CLEVO notification outbox pending: '.get_class($e)); }
+    }
 }
 function clevo_db_rollback(mysqli $conn): void
 {

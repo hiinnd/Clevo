@@ -6,10 +6,21 @@ include_once __DIR__ . '/../includes/app-helpers.php';
 
 $owner_id = clevo_require_role('owner', '../general/login.php');
 clevoEnsureServiceLanguageColumns($conn);
-$station_query = $conn->query("SELECT StationID FROM stations WHERE UserID = $owner_id");
+$station_query = $conn->query("SELECT * FROM stations WHERE UserID = $owner_id AND ArchivedAt IS NULL ORDER BY StationID LIMIT 1");
 $station_data = $station_query->fetch_assoc();
 $station_id = $station_data['StationID'] ?? 0;
 
+
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_booking_policy'])) {
+    $input=[];
+    foreach(['capacity','home_capacity','default_service_minutes','delivery_buffer_minutes'] as $key){
+        $value=filter_var($_POST[$key]??null,FILTER_VALIDATE_INT);
+        if($value===false)throw new ClevoSecurityException('invalid_booking_policy',422);$input[$key]=$value;
+    }
+    foreach(['station_fee','home_fee','delivery_fee'] as $key)$input[$key]=(string)($_POST[$key]??'');
+    clevo_market_availability($conn,$owner_id,(int)$station_id,$input);
+    header('Location: manage-services.php?msg=success');exit;
+}
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_service_id'])){
     clevo_require_csrf_token();
@@ -38,8 +49,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     if ($description_en === '') {
         $description_en = $description_ar;
     }
-    $price = filter_var($_POST['price'] ?? null, FILTER_VALIDATE_FLOAT);
-    if ($name_ar === '' || $price === false || $price < 0 || $price > 100000) throw new ClevoSecurityException('invalid_service', 422);
+    $price = (string)($_POST['price'] ?? '');
+    clevo_db_money($price);
+    if ($name_ar === '' || !is_numeric($price) || (float)$price > 100000) throw new ClevoSecurityException('invalid_service', 422);
     $edit_id = intval($_POST['edit_id']);
     
     $is_station = isset($_POST['type_station']) ? 1 : 0;
@@ -47,7 +59,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     $is_pickup = isset($_POST['type_pickup']) ? 1 : 0;
 
     
-    clevo_market_service($conn,$owner_id,(int)$station_id,$edit_id,['name_ar'=>$name_ar,'name_en'=>$name_en,'description_ar'=>$description_ar,'description_en'=>$description_en,'price'=>$price,'is_station'=>(bool)$is_station,'is_home'=>(bool)$is_home,'is_pickup'=>(bool)$is_pickup]);
+    clevo_market_service($conn,$owner_id,(int)$station_id,$edit_id,['name_ar'=>$name_ar,'name_en'=>$name_en,'description_ar'=>$description_ar,'description_en'=>$description_en,'price'=>$price,'duration'=>isset($_POST['duration'])?(int)$_POST['duration']:(int)($station_data['DefaultServiceMinutes']??30),'is_station'=>(bool)$is_station,'is_home'=>(bool)$is_home,'is_pickup'=>(bool)$is_pickup]);
     header('Location: manage-services.php?msg=success'); exit();
 }
 
@@ -62,6 +74,7 @@ while($row = $services_res->fetch_assoc()){
         'description_ar' => $row['Description_ar'] ?: $row['Description'],
         'description_en' => $row['Description_en'] ?: $row['Description'],
         'price' => $row['Price'],
+        'duration' => $row['Duration'] ?: $station_data['DefaultServiceMinutes'],
         'types' => array_merge(
             $row['is_station'] ? ['station'] : [],
             $row['is_home'] ? ['home'] : [],
@@ -174,6 +187,8 @@ while($row = $services_res->fetch_assoc()){
                                     <div class="mb-3">
                                         <label class="small mb-1" data-i18n="service_price_label">السعر (JOD)</label>
                                         <input type="number" step="0.01" name="price" id="sPrice" class="form-control" required>
+                                        <label class="small mt-2 mb-1" data-i18n="service_duration_label">مدة الخدمة بالدقائق</label>
+                                        <input type="number" min="1" max="1440" name="duration" id="sDuration" class="form-control" value="<?= (int)($station_data['DefaultServiceMinutes']??30) ?>" required>
                                     </div>
                                     <div class="mb-4 border p-3 rounded-3" style="border-color: var(--border-color) !important;">
                                         <label class="small mb-2 d-block text-primary fw-bold" data-i18n="available_options">خيارات تقديم الخدمة:</label>
@@ -222,6 +237,14 @@ while($row = $services_res->fetch_assoc()){
             </main>
         </div>
     </div>
+
+    <?php if ($station_id): ?>
+    <div class="container mb-4"><form method="POST" class="glass-card p-3">
+        <?= csrf_input(); ?><h6 data-i18n="booking_policy_title">السعة ورسوم الخدمة</h6><div class="row g-2">
+        <?php foreach(['capacity'=>['BookingCapacity','booking_capacity',1,1000], 'home_capacity'=>['HomeCapacity','home_capacity',1,1000], 'default_service_minutes'=>['DefaultServiceMinutes','default_minutes',1,1440], 'delivery_buffer_minutes'=>['DeliveryBufferMinutes','delivery_minutes',0,1440], 'station_fee'=>['StationFee','station_fee',0,99999999.99], 'home_fee'=>['HomeFee','home_fee',0,99999999.99], 'delivery_fee'=>['DeliveryFee','delivery_fee',0,99999999.99]] as $name=>$field): ?>
+            <div class="col-sm-6 col-lg-4"><label class="small" data-i18n="<?= e($field[1]) ?>"><?= e($field[1]) ?></label><input class="form-control" type="number" name="<?= e($name) ?>" min="<?= e($field[2]) ?>" max="<?= e($field[3]) ?>" step="<?= str_ends_with($name,'_fee')?'0.01':'1' ?>" value="<?= e($station_data[$field[0]]??'') ?>" required></div>
+        <?php endforeach; ?></div><button class="btn btn-primary mt-3" name="save_booking_policy" value="1" data-i18n="btn_save_service">حفظ</button>
+    </form></div><?php endif; ?>
 
     <div class="modal fade" id="logoutModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -273,7 +296,7 @@ while($row = $services_res->fetch_assoc()){
             ar: {
                 manage_services_title: "إدارة الخدمات | Clevo",
                 nav_main: "الرئيسية", nav_orders: "الطلبات", add_st_page_title: "إعداد المغسلة", services_list: "الخدمات", drivers_page_title: "طاقم العمل", recent_reviews: "التقييمات", serv_wallet: "المحفظة", nav_logout: "خروج", nav_notifications: "الإشعارات",
-                manage_services_header: "إدارة الخدمات المتاحة", add_new_service: "إضافة خدمة جديدة", edit_service: "تعديل الخدمة", service_name_label: "اسم الخدمة", service_description_label: "وصف الخدمة", service_description_placeholder: "", service_price_label: "السعر (JOD)",
+                manage_services_header: "إدارة الخدمات المتاحة", add_new_service: "إضافة خدمة جديدة", edit_service: "تعديل الخدمة", service_name_label: "اسم الخدمة", service_description_label: "وصف الخدمة", service_description_placeholder: "", service_price_label: "السعر (JOD)", service_duration_label: "مدة الخدمة بالدقائق", booking_policy_title: "السعة ورسوم الخدمة", booking_capacity: "سعة الغسيل المتزامن", home_capacity: "فرق الخدمة المنزلية", default_minutes: "مدة الخدمة الافتراضية بالدقائق", delivery_minutes: "وقت الاستلام والإرجاع الإضافي بالدقائق", station_fee: "رسوم المحطة (JOD)", home_fee: "رسوم منزلية (JOD)", delivery_fee: "رسوم الاستلام والإرجاع (JOD)",
                 available_options: "خيارات تقديم الخدمة:", type_station: "في المحطة (Station)", type_home: "خدمة منزلية (At Home)", type_pickup: "استلام وتسليم (Pickup)",
                 home_service: "منزلية", station_service: "بالمغسلة", delivery_service: "استلام وتسليم", pickup_service: "استلام وتسليم",
                 btn_save_service: "حفظ الخدمة ونشرها", current_services_list: "قائمة خدماتك النشطة", btn_cancel: "إلغاء", btn_ok: "موافق",
@@ -284,7 +307,7 @@ while($row = $services_res->fetch_assoc()){
             en: {
                 manage_services_title: "Services Management | Clevo",
                 nav_main: "Dashboard", nav_orders: "Orders", add_st_page_title: "Station Setup", services_list: "Services", drivers_page_title: "Team", recent_reviews: "Reviews", serv_wallet: "Wallet", nav_logout: "Logout", nav_notifications: "Notifications",
-                manage_services_header: "Services Management", add_new_service: "Add New Service", edit_service: "Edit Service", service_name_label: "Service Name", service_description_label: "Service Description", service_description_placeholder: "", service_price_label: "Price (JOD)",
+                manage_services_header: "Services Management", add_new_service: "Add New Service", edit_service: "Edit Service", service_name_label: "Service Name", service_description_label: "Service Description", service_description_placeholder: "", service_price_label: "Price (JOD)", service_duration_label: "Service duration in minutes", booking_policy_title: "Capacity and service fees", booking_capacity: "Concurrent wash capacity", home_capacity: "Home service teams", default_minutes: "Default service minutes", delivery_minutes: "Additional pickup/return minutes", station_fee: "Station fee (JOD)", home_fee: "Home fee (JOD)", delivery_fee: "Pickup/return fee (JOD)",
                 available_options: "Delivery Options:", type_station: "At Station", type_home: "At Home Service", type_pickup: "Pickup & Delivery",
                 home_service: "Home", station_service: "At Station", delivery_service: "Pickup & Delivery", pickup_service: "Pickup & Delivery",
                 btn_save_service: "Publish Service", current_services_list: "Active Services List", btn_cancel: "Cancel", btn_ok: "OK",
@@ -332,6 +355,7 @@ while($row = $services_res->fetch_assoc()){
             document.getElementById('sNameInput').value = lang === 'ar' ? (s.name_ar || s.name_en || '') : (s.name_en || s.name_ar || '');
             document.getElementById('sDescInput').value = lang === 'ar' ? (s.description_ar || s.description_en || '') : (s.description_en || s.description_ar || '');
             document.getElementById('sPrice').value = s.price;
+            document.getElementById('sDuration').value = s.duration;
             document.getElementById('typeStation').checked = s.types.includes('station');
             document.getElementById('typeHome').checked = s.types.includes('home');
             document.getElementById('typePickup').checked = s.types.includes('pickup');

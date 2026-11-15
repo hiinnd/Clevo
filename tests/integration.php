@@ -36,7 +36,7 @@ if (!preg_match('/^clevo_rt_[a-f0-9]{12}$/D', $runtimeUser) || !preg_match('/^[a
 $setup->query("CREATE USER '$runtimeUser'@'127.0.0.1' IDENTIFIED BY '$runtimePassword'");
 foreach ($conn->query('SHOW TABLES')->fetch_all(MYSQLI_NUM) as [$table]) {
     if (in_array($table,['security_migration_steps','database_migration_steps'],true)) continue;
-    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':($table==='wallet_transactions'?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
+    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':(in_array($table,['wallet_transactions','booking_status_history'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
     $setup->query("GRANT $permissions ON `$database`.`$table` TO '$runtimeUser'@'127.0.0.1'");
 }
 $setup->query("GRANT DELETE ON `$database`.blacklist TO '$runtimeUser'@'127.0.0.1'");
@@ -66,6 +66,7 @@ $driver = user_fixture('driver', 5, $password); $otherDriver = user_fixture('dri
 $admin = user_fixture('Admin', 7, $password); $admin2 = user_fixture('Admin', 8, $password);
 $legacy = user_fixture('User', 9, $password);
 foreach ([$owner, $otherOwner] as $who) clevo_stmt($conn, "INSERT INTO stations (UserID, Name, admin_status, Status) VALUES (?, 'Test station', 'approved', 'Active')", 'i', [$who]);
+$conn->query('UPDATE stations SET BookingCapacity=1000,HomeCapacity=1000');
 $station = (int) $conn->query('SELECT MIN(StationID) AS id FROM stations')->fetch_assoc()['id']; $station2 = $station + 1;
 clevo_stmt($conn, 'UPDATE user SET StationID = ? WHERE UserID IN (?, ?)', 'iii', [$station, $owner, $driver]);
 clevo_stmt($conn, 'UPDATE user SET StationID = ? WHERE UserID IN (?, ?)', 'iii', [$station2, $otherOwner, $otherDriver]);
@@ -75,6 +76,7 @@ foreach ([[$customer, $station, $driver], [$other, $station2, $otherDriver]] as 
     clevo_stmt($conn, "INSERT INTO booking (UserID, StationID, ServiceID, DriverID, Service_Location, Status, Total_Price, Admin_Commission, Payment_Method) VALUES (?, ?, ?, ?, 'delivery', 'Accepted', 10, 1, 'wallet')", 'iiii', [$who, $where, $where === $station ? $service : $service + 1, $whoDriver]);
 }
 $booking = (int) $conn->query('SELECT MIN(BookingID) AS id FROM booking')->fetch_assoc()['id']; $booking2 = $booking + 1;
+$conn->query("UPDATE booking SET Booking_Date=CURDATE()+INTERVAL 3 DAY,Booking_Time='12:00:00'");
 // Synthetic funded jobs: a payment flag alone is no longer sufficient to execute/complete work.
 $conn->query("INSERT INTO payments (BookingID,UserID,Method,Status,Amount) SELECT BookingID,UserID,'wallet','recorded',10 FROM booking WHERE BookingID IN ($booking,$booking2)");
 clevo_stmt($conn, 'INSERT INTO wallet (UserID, Balance) VALUES (?, 20), (?, 99)', 'ii', [$customer, $other]);

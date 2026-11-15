@@ -9,16 +9,6 @@ $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
 cancelExpiredBookings($conn, (int) $userID);
 
 
-$timeout_query = "UPDATE `booking` 
-                  SET Status = 'Cancelled_Timeout' 
-                  WHERE UserID = ? AND Status = 'Pending' 
-                  AND created_at < NOW() - INTERVAL 10 MINUTE";
-$timeout_stmt = $conn->prepare($timeout_query);
-$timeout_stmt->bind_param("i", $userID);
-$timeout_stmt->execute();
-
-
-
 // Ensure optional `target_url` column exists before selecting it
 clevoEnsureNotificationsTargetColumn($conn);
 

@@ -13,14 +13,6 @@ cancelExpiredBookings($conn, (int) $userID);
 
 
 
-$cancel_stmt = $conn->prepare("UPDATE `booking` SET Status = 'Cancelled_Timeout' 
-                               WHERE UserID = ? AND Status = 'Pending' 
-
-                               AND created_at < (NOW() - INTERVAL 10 MINUTE)");
-
-$cancel_stmt->bind_param("i", $userID);
-$cancel_stmt->execute();
-
 $pending_stmt = $conn->prepare("SELECT b.*, s.Name as station_name, serv.Name as service_name
                                 FROM `booking` b
                                 JOIN stations s ON b.StationID = s.StationID

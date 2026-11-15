@@ -1,5 +1,7 @@
 # CLEVO database changes
 
+Subsequent booking phase (2026-11-16): [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) is authoritative for migration 005, configured interval capacity, status events, post-commit notification delivery and later test results. Earlier counts/availability descriptions below are historical where superseded.
+
 Subsequent API migration `004_mobile_api.sql` and its deployment/grant requirements are documented in [API_INTEGRATION.md](API_INTEGRATION.md); see [API_TEST_RESULTS.md](API_TEST_RESULTS.md) for the later full regression run. Counts below retain the database phase baseline; the generated schema/ERD now include migration 004.
 
 Phase: 2026-11-15. This is an incremental PHP/mysqli/MySQL refactor, following the authentication phase. Existing identifiers, table/column names, roles, bookings, balances, subscriptions and historical values are preserved. No production database was connected to, reset or migrated. Validation used fresh disposable databases reconstructed from the repository's actual legacy schema and populated development snapshot, plus synthetic concurrency fixtures.

@@ -28,17 +28,22 @@ function clevo_market_profile(mysqli $db,int $user,array $input):void
 function clevo_market_service(mysqli $db,int $owner,int $station,int $id,array $input):int
 {
     return clevo_db_atomic($db,function()use($db,$owner,$station,$id,$input):int{
-        clevo_market_station($db,$owner,$station);
+        $stationRow=clevo_market_station($db,$owner,$station);
         $old=$id?clevo_stmt($db,'SELECT * FROM services WHERE ServiceID=? AND StationID=? AND ArchivedAt IS NULL FOR UPDATE','ii',[$id,$station])->get_result()->fetch_assoc():[];
         if($id&&!$old)throw new ClevoSecurityException('not_found',404);
         $ar=trim($input['name_ar']??$old['Name_ar']??'');$en=trim($input['name_en']??$old['Name_en']??$ar);
         $price=clevo_db_decimal(clevo_db_money($input['price']??$old['Price']??'0'));
         if($ar===''||$en===''||mb_strlen($ar)>100||mb_strlen($en)>100)throw new ClevoSecurityException('invalid_service',422);
         $descriptionAr=$input['description_ar']??$old['Description_ar']??'';$descriptionEn=$input['description_en']??$old['Description_en']??'';
-        $duration=$input['duration']??$old['Duration']??null;
+        if(mb_strlen($descriptionAr)>5000||mb_strlen($descriptionEn)>5000)throw new ClevoSecurityException('invalid_service',422);
+        $duration=$input['duration']??$old['Duration']??$stationRow['DefaultServiceMinutes'];
+        if(!is_int($duration)&&!(is_string($duration)&&ctype_digit($duration)))throw new ClevoSecurityException('invalid_service_duration',422);
+        $duration=(int)$duration;if($duration<1||$duration>1440)throw new ClevoSecurityException('invalid_service_duration',422);
         $at=(int)($input['is_station']??$old['is_station']??true);$home=(int)($input['is_home']??$old['is_home']??false);$pickup=(int)($input['is_pickup']??$old['is_pickup']??false);
         if($id)clevo_stmt($db,'UPDATE services SET Name=?,Name_ar=?,Name_en=?,Description=?,Description_ar=?,Description_en=?,Price=?,Duration=?,is_station=?,is_home=?,is_pickup=? WHERE ServiceID=? AND StationID=?','sssssssiiiiii',[$en,$ar,$en,$descriptionEn,$descriptionAr,$descriptionEn,$price,$duration,$at,$home,$pickup,$id,$station]);
         else{clevo_stmt($db,'INSERT INTO services (StationID,Name,Name_ar,Name_en,Description,Description_ar,Description_en,Price,Duration,is_station,is_home,is_pickup) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)','isssssssiiii',[$station,$en,$ar,$en,$descriptionEn,$descriptionAr,$descriptionEn,$price,$duration,$at,$home,$pickup]);$id=(int)$db->insert_id;}
+        // Explicitly publishing a delivery option makes it available at the station too.
+        foreach(['is_station'=>'Has_At_Station','is_home'=>'Has_Home_Service','is_pickup'=>'Has_Delivery'] as $key=>$column)if(!empty($input[$key]))clevo_stmt($db,"UPDATE stations SET $column=1 WHERE StationID=?",'i',[$station]);
         clevo_db_audit($db,$owner,'service.saved','services',$id);return $id;
     });
 }
@@ -48,6 +53,14 @@ function clevo_market_availability(mysqli $db,int $owner,int $station,array $inp
         $old=clevo_market_station($db,$owner,$station);$open=$input['opening_time']??$old['OpeningTime'];$close=$input['closing_time']??$old['ClosingTime'];
         foreach(['open'=>&$open,'close'=>&$close] as &$time){if($time===null)continue;if(strlen((string)$time)===5)$time.=':00';if(!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/D',(string)$time))throw new ClevoSecurityException('invalid_hours',422);}unset($time);
         clevo_stmt($db,'UPDATE stations SET Status=?,OpeningTime=?,ClosingTime=?,Has_At_Station=?,Has_Home_Service=?,Has_Delivery=? WHERE StationID=?','sssiiii',[$input['status']??$old['Status'],$open,$close,(int)($input['has_at_station']??$old['Has_At_Station']),(int)($input['has_home_service']??$old['Has_Home_Service']),(int)($input['has_delivery']??$old['Has_Delivery']),$station]);
+        $fields=['capacity'=>'BookingCapacity','home_capacity'=>'HomeCapacity','default_service_minutes'=>'DefaultServiceMinutes','delivery_buffer_minutes'=>'DeliveryBufferMinutes','station_fee'=>'StationFee','home_fee'=>'HomeFee','delivery_fee'=>'DeliveryFee'];
+        foreach($fields as $key=>$column){
+            if(!array_key_exists($key,$input))continue;$value=$input[$key];
+            if(str_ends_with($key,'_fee')){$value=clevo_db_decimal(clevo_db_money($value));$type='s';}
+            else{$min=$key==='delivery_buffer_minutes'?0:1;$max=in_array($key,['capacity','home_capacity'],true)?1000:1440;
+                if(!is_int($value)||$value<$min||$value>$max)throw new ClevoSecurityException('invalid_booking_policy',422);$type='i';}
+            clevo_stmt($db,"UPDATE stations SET $column=? WHERE StationID=?",$type.'i',[$value,$station]);
+        }
         clevo_db_audit($db,$owner,'station.availability','stations',$station);
     });
 }
@@ -84,16 +97,20 @@ function clevo_market_driver_invite(mysqli $db,int $owner,int $id,string $email)
 function clevo_market_assign(mysqli $db,int $owner,int $booking,int $driver):void
 {
     clevo_db_atomic($db,function()use($db,$owner,$booking,$driver):void{
-        $b=clevo_stmt($db,"SELECT b.* FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? AND s.UserID=? AND s.ArchivedAt IS NULL AND s.admin_status='approved' FOR UPDATE",'ii',[$booking,$owner])->get_result()->fetch_assoc();
-        if(!$b)throw new ClevoSecurityException('not_found',404);
+        $b=clevo_booking_lock($db,$booking);$s=$b['_station'];
+        if((int)$s['UserID']!==$owner||$s['ArchivedAt']!==null||$s['admin_status']!=='approved')throw new ClevoSecurityException('not_found',404);
+        $a=clevo_booking_actor($db,$owner);if(clevo_role($a['Role'])!=='owner')throw new ClevoSecurityException('forbidden',403);
         if(!in_array($b['Status'],['Pending','Accepted'],true)||$b['Service_Location']!=='delivery'||!empty($b['DriverAcceptedAt']))throw new ClevoSecurityException('invalid_assignment_state',409);
         if($b['Status']==='Pending'&&strtotime($b['created_at'].' UTC')<time()-600)throw new ClevoSecurityException('booking_expired',409);
         $d=clevo_stmt($db,"SELECT UserID FROM user WHERE UserID=? AND StationID=? AND LOWER(Role)='driver' AND AccountStatus='active' FOR UPDATE",'ii',[$driver,(int)$b['StationID']])->get_result()->fetch_assoc();
         if(!$d)throw new ClevoSecurityException('driver_not_available',409);
         if((int)$b['DriverID']===$driver&&$b['Status']==='Accepted')return;
+        [$from,$to]=clevo_booking_interval($b,$s);
+        clevo_booking_assert_capacity($db,$s,$b['Service_Location'],new DateTimeImmutable('@'.$from),new DateTimeImmutable('@'.$to),$booking,$driver);
+        if($b['Status']==='Pending')clevo_booking_transition($db,$owner,$booking,'Accepted','driver_assignment_accepted');
         clevo_stmt($db,'UPDATE driver_assignments SET EndedAt=UTC_TIMESTAMP(6) WHERE BookingID=? AND EndedAt IS NULL','i',[$booking]);
         clevo_stmt($db,'UPDATE auth_sessions SET RevokedAt=UTC_TIMESTAMP() WHERE DriverBookingID=?','i',[$booking]);
-        clevo_stmt($db,"UPDATE booking SET DriverID=?,Status='Accepted',Accepted_At=COALESCE(Accepted_At,UTC_TIMESTAMP()),notification_sent=0,DriverAccessCode=NULL,DriverAccessCodeHash=NULL,DriverAccessCodeExpiresAt=NULL,DriverAccessCodeUsedAt=NULL WHERE BookingID=?",'ii',[$driver,$booking]);
+        clevo_stmt($db,"UPDATE booking SET DriverID=?,DriverAccessCode=NULL,DriverAccessCodeHash=NULL,DriverAccessCodeExpiresAt=NULL,DriverAccessCodeUsedAt=NULL WHERE BookingID=?",'ii',[$driver,$booking]);
         clevo_stmt($db,'INSERT INTO driver_assignments (BookingID,DriverID,StationID,AssignedBy) VALUES (?,?,?,?)','iiii',[$booking,$driver,(int)$b['StationID'],$owner]);
         clevoCreateNotification($db,$driver,'مهمة جديدة','تم تعيين مهمة توصيل جديدة.','info','driver-dashboard.php','New job','A new delivery job has been assigned.');
         clevoCreateNotification($db,(int)$b['UserID'],'تم قبول الطلب','تم قبول الطلب وتعيين السائق.','success',"order-details.php?id=$booking",'Order accepted','Your order was accepted and assigned.');
@@ -102,15 +119,9 @@ function clevo_market_assign(mysqli $db,int $owner,int $booking,int $driver):voi
 }
 function clevo_market_reject(mysqli $db,int $owner,int $booking):void
 {
-    clevo_db_atomic($db,function()use($db,$owner,$booking):void{
-        $b=clevo_stmt($db,'SELECT b.* FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? AND s.UserID=? FOR UPDATE','ii',[$booking,$owner])->get_result()->fetch_assoc();
-        if(!$b)throw new ClevoSecurityException('not_found',404);if($b['Status']==='Rejected')return;if($b['Status']!=='Pending')throw new ClevoSecurityException('invalid_transition',409);
-        clevoRefundBookingPayment($db,$booking,'rejected');clevo_stmt($db,"UPDATE booking SET Status='Rejected' WHERE BookingID=?",'i',[$booking]);
-        clevoCreateNotification($db,(int)$b['UserID'],'تم رفض الطلب','تم رفض الطلب من المحطة.','danger',"order-details.php?id=$booking",'Order rejected','The station rejected your order.');
-        clevoCreateRoleNotification($db,'Admin','رفض طلب من صاحب محطة',"تم رفض الطلب #$booking من صاحب المحطة.",'warning','financial-reports.php','Order rejected by station owner',"Station owner rejected order #$booking.");
-        clevo_db_audit($db,$owner,'booking.rejected','booking',$booking);
-    });
+    clevo_booking_transition($db,$owner,$booking,'Rejected','owner_rejected');
 }
+
 function clevo_market_review(mysqli $db,int $user,int $booking,int $rating,string $comment):int
 {
     return clevo_db_atomic($db,function()use($db,$user,$booking,$rating,$comment):int{

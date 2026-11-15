@@ -7,6 +7,9 @@ GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_refresh_tokens` TO 'clevo_runtime'
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_sessions` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`blacklist` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`booking` TO 'clevo_runtime'@'application-host';
+-- Booking history is append-only; notifications are delivered from the durable outbox after commit.
+GRANT SELECT, INSERT ON `clevo`.`booking_status_history` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`notification_outbox` TO 'clevo_runtime'@'application-host';
 -- Additive API persistence introduced by migration 004.
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`saved_addresses` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`payment_sessions` TO 'clevo_runtime'@'application-host';
@@ -41,3 +44,8 @@ GRANT SELECT, UPDATE ON `clevo`.`security_mail_queue` TO 'clevo_mail_worker'@'wo
 GRANT DELETE ON `clevo`.`security_rate_limits` TO 'clevo_mail_worker'@'worker-host';
 GRANT DELETE ON `clevo`.`auth_challenges` TO 'clevo_mail_worker'@'worker-host';
 GRANT DELETE ON `clevo`.`auth_sessions` TO 'clevo_mail_worker'@'worker-host';
+-- Separate notification worker: no booking, status-history or financial writes.
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_notification_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`request_idempotency` TO 'clevo_notification_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`notification_outbox` TO 'clevo_notification_worker'@'worker-host';
+GRANT INSERT ON `clevo`.`notifications` TO 'clevo_notification_worker'@'worker-host';

@@ -10,7 +10,7 @@ clevoEnsureBookingServicesTable($conn);
 clevoEnsureServiceLanguageColumns($conn);
 
 $stationID = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$query = "SELECT * FROM `stations` WHERE StationID = ? AND ArchivedAt IS NULL";
+$query = "SELECT * FROM `stations` WHERE StationID = ? AND ArchivedAt IS NULL AND admin_status='approved'";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $stationID);
 $stmt->execute();
@@ -35,24 +35,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='create_book
     header('Content-Type: application/json; charset=utf-8'); echo json_encode($result); exit;
 }
 
-$serv_query = "SELECT * FROM `services` WHERE StationID = ?";
-$stmt_s = $conn->prepare($serv_query);
-$stmt_s->bind_param("i", $stationID);
-$stmt_s->execute();
-$services_res = $stmt_s->get_result();
-$all_services = [];
-while ($row = $services_res->fetch_assoc()) {
-    $all_services[] = $row;
-}
+$all_services = clevo_booking_services($conn,$stationID);
 
 $hasStationServices = (int)$station['Has_At_Station'] === 1;
 $hasHomeServices = (int)$station['Has_Home_Service'] === 1;
 $hasDeliveryServices = (int)$station['Has_Delivery'] === 1;
-foreach ($all_services as $serviceRow) {
-    $hasStationServices = $hasStationServices || (int)$serviceRow['is_station'] === 1;
-    $hasHomeServices = $hasHomeServices || (int)$serviceRow['is_home'] === 1;
-    $hasDeliveryServices = $hasDeliveryServices || (int)$serviceRow['is_pickup'] === 1;
-}
 $activePlan = clevoGetActiveUserPlan($conn, $userID);
 $activePlanPayload = null;
 if ($activePlan) {
@@ -360,7 +347,7 @@ $csrf_token = generate_csrf_token();
 
 <body>
     <script>
-        const bookingRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
+        let bookingRequestKey = <?= clevo_js(bin2hex(random_bytes(24))) ?>;
         (function() {
             const savedTheme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
@@ -493,7 +480,9 @@ $csrf_token = generate_csrf_token();
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="../assets/service-translations.js"></script>
     <script>
-        const allServices = <?= json_encode($all_services); ?>;
+        let bookingRequestSignature = null;
+        const stationFees = <?= clevo_js(['station'=>$station['StationFee'],'home'=>$station['HomeFee'],'delivery'=>$station['DeliveryFee']]) ?>;
+        const allServices = <?= json_encode($all_services, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;
         const activePlan = <?= json_encode($activePlanPayload, JSON_UNESCAPED_UNICODE); ?>;
         const csrfToken = <?= json_encode($csrf_token); ?>;
         const stationPoint = {
@@ -663,7 +652,7 @@ $csrf_token = generate_csrf_token();
                     title.innerText = serviceDisplayName;
                     const desc = document.createElement('small');
                     desc.className = 'opacity-75';
-                    desc.innerText = localizedService.description || '';
+                    desc.innerText = (localizedService.description || '') + ' · ' + s.Duration + (lang === 'ar' ? ' دقيقة' : ' min');
                     textWrap.appendChild(title);
                     textWrap.appendChild(desc);
 
@@ -797,7 +786,7 @@ $csrf_token = generate_csrf_token();
             const usePlan = document.getElementById('usePlanSwitch')?.checked;
             document.getElementById('txtPrice').innerText = usePlan && selectedServices.length ?
                 translations[lang].paid_by_plan :
-                selectedServices.reduce((sum, s) => sum + parseFloat(s.price), 0).toFixed(2) + " JOD";
+                (selectedServices.reduce((sum, s) => sum + parseFloat(s.price), 0) + (selectedServices.length ? parseFloat(stationFees[currentType] || 0) : 0)).toFixed(2) + " JOD";
         }
 
         function book(btn) {
@@ -831,6 +820,12 @@ $csrf_token = generate_csrf_token();
             const addressNotes = document.getElementById('addressDetails').value.trim();
             params.append('address_details', [streetName, addressNotes].filter(Boolean).join('\n'));
 
+            const signature = params.toString();
+            if (bookingRequestSignature !== null && bookingRequestSignature !== signature) {
+                bookingRequestKey = Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2, '0')).join('');
+            }
+            bookingRequestSignature = signature;
+            params.append('idempotency_key', bookingRequestKey);
             fetch(window.location.href, {
                     method: 'POST',
                     headers: {

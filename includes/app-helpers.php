@@ -322,6 +322,8 @@ function clevoCreateNotification(mysqli $conn, int $userID, string $title, strin
     $titleEn = trim((string) $titleEn) !== '' ? $titleEn : clevoNotificationFallbackEnglish($title, true);
     $bodyEn = trim((string) $bodyEn) !== '' ? $bodyEn : clevoNotificationFallbackEnglish($body, false);
 
+    $depths=&clevo_db_depths();
+    if (($depths[$conn]??0)>0) return clevo_queue_notification($conn,$userID,null,$title,$body,$type,$targetUrl,$titleEn,$bodyEn);
     $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, title_en, body, body_en, type, target_url) VALUES (?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) return false;
     $stmt->bind_param("issssss", $userID, $title, $titleEn, $body, $bodyEn, $type, $targetUrl);
@@ -344,6 +346,8 @@ function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $t
     $titleEn = trim((string) $titleEn) !== '' ? $titleEn : clevoNotificationFallbackEnglish($title, true);
     $bodyEn = trim((string) $bodyEn) !== '' ? $bodyEn : clevoNotificationFallbackEnglish($body, false);
 
+    $depths=&clevo_db_depths();
+    if (($depths[$conn]??0)>0) return clevo_queue_notification($conn,null,$targetRole,$title,$body,$type,$targetUrl,$titleEn,$bodyEn);
     $stmt = $conn->prepare("INSERT INTO notifications (user_id, target_role, title, title_en, body, body_en, type, target_url) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)");
     if (!$stmt) return false;
     $stmt->bind_param("sssssss", $targetRole, $title, $titleEn, $body, $bodyEn, $type, $targetUrl);

@@ -29,6 +29,9 @@ erDiagram
     booking_services {
         int BookingServiceID PK
     }
+    booking_status_history {
+        bigint EventID PK
+    }
     database_migration_steps {
         varchar Version PK
         int StepNumber PK
@@ -41,6 +44,9 @@ erDiagram
     }
     notifications {
         int id PK
+    }
+    notification_outbox {
+        bigint OutboxID PK
     }
     notification_reads {
         int NotificationID PK
@@ -131,12 +137,16 @@ erDiagram
     booking ||--o{ booking_effects : "BookingID"
     booking ||--o{ booking_services : "BookingID"
     services |o--o{ booking_services : "ServiceID"
+    user |o--o{ booking_status_history : "ActorID"
+    booking ||--o{ booking_status_history : "BookingID"
     user ||--o{ driver_assignments : "AssignedBy"
     booking ||--o{ driver_assignments : "BookingID"
     user ||--o{ driver_assignments : "DriverID"
     stations ||--o{ driver_assignments : "StationID"
     user ||--o{ loyalty : "UserID"
     user |o--o{ notifications : "user_id"
+    notifications |o--o{ notification_outbox : "NotificationID"
+    user |o--o{ notification_outbox : "UserID"
     notifications ||--o{ notification_reads : "NotificationID"
     user ||--o{ notification_reads : "UserID"
     user ||--o| owner_bank_accounts : "owner_id"

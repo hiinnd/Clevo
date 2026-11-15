@@ -1,8 +1,8 @@
 # CLEVO schema inventory
 
-Generated from actual migrated disposable metadata on 2026-11-15. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 35; columns: 311; index columns: 166; foreign-key columns: 51. This is not a live production inventory.
+Generated from actual migrated disposable metadata on 2026-11-16. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 37; columns: 345; index columns: 180; foreign-key columns: 55. This is not a live production inventory.
 
-Source: `scripts/database-inventory.php` output after the applied versioned migrations (including API migration 004 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking migration 005 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md) and [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
 
 ## `audit_logs`
 
@@ -161,11 +161,18 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `BookingTimeZone` | `varchar(64)` | YES | `NULL` |  |
 | `OwnerIDSnapshot` | `int(11)` | YES | `NULL` |  |
 | `DriverAcceptedAt` | `datetime(6)` | YES | `NULL` |  |
+| `DurationMinutes` | `smallint(5) unsigned` | YES | `NULL` |  |
+| `ScheduledEndAtUtc` | `datetime` | YES | `NULL` |  |
+| `ServicesSubtotal` | `decimal(10,2)` | YES | `NULL` |  |
+| `AdditionalFee` | `decimal(10,2)` | NO | `0.00` |  |
+| `RequestFingerprint` | `char(64)` | YES | `NULL` |  |
+| `ActiveRequestFingerprint` | `char(64)` | YES | `NULL` | STORED GENERATED |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
 | `DriverID` | INDEX | `DriverID` |
 | `fk_booking_owner_snapshot` | INDEX | `OwnerIDSnapshot` |
+| `idx_booking_capacity` | INDEX | `StationID`, `Status`, `ScheduledAtUtc`, `ScheduledEndAtUtc` |
 | `idx_booking_driver_status` | INDEX | `DriverID`, `Status` |
 | `idx_booking_expiry` | INDEX | `Status`, `notification_sent`, `created_at` |
 | `idx_booking_station_status_date` | INDEX | `StationID`, `Status`, `Booking_Date` |
@@ -173,6 +180,7 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `PRIMARY` | PRIMARY | `BookingID` |
 | `ServiceID` | INDEX | `ServiceID` |
 | `StationID` | INDEX | `StationID` |
+| `uq_active_booking_intent` | UNIQUE | `ActiveRequestFingerprint` |
 | `uq_booking_driver_access_code` | UNIQUE | `DriverAccessCode` |
 | `uq_booking_order_number` | UNIQUE | `Order_Number` |
 | `UserID` | INDEX | `UserID` |
@@ -216,6 +224,7 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `ServiceID` | `int(11)` | YES | `NULL` |  |
 | `ServiceName` | `varchar(255)` | YES | `NULL` |  |
 | `Price` | `decimal(10,2)` | YES | `0.00` |  |
+| `DurationMinutes` | `smallint(5) unsigned` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -227,6 +236,32 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 |---|---|---|---|
 | `booking_services_booking_fk` | `BookingID` | `booking.BookingID` | CASCADE / RESTRICT |
 | `booking_services_service_fk` | `ServiceID` | `services.ServiceID` | SET NULL / RESTRICT |
+
+## `booking_status_history`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `EventID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `BookingID` | `int(11)` | NO | `NULL` |  |
+| `FromStatus` | `varchar(32)` | YES | `NULL` |  |
+| `ToStatus` | `varchar(32)` | NO | `NULL` |  |
+| `ActorID` | `int(11)` | YES | `NULL` |  |
+| `ActorRole` | `enum('customer','owner','driver','admin','system')` | NO | `NULL` |  |
+| `Reason` | `varchar(500)` | NO | `NULL` |  |
+| `ChangedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_status_actor` | INDEX | `ActorID` |
+| `idx_booking_status_history` | INDEX | `BookingID`, `EventID` |
+| `PRIMARY` | PRIMARY | `EventID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_status_actor` | `ActorID` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_status_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
 
 ## `database_migration_steps`
 
@@ -324,6 +359,37 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
 | `notifications_ibfk_1` | `user_id` | `user.UserID` | CASCADE / RESTRICT |
+
+## `notification_outbox`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `OutboxID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `UserID` | `int(11)` | YES | `NULL` |  |
+| `TargetRole` | `varchar(50)` | YES | `NULL` |  |
+| `Title` | `varchar(255)` | NO | `NULL` |  |
+| `TitleEn` | `varchar(255)` | NO | `NULL` |  |
+| `Body` | `text` | NO | `NULL` |  |
+| `BodyEn` | `text` | NO | `NULL` |  |
+| `Type` | `varchar(20)` | NO | `NULL` |  |
+| `TargetUrl` | `varchar(255)` | YES | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `DeliveredAt` | `datetime(6)` | YES | `NULL` |  |
+| `NotificationID` | `int(11)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_outbox_notification` | INDEX | `NotificationID` |
+| `fk_outbox_user` | INDEX | `UserID` |
+| `idx_notification_delivery` | INDEX | `DeliveredAt`, `OutboxID` |
+| `PRIMARY` | PRIMARY | `OutboxID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_outbox_notification` | `NotificationID` | `notifications.id` | RESTRICT / RESTRICT |
+| `fk_outbox_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `notification_reads`
 
@@ -711,6 +777,13 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `OpeningTime` | `time` | YES | `'08:00:00'` |  |
 | `ClosingTime` | `time` | YES | `'22:00:00'` |  |
 | `ArchivedAt` | `datetime(6)` | YES | `NULL` |  |
+| `BookingCapacity` | `smallint(5) unsigned` | YES | `NULL` |  |
+| `HomeCapacity` | `smallint(5) unsigned` | YES | `NULL` |  |
+| `DefaultServiceMinutes` | `smallint(5) unsigned` | NO | `30` |  |
+| `DeliveryBufferMinutes` | `smallint(5) unsigned` | NO | `0` |  |
+| `StationFee` | `decimal(10,2)` | NO | `0.00` |  |
+| `HomeFee` | `decimal(10,2)` | NO | `0.00` |  |
+| `DeliveryFee` | `decimal(10,2)` | NO | `0.00` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|

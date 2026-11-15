@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function clevo_api_public_station(mysqli $db,int $id):array
 {
-    return clevo_api_require_row(clevo_stmt($db,"SELECT StationID,Name,Location,Lat,Lon,Location_URL,PhoneNumber,COALESCE((SELECT AVG(r.Rating) FROM reviews r JOIN booking b ON b.BookingID=r.BookingID WHERE b.StationID=stations.StationID),Rating,0) Rating,Status,Image,OpeningTime,ClosingTime,Has_At_Station,Has_Home_Service,Has_Delivery FROM stations WHERE StationID=? AND admin_status='approved' AND ArchivedAt IS NULL",'i',[$id])->get_result()->fetch_assoc());
+    return clevo_api_require_row(clevo_stmt($db,"SELECT StationID,Name,Location,Lat,Lon,Location_URL,PhoneNumber,COALESCE((SELECT AVG(r.Rating) FROM reviews r JOIN booking b ON b.BookingID=r.BookingID WHERE b.StationID=stations.StationID),Rating,0) Rating,Status,Image,OpeningTime,ClosingTime,Has_At_Station,Has_Home_Service,Has_Delivery,BookingCapacity,HomeCapacity,DefaultServiceMinutes,DeliveryBufferMinutes,StationFee,HomeFee,DeliveryFee FROM stations WHERE StationID=? AND admin_status='approved' AND ArchivedAt IS NULL",'i',[$id])->get_result()->fetch_assoc());
 }
 function clevo_api_catalog(mysqli $db,string $action,array $args):never
 {
@@ -31,14 +31,21 @@ function clevo_api_catalog(mysqli $db,string $action,array $args):never
     if($action==='plans')clevo_api_result(['plans'=>clevo_api_list($db,'id,name_ar,name_en,price,duration,duration_type,wash_count,description_ar,description_en,included_services_ar,included_services_en','FROM plans','is_active=1','',[],['id'=>'id','price'=>'price'],'id','id')]);
     $station=clevo_api_public_station($db,$id);$station['Image']=clevo_api_image($station['Image'],'',true);
     if($action==='station')clevo_api_result(['station'=>$station]);
-    if($action==='services')clevo_api_result(['services'=>clevo_api_list($db,'ServiceID,Name,Name_ar,Name_en,Description_ar,Description_en,Price,Duration,is_station,is_home,is_pickup','FROM services','StationID=? AND ArchivedAt IS NULL','i',[$id],['id'=>'ServiceID','price'=>'Price','name'=>'Name'],'id','ServiceID')]);
+    if($action==='services')clevo_api_result(['services'=>clevo_api_list($db,'v.ServiceID,v.Name,v.Name_ar,v.Name_en,v.Description_ar,v.Description_en,v.Price,CASE WHEN v.Duration>0 THEN v.Duration ELSE s.DefaultServiceMinutes END Duration,v.is_station,v.is_home,v.is_pickup','FROM services v JOIN stations s ON s.StationID=v.StationID','v.StationID=? AND v.ArchivedAt IS NULL','i',[$id],['id'=>'v.ServiceID','price'=>'v.Price','name'=>'v.Name'],'id','v.ServiceID')]);
     if($action==='reviews')clevo_api_result(['reviews'=>clevo_api_list($db,'r.ReviewID,r.Rating,r.Comment,r.Owner_Reply','FROM reviews r JOIN booking b ON b.BookingID=r.BookingID','b.StationID=?','i',[$id],['id'=>'r.ReviewID','rating'=>'r.Rating'],'id','r.ReviewID')]);
     if($action==='availability'){
         $zone=new DateTimeZone(clevo_env('BOOKING_TIMEZONE','Asia/Amman'));$now=new DateTimeImmutable('now',$zone);$date=clevo_api_query('date',$now->format('Y-m-d'));
         $parsed=DateTimeImmutable::createFromFormat('!Y-m-d',$date,$zone);if(!$parsed||$parsed->format('Y-m-d')!==$date)clevo_api_invalid('query.date');
         $open=$station['OpeningTime'];$close=$station['ClosingTime'];$clock=$now->format('H:i:s');
         $within=$open&&$close?($open<$close?($clock>=$open&&$clock<$close):($open===$close||$clock>=$open||$clock<$close)):true;
-        clevo_api_result(['availability'=>['station_id'=>$id,'date'=>$date,'timezone'=>$zone->getName(),'status'=>$station['Status'],'opening_time'=>$open,'closing_time'=>$close,'open_now'=>$station['Status']==='Active'&&$within,'accepting_requests'=>$station['Status']==='Active','capacity_enforced'=>false]]);
+        $appointment=null;
+        if(clevo_api_query('time')!==null || clevo_api_query('service_ids')!==null){
+            $time=clevo_api_query('time');$raw=clevo_api_query('service_ids','');
+            if($time===null||!preg_match('/^[1-9][0-9]*(,[1-9][0-9]*){0,29}$/D',$raw))clevo_api_invalid('query.service_ids');
+            $ids=array_values(array_unique(array_map('intval',explode(',',$raw))));foreach($ids as $serviceID)if($serviceID>2147483647)clevo_api_invalid('query.service_ids');
+            $appointment=clevo_booking_availability($db,$id,['date'=>$date,'time'=>$time,'mode'=>clevo_api_enum('mode',['station','home','delivery'],'station'),'service_ids'=>$ids]);
+        }
+        clevo_api_result(['availability'=>['station_id'=>$id,'date'=>$date,'timezone'=>$zone->getName(),'status'=>$station['Status'],'opening_time'=>$open,'closing_time'=>$close,'open_now'=>$station['Status']==='Active'&&$within,'accepting_requests'=>$station['Status']==='Active'&&((int)$station['BookingCapacity']>0||(int)$station['HomeCapacity']>0),'capacity_enforced'=>true,'booking_policy'=>clevo_booking_policy($station),'appointment'=>$appointment]]);
     }
     throw new LogicException('Unimplemented catalog route.');
 }

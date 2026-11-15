@@ -34,6 +34,7 @@ function clevo_api_routes():array
     $add('POST','bookings','bookings.create','customer','Booking',true,200,'modified');
     $add('GET','bookings/{id}','bookings.detail','any',null,false,200,'modified');
     $add('GET','bookings/{id}/status','bookings.status');
+    $add('GET','bookings/{id}/events','bookings.events','customer,owner,admin');
     $add('GET','bookings/{id}/price-breakdown','bookings.price','customer,owner,admin');
     $add('POST','bookings/{id}/cancel','bookings.cancel','customer','Empty',true);
     $add('POST','bookings/{id}/reschedule','bookings.reschedule','customer','Reschedule',true);
@@ -96,6 +97,7 @@ function clevo_api_routes():array
     $add('DELETE','admin/stations/{id}','admin.station_archive','admin','Empty',true);
     $add('GET','admin/bookings','admin.bookings','admin');
     $add('GET','admin/bookings/{id}','admin.booking','admin');
+    $add('POST','admin/bookings/{id}/cancel','admin.booking_cancel','admin','BookingCancellation',true);
     $add('GET','admin/financial-reports','admin.financial','admin');
     $add('GET','admin/subscription-plans','admin.plans','admin');
     $add('POST','admin/subscription-plans','admin.plan_create','admin','PlanCreate',true,201);

@@ -23,7 +23,8 @@ function clevo_api_booking_change(array $result):array
     if(($result['status']??'')!=='success'){
         $reason=$result['message']??'';
         if(in_array($reason,['booking_not_found','invalid_booking'],true))throw new ClevoSecurityException('not_found',404);
-        throw new ClevoSecurityException(in_array($reason,['booking_locked','refund_failed','invalid_datetime','legacy_payment_requires_reconciliation'],true)?$reason:'booking_conflict',409);
+        if(in_array($reason,['invalid_datetime','invalid_booking_time','outside_opening_hours','invalid_service_duration'],true))throw new ClevoSecurityException($reason,422);
+        throw new ClevoSecurityException(in_array($reason,['booking_locked','refund_failed','legacy_payment_requires_reconciliation','legacy_schedule_requires_reconciliation','booking_capacity_exceeded','station_capacity_not_configured','station_unavailable','service_unavailable','booking_expired','booking_already_exists','manual_refund_required'],true)?$reason:'booking_conflict',409);
     }
     return $result;
 }
@@ -33,11 +34,15 @@ function clevo_api_bookings(mysqli $db,string $action,array $ctx,array $args,arr
     if($action==='create')clevo_api_result(clevo_create_booking($db,$user,$input['station_id'],$input,clevo_api_key()));
     if(in_array($action,['list','history'],true))clevo_api_result(['bookings'=>clevo_api_booking_list($db,$ctx,$action==='history'?'history':'all')]);
     $b=clevo_api_booking($db,$ctx,$id);
+    if($action==='events'){
+        $columns='EventID,FromStatus,ToStatus,ActorRole,Reason,ChangedAt'.($role==='admin'?',ActorID':'');
+        clevo_api_result(['events'=>clevo_api_list($db,$columns,'FROM booking_status_history','BookingID=?','i',[$id],['id'=>'EventID','created_at'=>'ChangedAt'],'id','EventID')]);
+    }
     if($action==='detail'){
         $dto=clevo_booking_dto($b,$role);
         if($role==='owner'&&in_array($b['Status'],['Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning'],true))$dto['customer']=clevo_stmt($db,'SELECT UserName,PhoneNumber,CarName FROM user WHERE UserID=?','i',[(int)$b['UserID']])->get_result()->fetch_assoc();
         if(in_array($role,['customer','owner'],true)&&$b['Service_Location']==='delivery'&&in_array($b['Status'],['Accepted','Arrived','In Progress','Pickup','Washing','Returning'],true)&&!empty($b['DriverID']))$dto['driver']=clevo_stmt($db,"SELECT UserID id,UserName name,PhoneNumber phone FROM user WHERE UserID=? AND StationID=? AND LOWER(Role)='driver' AND AccountStatus='active'",'ii',[(int)$b['DriverID'],(int)$b['StationID']])->get_result()->fetch_assoc();
-        if($role!=='driver')$dto['services']=clevo_stmt($db,'SELECT ServiceID,ServiceName,Price FROM booking_services WHERE BookingID=? ORDER BY BookingServiceID','i',[$id])->get_result()->fetch_all(MYSQLI_ASSOC);
+        if($role!=='driver')$dto['services']=clevo_stmt($db,'SELECT ServiceID,ServiceName,Price,DurationMinutes FROM booking_services WHERE BookingID=? ORDER BY BookingServiceID','i',[$id])->get_result()->fetch_all(MYSQLI_ASSOC);
         clevo_api_result(['booking'=>$dto]);
     }
     if($action==='status')clevo_api_result(['booking'=>['BookingID'=>$id,'Status'=>$b['Status'],'Driver_Lat'=>$b['Driver_Lat'],'Driver_Lon'=>$b['Driver_Lon'],'DriverAcceptedAt'=>$b['DriverAcceptedAt']??null]]);
@@ -50,7 +55,7 @@ function clevo_api_bookings(mysqli $db,string $action,array $ctx,array $args,arr
         $terminal=in_array($b['Status'],['Cancelled','Cancelled_Timeout','Rejected'],true);
         $outstanding=in_array($state,['unverified_legacy','reconciliation_required'],true)?null:($terminal||$plan||in_array($state,['recorded','refunded'],true)?'0.00':$net);
         $payable=$planMethod?($plan||$state==='refunded'?'0.00':null):$net;
-        clevo_api_result(['price_breakdown'=>['BookingID'=>$id,'currency'=>'JOD','total'=>$b['Total_Price'],'points_used'=>$b['Points_Used'],'discount'=>$b['Points_Discount'],'payable'=>$payable,'outstanding'=>$outstanding,'settlement_state'=>$state,'plan_covered'=>$plan&&!$terminal&&!in_array($state,['refunded','reconciliation_required'],true),'payment_method'=>$b['Payment_Method'],'receipt'=>$receipt,'items'=>clevo_stmt($db,'SELECT ServiceID,ServiceName,Price FROM booking_services WHERE BookingID=? ORDER BY BookingServiceID','i',[$id])->get_result()->fetch_all(MYSQLI_ASSOC)]]);
+        clevo_api_result(['price_breakdown'=>['BookingID'=>$id,'currency'=>'JOD','services_subtotal'=>$b['ServicesSubtotal'],'additional_fee'=>$b['AdditionalFee'],'duration_minutes'=>$b['DurationMinutes'],'total'=>$b['Total_Price'],'points_used'=>$b['Points_Used'],'discount'=>$b['Points_Discount'],'payable'=>$payable,'outstanding'=>$outstanding,'settlement_state'=>$state,'plan_covered'=>$plan&&!$terminal&&!in_array($state,['refunded','reconciliation_required'],true),'payment_method'=>$b['Payment_Method'],'receipt'=>$receipt,'items'=>clevo_stmt($db,'SELECT ServiceID,ServiceName,Price FROM booking_services WHERE BookingID=? ORDER BY BookingServiceID','i',[$id])->get_result()->fetch_all(MYSQLI_ASSOC)]]);
     }
     $result=clevo_api_mutate($db,$ctx,'booking.'.$action,['id'=>$id]+$input,function()use($db,$action,$id,$user,$input){
         $r=$action==='cancel'?clevoCancelBookingForUser($db,$id,$user):clevoRescheduleBookingForUser($db,$id,$user,$input['booking_date'],$input['booking_time']);

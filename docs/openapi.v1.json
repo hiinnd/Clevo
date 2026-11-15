@@ -286,6 +286,139 @@
                 ]
             }
         },
+        "/admin/bookings/{id}/cancel": {
+            "post": {
+                "operationId": "post_admin_bookings_id_cancel",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "admin: booking cancel",
+                "description": "Allowed roles: admin. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "booking_id": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "booking_id"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookingCancellation"
+                            },
+                            "example": {
+                                "reason": "Customer requested administrative cancellation"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/disputes": {
             "get": {
                 "operationId": "get_admin_disputes",
@@ -5860,6 +5993,161 @@
                         }
                     }
                 }
+            }
+        },
+        "/bookings/{id}/events": {
+            "get": {
+                "operationId": "get_bookings_id_events",
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "bookings: events",
+                "description": "Allowed roles: customer,owner,admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "customer,owner,admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "events": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/BookingEvent"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "events"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
             }
         },
         "/bookings/{id}/payments": {
@@ -15154,6 +15442,30 @@
                             "type": "string"
                         },
                         "description": "Validated bounded filter; see integration guide."
+                    },
+                    {
+                        "name": "time",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Validated bounded filter; see integration guide."
+                    },
+                    {
+                        "name": "mode",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Validated bounded filter; see integration guide."
+                    },
+                    {
+                        "name": "service_ids",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Validated bounded filter; see integration guide."
                     }
                 ]
             }
@@ -16705,11 +17017,75 @@
                     },
                     "has_delivery": {
                         "type": "boolean"
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000
+                    },
+                    "home_capacity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000
+                    },
+                    "default_service_minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1440
+                    },
+                    "delivery_buffer_minutes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1440
+                    },
+                    "station_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ],
+                        "pattern": "^(0|[1-9][0-9]{0,7})(\\.[0-9]{1,2})?$",
+                        "minimum": 0,
+                        "maximum": 99999999.99,
+                        "multipleOf": 0.01
+                    },
+                    "home_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ],
+                        "pattern": "^(0|[1-9][0-9]{0,7})(\\.[0-9]{1,2})?$",
+                        "minimum": 0,
+                        "maximum": 99999999.99,
+                        "multipleOf": 0.01
+                    },
+                    "delivery_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ],
+                        "pattern": "^(0|[1-9][0-9]{0,7})(\\.[0-9]{1,2})?$",
+                        "minimum": 0,
+                        "maximum": 99999999.99,
+                        "multipleOf": 0.01
                     }
                 },
                 "required": [],
                 "additionalProperties": false,
                 "minProperties": 1
+            },
+            "BookingCancellation": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "additionalProperties": false
             },
             "DriverCreate": {
                 "type": "object",
@@ -17827,6 +18203,44 @@
                                 "maxLength": 20
                             }
                         }
+                    },
+                    "DurationMinutes": {
+                        "type": [
+                            "integer",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "ServicesSubtotal": {
+                        "type": [
+                            "number",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "AdditionalFee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "ScheduledAtUtc": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "ScheduledEndAtUtc": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "BookingTimeZone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -18678,6 +19092,143 @@
                 ],
                 "additionalProperties": true
             },
+            "BookingPolicy": {
+                "type": "object",
+                "properties": {
+                    "capacity": {
+                        "type": [
+                            "integer",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "home_capacity": {
+                        "type": [
+                            "integer",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "default_service_minutes": {
+                        "type": "integer"
+                    },
+                    "delivery_buffer_minutes": {
+                        "type": "integer"
+                    },
+                    "station_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "home_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "delivery_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "pickup_shares_station_capacity": {
+                        "const": true
+                    }
+                },
+                "required": [
+                    "capacity",
+                    "home_capacity",
+                    "default_service_minutes",
+                    "delivery_buffer_minutes",
+                    "station_fee",
+                    "home_fee",
+                    "delivery_fee",
+                    "pickup_shares_station_capacity"
+                ],
+                "additionalProperties": true
+            },
+            "AppointmentAvailability": {
+                "type": "object",
+                "properties": {
+                    "available": {
+                        "type": "boolean"
+                    },
+                    "capacity": {
+                        "type": "object",
+                        "properties": {
+                            "pool": {
+                                "type": "string",
+                                "enum": [
+                                    "station",
+                                    "home"
+                                ]
+                            },
+                            "capacity": {
+                                "type": "integer"
+                            },
+                            "occupied": {
+                                "type": "integer"
+                            },
+                            "remaining": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "pool",
+                            "capacity",
+                            "occupied",
+                            "remaining"
+                        ],
+                        "additionalProperties": true
+                    },
+                    "duration_minutes": {
+                        "type": "integer"
+                    },
+                    "starts_at_utc": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "ends_at_utc": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "services_subtotal": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "additional_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "total": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "currency": {
+                        "const": "JOD"
+                    }
+                },
+                "required": [
+                    "available",
+                    "capacity",
+                    "duration_minutes",
+                    "starts_at_utc",
+                    "ends_at_utc",
+                    "services_subtotal",
+                    "additional_fee",
+                    "total",
+                    "currency"
+                ],
+                "additionalProperties": true
+            },
             "AvailabilityDTO": {
                 "type": "object",
                 "properties": {
@@ -18719,7 +19270,20 @@
                         "type": "boolean"
                     },
                     "capacity_enforced": {
-                        "const": false
+                        "const": true
+                    },
+                    "booking_policy": {
+                        "$ref": "#/components/schemas/BookingPolicy"
+                    },
+                    "appointment": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/AppointmentAvailability"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -18895,6 +19459,26 @@
                     },
                     "plan_covered": {
                         "type": "boolean"
+                    },
+                    "services_subtotal": {
+                        "type": [
+                            "number",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "additional_fee": {
+                        "type": [
+                            "string",
+                            "number"
+                        ]
+                    },
+                    "duration_minutes": {
+                        "type": [
+                            "integer",
+                            "string",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -18987,6 +19571,55 @@
                     "currency",
                     "reconciled_accounting",
                     "receipts"
+                ],
+                "additionalProperties": true
+            },
+            "BookingEvent": {
+                "type": "object",
+                "properties": {
+                    "EventID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "FromStatus": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "ToStatus": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "ActorRole": {
+                        "type": "string",
+                        "maxLength": 20
+                    },
+                    "ActorID": {
+                        "type": [
+                            "integer",
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "Reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    },
+                    "ChangedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "EventID",
+                    "ToStatus",
+                    "ActorRole",
+                    "Reason",
+                    "ChangedAt"
                 ],
                 "additionalProperties": true
             }

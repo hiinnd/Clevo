@@ -19,12 +19,13 @@ function clevoSaveBookingServices(mysqli $conn, int $bookingID, array $services)
     }
 
     clevoEnsureBookingServicesTable($conn);
-    $stmt = $conn->prepare("INSERT INTO booking_services (BookingID, ServiceID, ServiceName, Price) VALUES (?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO booking_services (BookingID, ServiceID, ServiceName, Price, DurationMinutes) VALUES (?, ?, ?, ?, ?)");
     foreach ($services as $service) {
         $serviceID = (int) ($service['ServiceID'] ?? 0);
         $name = (string) ($service['Name'] ?? '');
         $price = (float) ($service['Price'] ?? 0);
-        $stmt->bind_param("iisd", $bookingID, $serviceID, $name, $price);
+        $duration=(int)($service['DurationMinutes']??$service['Duration']??0);
+        $stmt->bind_param("iisdi", $bookingID, $serviceID, $name, $price, $duration);
         $stmt->execute();
     }
 }
@@ -161,6 +162,8 @@ function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason 
         $payment=clevo_stmt($conn,'SELECT * FROM payments WHERE BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
         if ($method!=='plan'&&!$payment) throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
         if (!clevo_db_effect($conn,$bookingID,'refund')) return ['refunded'=>true,'method'=>$method,'amount'=>0,'message'=>'already_refunded'];
+        if (!in_array($b['Status'],['Pending','Accepted','Rejected','Cancelled','Cancelled_Timeout'],true) || !in_array($method,['wallet','points','plan'],true)) throw new ClevoSecurityException('manual_refund_required',409);
+        clevo_assert_booking_payment($conn,$b);
         if ($method==='plan') {
             clevoRestorePlanWashForBooking($conn,$bookingID);
         } else {
@@ -183,157 +186,67 @@ function clevoRefundBookingPayment(mysqli $conn, int $bookingID, string $reason 
 
 function clevoCancelBookingForUser(mysqli $conn, int $bookingID, int $userID): array
 {
-    if ($bookingID <= 0 || $userID <= 0) {
-        return ['status' => 'error', 'message' => 'invalid_booking'];
-    }
-
-    clevoEnsureBookingWorkflowColumns($conn);
-    clevo_db_begin($conn);
-
     try {
-        $stmt = $conn->prepare("SELECT b.*, COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID, s.Name AS StationName
-            FROM booking b
-            JOIN stations s ON b.StationID = s.StationID
-            WHERE b.BookingID = ? AND b.UserID = ? LIMIT 1 FOR UPDATE");
-        $stmt->bind_param("ii", $bookingID, $userID);
-        $stmt->execute();
-        $booking = $stmt->get_result()->fetch_assoc();
+        $account=clevo_booking_actor($conn,$userID);
+        if (clevo_role($account['Role'])!=='customer') throw new ClevoSecurityException('forbidden',403);
+        return clevo_booking_transition($conn,$userID,$bookingID,'Cancelled','customer_cancelled');
+    } catch (Throwable $e) { return clevo_booking_change_error($e); }
+}
 
-        if (!$booking) {
-            throw new RuntimeException('booking_not_found');
-        }
-        if (!clevoBookingCanBeChanged((string) $booking['Status'])) {
-            throw new RuntimeException('booking_locked');
-        }
-
-        $refund = clevoRefundBookingPayment($conn, $bookingID, 'cancelled');
-        if (($refund['message'] ?? '') === 'wallet_refund_failed') {
-            throw new RuntimeException('refund_failed');
-        }
-
-        $update = $conn->prepare("UPDATE booking
-            SET Status = 'Cancelled', DriverID = NULL, Accepted_At = NULL, notification_sent = 1
-            WHERE BookingID = ? AND UserID = ? AND Status = 'Pending'");
-        $update->bind_param("ii", $bookingID, $userID);
-        $update->execute();
-        if ($update->affected_rows <= 0) {
-            throw new RuntimeException('cancel_failed');
-        }
-
-        $orderNumber = clevoBookingReference($booking, $bookingID);
-        $ownerID = (int) ($booking['OwnerID'] ?? 0);
-        if ($ownerID > 0) {
-            clevoCreateNotification($conn, $ownerID, 'تم إلغاء الحجز', "قام العميل بإلغاء الطلب #$orderNumber.", 'warning', 'incoming-orders.php');
-        }
-        if ((int) ($booking['DriverID'] ?? 0) > 0) {
-            clevoCreateNotification($conn, (int) $booking['DriverID'], 'تم إلغاء المهمة', "تم إلغاء الطلب #$orderNumber من قبل العميل.", 'warning', 'driver-dashboard.php');
-        }
-
-        $userBody = ($refund['refunded'] ?? false)
-            ? "تم إلغاء طلبك #$orderNumber وحفظ المبلغ/الرصيد المستحق في حسابك."
-            : "تم إلغاء طلبك #$orderNumber بنجاح.";
-        clevoCreateNotification($conn, $userID, 'تم إلغاء الحجز', $userBody, 'success', 'order-details.php?id=' . $bookingID);
-
-        clevo_db_commit($conn);
-        return ['status' => 'success', 'message' => 'cancelled', 'refund' => $refund];
-    } catch (Throwable $e) {
-        clevo_db_rollback($conn);
-        return ['status' => 'error', 'message' => $e->getMessage()];
-    }
+function clevo_booking_change_error(Throwable $e): array
+{
+    $reason=$e instanceof ClevoSecurityException?$e->reason:'booking_change_failed';
+    if (!$e instanceof ClevoSecurityException) error_log('CLEVO booking operation failed: '.get_class($e));
+    return ['status'=>'error','message'=>match($reason){'not_found'=>'booking_not_found','invalid_transition'=>'booking_locked',default=>$reason}];
 }
 
 function clevoParseRescheduleDateTime(string $date, string $time): ?array
 {
-    $date = trim($date);
-    $time = trim($time);
-    if ($date === '' || $time === '') {
-        return null;
-    }
-
-    $time = substr($time, 0, 5);
-    $dt = DateTimeImmutable::createFromFormat('!Y-m-d H:i', "$date $time", new DateTimeZone(clevo_env('BOOKING_TIMEZONE','Asia/Amman')));
-    if (!$dt || $dt->format('Y-m-d') !== $date || $dt->format('H:i') !== $time) {
-        return null;
-    }
-    if ($dt < new DateTimeImmutable('-1 minute')) {
-        return null;
-    }
-
-    return ['date' => $dt->format('Y-m-d'), 'time' => $dt->format('H:i:s')];
+    try {
+        $when=clevo_booking_datetime(trim($date),trim($time));
+        if ($when<=new DateTimeImmutable('now',$when->getTimezone())) return null;
+        return ['date'=>$when->format('Y-m-d'),'time'=>$when->format('H:i:s')];
+    } catch(Throwable $e) { return null; }
 }
 
 function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID, string $date, string $time): array
 {
-    if ($bookingID <= 0 || $userID <= 0) {
-        return ['status' => 'error', 'message' => 'invalid_booking'];
-    }
-
-    $slot = clevoParseRescheduleDateTime($date, $time);
-    if (!$slot) {
-        return ['status' => 'error', 'message' => 'invalid_datetime'];
-    }
-
-    clevoEnsureBookingWorkflowColumns($conn);
-    clevo_db_begin($conn);
-
-    try {
-        $stmt = $conn->prepare("SELECT b.*, COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID
-            FROM booking b
-            JOIN stations s ON b.StationID = s.StationID
-            WHERE b.BookingID = ? AND b.UserID = ? LIMIT 1 FOR UPDATE");
-        $stmt->bind_param("ii", $bookingID, $userID);
-        $stmt->execute();
-        $booking = $stmt->get_result()->fetch_assoc();
-
-        if (!$booking) {
-            throw new RuntimeException('booking_not_found');
-        }
-        if (!clevoBookingCanBeChanged((string) $booking['Status'])) {
-            throw new RuntimeException('booking_locked');
-        }
-
-        $update = $conn->prepare("UPDATE booking
-            SET Booking_Date = ?, Booking_Time = ?, ScheduledAtUtc = ?, BookingTimeZone = ?, Status = 'Pending', DriverID = NULL, Accepted_At = NULL, notification_sent = 0
-            WHERE BookingID = ? AND UserID = ? AND Status = 'Pending'");
-        $zone=clevo_env('BOOKING_TIMEZONE','Asia/Amman');
-        $utc=(new DateTimeImmutable($slot['date'].' '.$slot['time'],new DateTimeZone($zone)))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-        $update->bind_param("ssssii", $slot['date'], $slot['time'], $utc, $zone, $bookingID, $userID);
-        $update->execute();
-        if ($update->affected_rows <= 0) {
-            throw new RuntimeException('reschedule_failed');
-        }
-
-        $orderNumber = clevoBookingReference($booking, $bookingID);
-        $ownerID = (int) ($booking['OwnerID'] ?? 0);
-        if ($ownerID > 0) {
-            clevoCreateNotification($conn, $ownerID, 'تم تعديل موعد الحجز', "تم تعديل موعد الطلب #$orderNumber إلى {$slot['date']} الساعة {$slot['time']}. يرجى مراجعة الطلب من جديد.", 'info');
-        }
-        if ((int) ($booking['DriverID'] ?? 0) > 0) {
-            clevoCreateNotification($conn, (int) $booking['DriverID'], 'تم تعديل موعد المهمة', "تم تعديل موعد الطلب #{$orderNumber}، وسيتم تأكيده من المحطة من جديد.", 'info');
-        }
-        clevoCreateNotification($conn, $userID, 'تم تعديل موعد الحجز', "تم حفظ الموعد الجديد للطلب #$orderNumber مع الحفاظ على طريقة الدفع والمستحقات.", 'success');
-
-        clevo_db_commit($conn);
-        return ['status' => 'success', 'message' => 'rescheduled', 'date' => $slot['date'], 'time' => $slot['time']];
-    } catch (Throwable $e) {
-        clevo_db_rollback($conn);
-        return ['status' => 'error', 'message' => $e->getMessage()];
-    }
+    try { return clevo_db_atomic($conn,function()use($conn,$bookingID,$userID,$date,$time):array {
+        $b=clevo_booking_lock($conn,$bookingID);$s=$b['_station'];
+        $a=clevo_booking_actor($conn,$userID);
+        if (clevo_role($a['Role'])!=='customer'||(int)$b['UserID']!==$userID) throw new ClevoSecurityException('not_found',404);
+        if (!clevoBookingCanBeChanged((string)$b['Status'])) throw new ClevoSecurityException('booking_locked',409);
+        if (clevo_booking_is_expired($b)) throw new ClevoSecurityException('booking_expired',409);
+        $when=clevo_booking_datetime($date,$time,$b['BookingTimeZone']?:null);
+        $services=clevo_stmt($conn,'SELECT bs.ServiceID,bs.Price,bs.DurationMinutes,v.Duration,v.ArchivedAt,v.is_station,v.is_home,v.is_pickup FROM booking_services bs JOIN services v ON v.ServiceID=bs.ServiceID WHERE bs.BookingID=? ORDER BY bs.ServiceID FOR UPDATE','i',[$bookingID])->get_result()->fetch_all(MYSQLI_ASSOC);
+        if (!$services) $services=clevo_stmt($conn,'SELECT * FROM services WHERE ServiceID=? AND StationID=? FOR UPDATE','ii',[(int)$b['ServiceID'],(int)$b['StationID']])->get_result()->fetch_all(MYSQLI_ASSOC);
+        if (!$services) throw new ClevoSecurityException('service_unavailable',409);
+        $quote=clevo_booking_schedule($s,$services,$b['Service_Location'],$when,$b['DurationMinutes']!==null?(int)$b['DurationMinutes']:null);
+        clevo_booking_assert_capacity($conn,$s,$b['Service_Location'],$when,$quote['end'],$bookingID);
+        $ids=array_map('intval',array_column($services,'ServiceID'));
+        $fingerprint=clevo_booking_intent($userID,(int)$b['StationID'],$ids,$b['Service_Location'],$when,$b['Latitude']!==null?(float)$b['Latitude']:null,$b['Longitude']!==null?(float)$b['Longitude']:null,(string)$b['Address_Details'],$b['Payment_Method']==='plan');
+        if(clevo_stmt($conn,'SELECT BookingID FROM booking WHERE ActiveRequestFingerprint=? AND BookingID<>? FOR UPDATE','si',[$fingerprint,$bookingID])->get_result()->fetch_assoc())throw new ClevoSecurityException('booking_already_exists',409);
+        $utc=$when->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        $end=$quote['end']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        clevo_stmt($conn,'UPDATE booking SET Booking_Date=?,Booking_Time=?,ScheduledAtUtc=?,BookingTimeZone=?,ScheduledEndAtUtc=?,DurationMinutes=?,RequestFingerprint=? WHERE BookingID=?','sssssisi',[$when->format('Y-m-d'),$when->format('H:i:s'),$utc,$when->getTimezone()->getName(),$end,$quote['duration'],$fingerprint,$bookingID]);
+        clevo_booking_event($conn,$bookingID,'Pending','Pending',$userID,'customer','customer_rescheduled');
+        clevo_db_audit($conn,$userID,'booking.rescheduled','booking',$bookingID);
+        clevoCreateNotification($conn,(int)$s['UserID'],'تم تعديل موعد الحجز','تم تعديل موعد الطلب #'.$bookingID,'info','incoming-orders.php','Booking rescheduled','Order #'.$bookingID.' was rescheduled.');
+        clevoCreateNotification($conn,$userID,'تم تعديل موعد الحجز','تم حفظ موعد الطلب #'.$bookingID,'success','order-details.php?id='.$bookingID,'Booking rescheduled','Order #'.$bookingID.' was rescheduled.');
+        return ['status'=>'success','message'=>'rescheduled','date'=>$when->format('Y-m-d'),'time'=>$when->format('H:i:s')];
+    }); } catch(Throwable $e) { return clevo_booking_change_error($e); }
 }
 
-function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
+function cancelExpiredBookings(mysqli $conn, ?int $userID = null, ?int $stationID = null): void
 {
-    $where=$userID===null?'':' AND UserID=?';
-    $sql="SELECT BookingID FROM booking WHERE COALESCE(notification_sent,0)=0 AND ((Status='Pending' AND created_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE) OR (Status='Accepted' AND Service_Location IN ('home','delivery') AND (Payment_Method IS NULL OR Payment_Method='') AND COALESCE(Accepted_At,created_at)<UTC_TIMESTAMP()-INTERVAL 10 MINUTE))".$where." ORDER BY BookingID LIMIT 200";
-    $ids=clevo_stmt($conn,$sql,$userID===null?'':'i',$userID===null?[]:[$userID])->get_result()->fetch_all(MYSQLI_ASSOC);
-    foreach ($ids as $id) clevo_db_atomic($conn,function()use($conn,$id):void {
-        $bookingID=(int)$id['BookingID'];
-        $b=clevo_stmt($conn,"SELECT * FROM booking WHERE BookingID=? AND COALESCE(notification_sent,0)=0 AND ((Status='Pending' AND created_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE) OR (Status='Accepted' AND Service_Location IN ('home','delivery') AND (Payment_Method IS NULL OR Payment_Method='') AND COALESCE(Accepted_At,created_at)<UTC_TIMESTAMP()-INTERVAL 10 MINUTE)) FOR UPDATE",'i',[$bookingID])->get_result()->fetch_assoc();
-        if (!$b) return;
-        if (!empty($b['Payment_Method'])) clevoRefundBookingPayment($conn,$bookingID,'timeout');
-        clevo_stmt($conn,"UPDATE booking SET Status='Cancelled_Timeout',notification_sent=1 WHERE BookingID=?",'i',[$bookingID]);
-        clevo_stmt($conn,'UPDATE driver_assignments SET EndedAt=UTC_TIMESTAMP(6) WHERE BookingID=? AND EndedAt IS NULL','i',[$bookingID]);
-        clevo_db_audit($conn,null,'booking.expired','booking',$bookingID);
-        clevoCreateNotification($conn,(int)$b['UserID'],'انتهت مهلة الطلب','انتهت مهلة الرد أو الدفع للطلب. يمكنك حجز محطة أخرى الآن.','danger',"order-details.php?id=$bookingID",'Order expired','The order response/payment window expired.');
+    $where='';$types='';$params=[];
+    if ($userID!==null) {$where.=' AND UserID=?';$types.='i';$params[]=$userID;}
+    if ($stationID!==null) {$where.=' AND StationID=?';$types.='i';$params[]=$stationID;}
+    $sql="SELECT BookingID FROM booking WHERE ((Status='Pending' AND created_at<=UTC_TIMESTAMP()-INTERVAL 10 MINUTE) OR (Status='Accepted' AND Service_Location IN ('home','delivery') AND (Payment_Method IS NULL OR Payment_Method='') AND COALESCE(Accepted_At,created_at)<=UTC_TIMESTAMP()-INTERVAL 10 MINUTE))".$where.' ORDER BY BookingID LIMIT 200';
+    $ids=clevo_stmt($conn,$sql,$types,$params)->get_result()->fetch_all(MYSQLI_ASSOC);
+    foreach ($ids as $row) clevo_db_atomic($conn,function()use($conn,$row):void {
+        $id=(int)$row['BookingID'];$b=clevo_booking_lock($conn,$id);
+        if (!clevo_booking_is_expired($b)) return;
+        clevo_booking_transition($conn,null,$id,'Cancelled_Timeout',$b['Status']==='Pending'?'request_expired':'payment_expired');
     });
 }

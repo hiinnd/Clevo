@@ -35,6 +35,10 @@ function db_snapshot(mysqli $db):array {
 function assert_snapshot(mysqli $db,array $snapshot):void {
     foreach($snapshot as $table=>$before){$columns=implode(',',array_map(fn($c)=>'`'.$c.'`',$before['columns']));$rows=$db->query("SELECT $columns FROM `$table`".($before['order']?' ORDER BY '.$before['order']:''))->fetch_all(MYSQLI_ASSOC);check(hash('sha256',json_encode($rows,JSON_THROW_ON_ERROR))===$before['hash'],'Migration preserves every legacy value: '.$table);}
 }
+function db_distinct_body(array $body):array {
+    static $sequence=0;$sequence++;
+    return array_replace($body,['booking_date'=>(new DateTimeImmutable('+'.(2+$sequence).' days'))->format('Y-m-d')]);
+}
 function db_race(array $left,array $right):array {
     $start=microtime(true)+0.6;$jobs=[];
     foreach([$left,$right]as $input){$p=proc_open([PHP_BINARY,__DIR__.'/database-race.php'],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,dirname(__DIR__));fwrite($pipes[0],json_encode($input+['start'=>$start]));fclose($pipes[0]);$jobs[]=[$p,$pipes];}
@@ -72,6 +76,7 @@ $dbName=clevo_env('DB_DATABASE');
 $conn->query("INSERT INTO user (UserID,UserName,PhoneNumber,Password,Role,AccountStatus) VALUES (1,'Customer','0710000001','!disabled','customer','active'),(2,'Owner','0710000002','!disabled','owner','active'),(3,'Driver','0710000003','!disabled','driver','active')");
 $conn->query("INSERT INTO stations (UserID,Name,admin_status,Has_At_Station,Has_Home_Service,Has_Delivery) VALUES (2,'Synthetic','approved',1,1,1)");
 $conn->query("UPDATE user SET StationID=1 WHERE UserID=3");
+$conn->query('UPDATE stations SET BookingCapacity=1000,HomeCapacity=1000');
 $conn->query("INSERT INTO services (StationID,Name,Price,is_station,is_home,is_pickup) VALUES (1,'Synthetic',10,1,1,1)");
 $conn->query('INSERT INTO wallet (UserID,Balance) VALUES (1,100),(2,0)');
 $conn->query('INSERT INTO loyalty (UserID,PointsBalance) VALUES (1,200),(1,200)');
@@ -104,7 +109,7 @@ check($conn->query('SELECT Balance FROM wallet WHERE UserID=2')->fetch_assoc()['
 $conn->query('UPDATE wallet SET Balance=0 WHERE UserID=2');clevo_stmt($conn,'SET SESSION sql_mode=?','s',[$sqlMode]);
 
 // Points and wallet failure must roll back together, including records and payment markers.
-$b=clevo_create_booking($conn,1,1,$body,bin2hex(random_bytes(16)));$failId=$b['booking_id'];$conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$failId");
+$b=clevo_create_booking($conn,1,1,db_distinct_body($body),bin2hex(random_bytes(16)));$failId=$b['booking_id'];$conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$failId");
 $conn->query('UPDATE wallet SET Balance=0 WHERE UserID=1');$conn->query('UPDATE loyalty SET PointsBalance=100 WHERE UserID=1');
 rejects(fn()=>clevo_pay_booking($conn,1,$failId,'wallet',true,bin2hex(random_bytes(16))),'Insufficient wallet aborts combined points/payment operation','insufficient');
 check(clevoGetLoyaltyPoints($conn,1)===200.0,'Failed payment restores all loyalty buckets');
@@ -113,25 +118,25 @@ check(!(bool)$conn->query("SELECT 1 FROM payments WHERE BookingID=$failId")->fet
 
 // Distinct concurrent requests cannot overspend a wallet or reuse the final plan wash.
 $conn->query('UPDATE wallet SET Balance=10 WHERE UserID=1');
-$second=clevo_create_booking($conn,1,1,$body,bin2hex(random_bytes(16)))['booking_id'];$conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$second");
+$second=clevo_create_booking($conn,1,1,db_distinct_body($body),bin2hex(random_bytes(16)))['booking_id'];$conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$second");
 $left=['op'=>'payment','user'=>1,'booking'=>$failId,'key'=>bin2hex(random_bytes(16))];$right=['op'=>'payment','user'=>1,'booking'=>$second,'key'=>bin2hex(random_bytes(16))];$race=db_race($left,$right);
 check(count(array_filter($race,fn($r)=>$r['ok']))===1,'Two bookings competing for one wallet balance yield one payment');
 check($conn->query('SELECT Balance FROM wallet WHERE UserID=1')->fetch_assoc()['Balance']==='0.00','Concurrent wallet balance never becomes negative');
 $conn->query("INSERT INTO plans (name_ar,name_en,price,wash_count) VALUES ('Synthetic','Synthetic',10,1)");
 $conn->query("INSERT INTO user_plans (user_id,plan_id,start_date,end_date,remaining_washes) VALUES (1,1,CURDATE(),CURDATE()+INTERVAL 5 DAY,1)");
-$planBody=array_replace($body,['use_plan'=>true]);$left=['op'=>'plan','user'=>1,'station'=>1,'body'=>$planBody,'key'=>bin2hex(random_bytes(16))];$right=array_replace($left,['key'=>bin2hex(random_bytes(16))]);$race=db_race($left,$right);
+$planBody=array_replace($body,['use_plan'=>true,'booking_time'=>'12:00']);$left=['op'=>'plan','user'=>1,'station'=>1,'body'=>$planBody,'key'=>bin2hex(random_bytes(16))];$right=array_replace($left,['key'=>bin2hex(random_bytes(16)),'body'=>array_replace($planBody,['booking_time'=>'13:00'])]);$race=db_race($left,$right);
 check(count(array_filter($race,fn($r)=>$r['ok']))===1,'Only one concurrent booking consumes final plan wash');
 $planBooking=$race[0]['ok']?$race[0]['result']['booking_id']:$race[1]['result']['booking_id'];
 clevoRestorePlanWashForBooking($conn,$planBooking);clevoRestorePlanWashForBooking($conn,$planBooking);
 check((int)$conn->query('SELECT remaining_washes FROM user_plans WHERE id=1')->fetch_assoc()['remaining_washes']===1,'Plan restoration is single-use');
 
 clevo_db_begin($conn);clevo_stmt($conn,'UPDATE wallet SET Balance=50 WHERE UserID=1');
-$nested=clevo_create_booking($conn,1,1,$body,bin2hex(random_bytes(16)))['booking_id'];clevo_db_rollback($conn);
+$nested=clevo_create_booking($conn,1,1,db_distinct_body($body),bin2hex(random_bytes(16)))['booking_id'];clevo_db_rollback($conn);
 check(!(bool)$conn->query("SELECT 1 FROM booking WHERE BookingID=$nested")->fetch_assoc(),'Inner service cannot commit outer transaction');
 check($conn->query('SELECT Balance FROM wallet WHERE UserID=1')->fetch_assoc()['Balance']==='0.00','Outer rollback restores preceding wallet mutation');
 
 $conn->query('UPDATE wallet SET Balance=20 WHERE UserID=1');
-$failure=clevo_create_booking($conn,1,1,$body,bin2hex(random_bytes(16)))['booking_id'];
+$failure=clevo_create_booking($conn,1,1,db_distinct_body($body),bin2hex(random_bytes(16)))['booking_id'];
 $conn->query("UPDATE booking SET Status='Accepted' WHERE BookingID=$failure");
 $walletID=(int)$conn->query('SELECT WalletID FROM wallet WHERE UserID=1')->fetch_assoc()['WalletID'];
 clevo_stmt($conn,"INSERT INTO wallet_transactions (WalletID,Amount,TransactionType,OperationKey,BookingID) VALUES (?,0,'debit',?,?)",'isi',[$walletID,"booking:$failure:payment",$failure]);
@@ -143,7 +148,7 @@ $conn->query('UPDATE loyalty SET PointsBalance=0 WHERE UserID=1');$conn->query('
 $quote=clevoPreviewPointsDiscount($conn,1,10,true);
 check(clevo_db_money($quote['discount'])+clevo_db_money($quote['payable'])===1000&&$quote['discount']===0.03,'Half-cent points rounding preserves total = discount + payable');
 $conn->query('UPDATE loyalty SET PointsBalance=100 WHERE UserID=1');
-$cash=clevo_create_booking($conn,1,1,$body,bin2hex(random_bytes(16)))['booking_id'];clevo_accept_owner_booking($conn,2,$cash);clevo_accept_owner_booking($conn,2,$cash);
+$cash=clevo_create_booking($conn,1,1,db_distinct_body($body),bin2hex(random_bytes(16)))['booking_id'];clevo_accept_owner_booking($conn,2,$cash);clevo_accept_owner_booking($conn,2,$cash);
 clevo_pay_booking($conn,1,$cash,'cash',false,bin2hex(random_bytes(16)));$pointsBefore=clevoGetLoyaltyPoints($conn,1);
 clevo_complete_owner_booking($conn,2,$cash);clevo_complete_owner_booking($conn,2,$cash);
 check(clevoGetLoyaltyPoints($conn,1)===$pointsBefore+10,'Repeated owner completion awards loyalty only once');
@@ -176,7 +181,7 @@ rejects(fn()=>clevo_archive_catalog($conn,1,'service',1),'Customer cannot archiv
 clevo_archive_catalog($conn,2,'service',1);
 check((int)$conn->query('SELECT COUNT(*) n FROM booking')->fetch_assoc()['n']===$bookingsBefore,'Service archiving preserves every booking');
 check((bool)$conn->query('SELECT ServiceName FROM booking_services LIMIT 1')->fetch_assoc(),'Historical service snapshots survive archiving');
-rejects(fn()=>clevo_create_booking($conn,1,1,$body,bin2hex(random_bytes(16))),'Archived service cannot receive new bookings','service_unavailable');
+rejects(fn()=>clevo_create_booking($conn,1,1,db_distinct_body($body),bin2hex(random_bytes(16))),'Archived service cannot receive new bookings','service_unavailable');
 $conn->query("INSERT INTO user (UserID,UserName,PhoneNumber,Password,Role,AccountStatus) VALUES (4,'Synthetic admin','0710000004','!disabled','Admin','active')");
 clevo_archive_catalog($conn,4,'station',1);clevo_archive_catalog($conn,4,'plan',1);
 check((int)$conn->query('SELECT COUNT(*) n FROM booking')->fetch_assoc()['n']===$bookingsBefore,'Station archiving preserves booking history');

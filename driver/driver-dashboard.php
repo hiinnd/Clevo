@@ -154,20 +154,20 @@ $task = $task_stmt->get_result()->fetch_assoc();
                     <div class="col-6"><button type="button" class="btn btn-secondary w-100 py-2 fw-bold rounded-3" onclick="window.open('https://www.google.com/maps?q=<?= e($task['Latitude']) ?>,<?= e($task['Longitude']) ?>')"><i class="fas fa-directions ms-1"></i><span data-i18n="btn_location">الخريطة</span></button></div>
                 </div>
 
-                <?php if ($task['Status'] !== 'Arrived'): ?>
+                <?php $nextStates=clevo_booking_driver_targets((string)$task['Status']); if (in_array('Arrived',$nextStates,true)): ?>
                     <button type="button" class="btn btn-arrived" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Arrived')">
                         <i class="fas fa-map-pin ms-2"></i><span data-i18n="btn_arrived">وصلت لموقع الزبون</span>
                     </button>
                 <?php endif; ?>
 
                 <div class="row g-2 mb-3 status-grid">
-                    <div class="col-6"><button type="button" class="btn btn-outline-primary w-100 rounded-pill fw-bold" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'In Progress')" data-i18n="status_on_way">في الطريق</button></div>
-                    <div class="col-6"><button type="button" class="btn btn-outline-warning w-100 rounded-pill fw-bold" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Pickup')" data-i18n="status_pickup">استلام السيارة</button></div>
-                    <div class="col-6"><button type="button" class="btn btn-outline-info w-100 rounded-pill fw-bold" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Washing')" data-i18n="status_washing">بدء الغسيل</button></div>
-                    <div class="col-6"><button type="button" class="btn btn-outline-success w-100 rounded-pill fw-bold" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Returning')" data-i18n="status_returning">إرجاع السيارة</button></div>
+                    <div class="col-6"><button type="button" class="btn btn-outline-primary w-100 rounded-pill fw-bold" <?= in_array('In Progress',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'In Progress')" data-i18n="status_on_way">في الطريق</button></div>
+                    <div class="col-6"><button type="button" class="btn btn-outline-warning w-100 rounded-pill fw-bold" <?= in_array('Pickup',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Pickup')" data-i18n="status_pickup">استلام السيارة</button></div>
+                    <div class="col-6"><button type="button" class="btn btn-outline-info w-100 rounded-pill fw-bold" <?= in_array('Washing',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Washing')" data-i18n="status_washing">بدء الغسيل</button></div>
+                    <div class="col-6"><button type="button" class="btn btn-outline-success w-100 rounded-pill fw-bold" <?= in_array('Returning',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Returning')" data-i18n="status_returning">إرجاع السيارة</button></div>
                 </div>
 
-                <button type="button" class="btn btn-finish" onclick="confirmFinishTask('<?= (int) $task['BookingID'] ?>')"><i class="fas fa-check-circle ms-2"></i><span data-i18n="btn_finish_task">إنهاء المهمة</span></button>
+                <button type="button" class="btn btn-finish" <?= in_array('Completed',$nextStates,true)?'':'disabled' ?> onclick="confirmFinishTask('<?= (int) $task['BookingID'] ?>')"><i class="fas fa-check-circle ms-2"></i><span data-i18n="btn_finish_task">إنهاء المهمة</span></button>
             </div>
         <?php else: ?>
             <div class="task-card text-center py-5">

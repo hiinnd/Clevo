@@ -4,7 +4,7 @@ declare(strict_types=1);
 function clevo_api_owner(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);
-    if($action==='stations')clevo_api_result(['stations'=>clevo_api_list($db,'StationID,Name,Location,Lat,Lon,Status,admin_status,OpeningTime,ClosingTime,Has_At_Station,Has_Home_Service,Has_Delivery','FROM stations','UserID=? AND ArchivedAt IS NULL','i',[$user],['id'=>'StationID','name'=>'Name'],'id','StationID')]);
+    if($action==='stations')clevo_api_result(['stations'=>clevo_api_list($db,'StationID,Name,Location,Lat,Lon,Status,admin_status,OpeningTime,ClosingTime,Has_At_Station,Has_Home_Service,Has_Delivery,BookingCapacity,HomeCapacity,DefaultServiceMinutes,DeliveryBufferMinutes,StationFee,HomeFee,DeliveryFee','FROM stations','UserID=? AND ArchivedAt IS NULL','i',[$user],['id'=>'StationID','name'=>'Name'],'id','StationID')]);
     if($action==='bookings')clevo_api_result(['bookings'=>clevo_api_booking_list($db,$ctx,'all')]);
     if($action==='services'){
         clevo_market_station($db,$user,$id,false);
