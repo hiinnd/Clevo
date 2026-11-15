@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
@@ -1059,6 +1058,7 @@ $canPay = $status === 'Accepted' && $paymentMethod === '';
             });
         });
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 

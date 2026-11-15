@@ -1,255 +1,40 @@
 <?php
-session_start();
-include_once(__DIR__ . "/../includes/config.php");
-include_once(__DIR__ . "/../includes/app-helpers.php");
-
-clevoEnsureTrackingColumns($conn);
-
-
-function generate_jwt($user_id, $role)
-{
-    return clevo_generate_jwt((int) $user_id, (string) $role);
-}
-
-function get_owner_station_admin_status(mysqli $conn, int $user_id): string
-{
-    $stmt = $conn->prepare("SELECT admin_status FROM stations WHERE UserID = ? ORDER BY StationID DESC LIMIT 1");
-    if (!$stmt) {
-        return '';
-    }
-
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $station = $stmt->get_result()->fetch_assoc();
-
-    return strtolower((string) ($station['admin_status'] ?? ''));
-}
-
-
-if (isset($_SESSION['userID']) && !empty($_SESSION['userID'])) {
-    $session_role = strtolower((string) ($_SESSION['role'] ?? ''));
-    if ($session_role === 'admin') {
-        header("Location: ../admin/admin-dashboard.php");
-    } elseif ($session_role === 'owner') {
-        header("Location: ../owner/owner-dashboard.php");
-    } elseif ($session_role === 'driver') {
-        header("Location: ../driver/driver-dashboard.php");
-    } else {
-        header("Location: ../user/home.php");
-    }
-    exit();
-}
-
-$error = "";
-$pending_role = "";
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['login_action']) && !validate_csrf_token($_POST['csrf_token'] ?? '')) {
-        $error = "csrf_error";
-    } elseif (isset($_POST['login_action'])) {
-        $login_input = trim($_POST['login_input'] ?? "");
-        $password    = $_POST['password'] ?? "";
-        $device_id   = $_POST['device_id'] ?? "";
-
-        if (empty($login_input) || empty($password)) {
-            $error = "fill_all";
-        } else {
-            if (is_numeric($login_input)) {
-                if (strlen($login_input) !== 10 || substr($login_input, 0, 2) !== "07") {
-                    $error = "invalid_phone_format";
-                }
-            }
-
-            if (empty($error)) {
-                if (!empty($device_id)) {
-                    $check_b = $conn->prepare("SELECT id FROM blacklist WHERE DeviceID = ?");
-                    $check_b->bind_param("s", $device_id);
-                    $check_b->execute();
-                    if ($check_b->get_result()->num_rows > 0) {
-                        $error = "device_banned";
-                    }
-                }
-
-                if (empty($error)) {
-
-                    $stmt = $conn->prepare("SELECT UserID, UserName, Password, Role, AccountStatus, CurrentAccessCode FROM `user` WHERE PhoneNumber = ? OR Email = ?");
-                    $stmt->bind_param("ss", $login_input, $login_input);
-                    $stmt->execute();
-                    $result = $stmt->get_result();
-
-                    if ($result->num_rows === 0) {
-                        $error = "user_not_found";
-                    } else {
-                        $user = $result->fetch_assoc();
-
-                        $is_password_correct = false;
-
-
-                        $stored_password = (string) $user['Password'];
-                        $role_lower = strtolower((string) $user['Role']);
-
-                        $legacy_sha256_password = hash('sha256', $password);
-
-                        if (password_verify($password, $stored_password)) {
-                            $is_password_correct = true;
-                        } elseif (hash_equals($stored_password, $password) || hash_equals($stored_password, $legacy_sha256_password)) {
-                            $is_password_correct = true;
-                            $new_hash = password_hash($password, PASSWORD_DEFAULT);
-                            $update_pass = $conn->prepare("UPDATE `user` SET Password = ? WHERE UserID = ?");
-                            if ($update_pass) {
-                                $update_pass->bind_param("si", $new_hash, $user['UserID']);
-                                $update_pass->execute();
-                            }
-                        }
-
-
-                        $driver_booking_id = 0;
-                        $is_driver_code = false;
-                        if ($role_lower === 'driver') {
-                            $driver_code_stmt = $conn->prepare("SELECT BookingID
-                                FROM booking
-                                WHERE DriverID = ?
-                                  AND DriverAccessCode = ?
-                                  AND Service_Location = 'delivery'
-                                  AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')
-                                ORDER BY created_at DESC
-                                LIMIT 1");
-                            $driver_code_stmt->bind_param("is", $user['UserID'], $password);
-                            $driver_code_stmt->execute();
-                            $driver_booking = $driver_code_stmt->get_result()->fetch_assoc();
-                            $driver_booking_id = (int) ($driver_booking['BookingID'] ?? 0);
-                            $is_driver_code = $driver_booking_id > 0;
-
-                            if (!$is_driver_code && $is_password_correct) {
-                                $driver_task_stmt = $conn->prepare("SELECT BookingID
-                                    FROM booking
-                                    WHERE DriverID = ?
-                                      AND Service_Location = 'delivery'
-                                      AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')
-                                    ORDER BY created_at DESC
-                                    LIMIT 1");
-                                $driver_task_stmt->bind_param("i", $user['UserID']);
-                                $driver_task_stmt->execute();
-                                $driver_task = $driver_task_stmt->get_result()->fetch_assoc();
-                                $driver_booking_id = (int) ($driver_task['BookingID'] ?? 0);
-                            }
-                        }
-
-                        if (($role_lower === 'driver' && !$is_driver_code && !$is_password_correct) || ($role_lower !== 'driver' && !$is_password_correct)) {
-                            $error = "wrong_pass";
-                        } elseif ($user['AccountStatus'] === 'pending' && in_array($role_lower, ['owner', 'customer', 'user'], true)) {
-                            $error = "pending_status";
-                            $pending_role = $role_lower === 'owner' ? 'owner' : 'user';
-                        } elseif ($user['AccountStatus'] === 'rejected' || $user['Role'] === 'Banned') {
-                            $error = "user_banned";
-                        } elseif ($role_lower === 'owner' && get_owner_station_admin_status($conn, (int) $user['UserID']) === 'pending') {
-                            $error = "pending_status";
-                            $pending_role = "owner";
-                        } else {
-
-                            if ($role_lower === 'admin') {
-                                $session_role = 'Admin';
-                            } elseif ($role_lower === 'owner') {
-                                $session_role = 'owner';
-                            } elseif ($role_lower === 'driver') {
-                                $session_role = 'driver';
-                            } else {
-                                $session_role = 'customer';
-                            }
-
-                            $token = clevo_generate_jwt((int) $user['UserID'], $session_role);
-
-
-                            setcookie("access_token", $token, [
-                                'expires' => time() + (3600 * 24),
-                                'path' => '/',
-                                'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
-                                'httponly' => true,
-                                'samesite' => 'Lax'
-                            ]);
-
-
-                            session_regenerate_id(true);
-                            $_SESSION['userID']   = $user['UserID'];
-                            $_SESSION['userName'] = $user['UserName'];
-                            $_SESSION['role']     = $session_role;
-                            $_SESSION['jwt_token'] = $token;
-                            if ($session_role === 'driver') {
-                                $_SESSION['driver_booking_id'] = $driver_booking_id;
-                            }
-
-
-                            if ($session_role === 'Admin') {
-                                header("Location: ../admin/admin-dashboard.php");
-                            } elseif ($session_role === 'owner') {
-                                header("Location: ../owner/owner-dashboard.php");
-                            } elseif ($session_role === 'driver') {
-                                header("Location: ../driver/driver-dashboard.php");
-                            } else {
-                                header("Location: ../user/home.php");
-                            }
-                            exit;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+require_once __DIR__ . '/../includes/config.php';
+$error = ''; $pending_role = '';
 if (isset($_POST['reset_password_action'])) {
-
-    header('Content-Type: application/json');
-    clevoEnsurePasswordResetColumns($conn);
-
-    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'csrf_failed'
-        ]);
-        exit;
+    clevo_auth_throttle($conn, 'verify', (string) ($_SESSION['reset_challenge_id'] ?? ''));
+    try {
+        if (!is_string($_POST['password'] ?? null)) throw new ClevoSecurityException('weak_password', 422);
+        clevo_reset_password($conn, (string) ($_SESSION['reset_grant'] ?? ''), $_POST['password']);
+        unset($_SESSION['reset_grant'], $_SESSION['reset_challenge_id'], $_SESSION['reset_user_id']);
+        clevo_json_response('success');
+    } catch (ClevoSecurityException $e) { clevo_json_response('error', [], $e->reason, $e->httpStatus); }
+}
+if (isset($_POST['login_action'])) {
+    $login = clevo_clean_string($_POST['login_input'] ?? '', 101);
+    $password = $_POST['password'] ?? '';
+    clevo_auth_throttle($conn, 'login', $login);
+    $account = is_string($password) ? clevo_verify_credentials($conn, $login, $password) : null;
+    $job = null;
+    if (!$account && is_string($password)) {
+        $exchange = clevo_driver_code($conn, $login, $password);
+        if ($exchange) { $account = $exchange['account']; $job = $exchange['booking_id']; }
     }
-
-    $newPassword =
-        $_POST['password'] ?? '';
-
-    $userID =
-        $_SESSION['reset_user_id'] ?? null;
-
-    if (!$userID || empty($newPassword)) {
-
-        echo json_encode([
-            'status' => 'error'
-        ]);
-
-        exit;
+    if (!$account) { $error = 'wrong_pass'; }
+    else {
+        if (clevo_role($account['Role']) === 'driver' && !$job) {
+            $row = clevo_stmt($conn, "SELECT b.BookingID FROM booking b JOIN stations s ON s.StationID = b.StationID WHERE b.DriverID = ? AND b.StationID = ? AND s.admin_status = 'approved' AND b.Service_Location = 'delivery' AND b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning') ORDER BY b.BookingID DESC LIMIT 1", 'ii', [(int) $account['UserID'], (int) $account['StationID']])->get_result()->fetch_assoc();
+            $job = isset($row['BookingID']) ? (int) $row['BookingID'] : null;
+        }
+        clevo_web_login($conn, $account, $job);
     }
-
-    $hashedPassword =
-        password_hash($newPassword, PASSWORD_DEFAULT);
-
-    $stmt = $conn->prepare("
-    UPDATE user
-    SET Password = ?,
-        reset_otp = NULL,
-        reset_otp_expiry = NULL
-    WHERE UserID = ?
-    ");
-
-    $stmt->bind_param(
-        "si",
-        $hashedPassword,
-        $userID
-    );
-
-    $stmt->execute();
-
-    unset($_SESSION['reset_user_id']);
-
-    echo json_encode([
-        'status' => 'success'
-    ]);
-
-    exit;
+}
+if (clevo_current_user_id()) {
+    $destination = match (clevo_current_role()) {
+        'admin' => '../admin/admin-dashboard.php', 'owner' => '../owner/owner-dashboard.php',
+        'driver' => '../driver/driver-dashboard.php', default => '../user/home.php',
+    };
+    header('Location: ' . $destination); exit;
 }
 ?>
 <!DOCTYPE html>
@@ -536,6 +321,7 @@ if (isset($_POST['reset_password_action'])) {
                     <h5 class="fw-bold mb-3" data-i18n="forgot_pass">استعادة كلمة السر</h5>
                     <p class="small opacity-75 mb-4" data-i18n="forgot_pass_desc">أدخل بريدك الإلكتروني لإرسال كود التحقق.</p>
                     <input type="email" id="reset_email" class="form-control mb-3 text-center" placeholder="example@email.com">
+                    <button type="button" class="btn btn-link small" onclick="resendVerification()">إعادة إرسال التحقق / Resend verification</button>
                     <div id="resetError"
                         class="text-danger small fw-bold mb-3 d-none">
                     </div>
@@ -885,6 +671,9 @@ if (isset($_POST['reset_password_action'])) {
             document.getElementById('login_input').value = document.getElementById('raw_input').value.trim();
         }
 
+        function resendVerification() {
+            fetch('resend-verification.php', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({email:document.getElementById('reset_email').value,csrf_token:csrfToken})}).then(r=>r.json()).then(d=>{document.getElementById('resetError').textContent=d.message;document.getElementById('resetError').classList.remove('d-none');});
+        }
         function sendResetOTP() {
 
             const email = document.getElementById('reset_email').value;

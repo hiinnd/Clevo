@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
@@ -41,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $serviceLocation = $_POST['service_location'] ?? '';
     $bookingDate = $_POST['booking_date'] ?? '';
     $bookingTime = $_POST['booking_time'] ?? '';
-    $paymentMethod = trim($_POST['payment_method'] ?? '');
+    $paymentMethod = ''; // Only server-side payment/plan operations may establish payment.
     $usePlan = ($_POST['use_plan'] ?? '') === '1';
     $latitude = ($_POST['latitude'] ?? '') !== '' ? (float) $_POST['latitude'] : null;
     $longitude = ($_POST['longitude'] ?? '') !== '' ? (float) $_POST['longitude'] : null;
@@ -872,6 +871,7 @@ $csrf_token = generate_csrf_token();
         function saveUserLocation(lat, lng) {
             const address = document.getElementById('detectedAddress')?.value.trim() || '';
             const body = new URLSearchParams();
+            body.append('csrf_token', <?= clevo_js(generate_csrf_token()) ?>);
             body.append('latitude', lat);
             body.append('longitude', lng);
             body.append('address', address === translations[lang].searching_address ? '' : address);
@@ -1005,7 +1005,7 @@ $csrf_token = generate_csrf_token();
                 (features || []).forEach(feature => {
                     const chip = document.createElement('span');
                     chip.className = 'plan-feature-chip';
-                    chip.innerHTML = '<i class="fas fa-check me-1"></i>' + feature;
+                    const checkIcon = document.createElement('i'); checkIcon.className = 'fas fa-check me-1'; chip.append(checkIcon, document.createTextNode(feature));
                     rail.appendChild(chip);
                 });
             }
@@ -1031,6 +1031,7 @@ $csrf_token = generate_csrf_token();
             renderActivePlan();
         };
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 

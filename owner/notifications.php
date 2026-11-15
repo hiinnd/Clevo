@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -17,8 +17,8 @@ $owner_pic = clevoProfileImageUrl($userRes['ProfilePic'] ?? '', $userRes['UserNa
 $owner_name = $userRes['UserName'] ?? "Owner";
 
 
-if (isset($_GET['read']) && is_numeric($_GET['read'])) {
-    $notif_id = intval($_GET['read']);
+if (isset($_POST['read']) && is_numeric($_POST['read'])) {
+    $notif_id = intval($_POST['read']);
     $stmtRead = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?");
     $stmtRead->bind_param("ii", $notif_id, $owner_id);
     $stmtRead->execute();
@@ -26,7 +26,7 @@ if (isset($_GET['read']) && is_numeric($_GET['read'])) {
     exit;
 }
 
-if (isset($_GET['read_all'])) {
+if (isset($_POST['read_all'])) {
     $stmtReadAll = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0");
     $stmtReadAll->bind_param("i", $owner_id);
     $stmtReadAll->execute();
@@ -40,9 +40,8 @@ $unreadStmt->execute();
 $unread_count = (int) ($unreadStmt->get_result()->fetch_assoc()['unread'] ?? 0);
 
 
-$query = "SELECT n.id, n.title, n.title_en, n.body as message, n.body_en, n.type, n.is_read, n.created_at, n.target_url, s.Name AS station_name
+$query = "SELECT n.id, n.title, n.title_en, n.body as message, n.body_en, n.type, n.is_read, n.created_at, n.target_url, (SELECT st.Name FROM stations st WHERE st.UserID = n.user_id ORDER BY st.StationID LIMIT 1) AS station_name
     FROM notifications n
-    LEFT JOIN stations s ON s.UserID = n.user_id
     WHERE n.user_id = ?
     ORDER BY n.created_at DESC
     LIMIT 50";
@@ -123,7 +122,7 @@ $notifications = $stmt->get_result();
                 </a>
                 <h6 class="mb-0 fw-bold" data-i18n="notifications_title">تنبيهات النظام</h6>
                 <?php if ($unread_count > 0): ?>
-                    <a href="?read_all=1" class="btn btn-primary btn-read-all shadow-sm" data-i18n="btn_read_all">قراءة الكل</a>
+                    <form method="POST" class="m-0"><?= csrf_input(); ?><input type="hidden" name="read_all" value="1"><button type="submit" class="btn btn-primary btn-read-all shadow-sm" data-i18n="btn_read_all">قراءة الكل</button></form>
                 <?php else: ?>
                     <div style="width: 40px;"></div>
                 <?php endif; ?>
@@ -168,7 +167,7 @@ $notifications = $stmt->get_result();
             <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
             <p class="small opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
             <div class="d-grid gap-2 mt-4">
-                <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                 <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
             </div>
         </div>
@@ -222,11 +221,11 @@ $notifications = $stmt->get_result();
             const id = el.dataset.id;
             const target = (el.dataset.target || '').trim();
             if (target) {
-                fetch('?read=' + encodeURIComponent(id), {credentials: 'same-origin'}).finally(() => {
+                fetch(window.location.pathname, {method:'POST', credentials:'same-origin', headers:{'X-CSRF-Token': <?= clevo_js(generate_csrf_token()) ?>, 'Content-Type':'application/x-www-form-urlencoded'}, body:'read='+encodeURIComponent(id)}).finally(() => {
                     window.location.href = target;
                 });
             } else {
-                location.href = '?read=' + encodeURIComponent(id);
+                fetch(window.location.pathname, {method:'POST',headers:{'X-CSRF-Token': <?= clevo_js(generate_csrf_token()) ?>,'Content-Type':'application/x-www-form-urlencoded'},body:'read='+encodeURIComponent(id)}).then(()=>location.reload());
             }
         } catch (e) {
             console.error(e);

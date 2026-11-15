@@ -1,47 +1,8 @@
 <?php
 function clevoEnsurePlanColumns(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') {
-        return;
-    }
-
-    $tableColumns = function (string $table) use ($conn, $db): array {
-        $columns = [];
-        $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?");
-        $stmt->bind_param("ss", $db, $table);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        while ($row = $res->fetch_assoc()) {
-            $columns[$row['COLUMN_NAME']] = true;
-        }
-        return $columns;
-    };
-
-    $planColumns = $tableColumns('plans');
-    if ($planColumns && !isset($planColumns['wash_count'])) {
-        $conn->query("ALTER TABLE plans ADD COLUMN wash_count INT(11) DEFAULT 0 AFTER duration_type");
-    }
-    if ($planColumns && !isset($planColumns['included_services_ar'])) {
-        $conn->query("ALTER TABLE plans ADD COLUMN included_services_ar TEXT NULL AFTER description_en");
-    }
-    if ($planColumns && !isset($planColumns['included_services_en'])) {
-        $conn->query("ALTER TABLE plans ADD COLUMN included_services_en TEXT NULL AFTER included_services_ar");
-    }
-
-    $bookingColumns = $tableColumns('booking');
-    if ($bookingColumns && !isset($bookingColumns['UserPlanID'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN UserPlanID INT(11) DEFAULT NULL AFTER Payment_Method");
-    }
-    if ($bookingColumns && !isset($bookingColumns['Plan_Washes_Used'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Plan_Washes_Used TINYINT(1) DEFAULT 0 AFTER UserPlanID");
-    }
+    clevo_require_schema($conn, 'plans', ['wash_count','included_services_ar','included_services_en']);
+    clevo_require_schema($conn, 'booking', ['UserPlanID','Plan_Washes_Used']);
 }
 
 function clevoPlanWashCount(array $plan): int

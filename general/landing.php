@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -718,9 +718,9 @@ $user_role = $_SESSION['role'] ?? 'User';
                                         <hr class="dropdown-divider opacity-10">
                                     </li>
                                     <li>
-                                        <a class="dropdown-item small text-danger py-2 fw-bold" href="../general/logout.php">
+                                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit" class="dropdown-item small text-danger py-2 fw-bold" >
                                             خروج
-                                        </a>
+                                        </button></form>
                                     </li>
                                 </ul>
                             </div>
@@ -1095,6 +1095,7 @@ $user_role = $_SESSION['role'] ?? 'User';
             });
         };
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 

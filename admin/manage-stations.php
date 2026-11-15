@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -49,7 +49,7 @@ if (isset($_POST['confirm_delete_id'])) {
         $msg_type = "deleted";
     } catch (Throwable $e) {
         $conn->rollback();
-        error_log('Station delete failed: ' . $e->getMessage());
+        error_log('CLEVO operation failed.');
         $show_msg_modal = true;
         $msg_type = "error";
     }
@@ -205,7 +205,7 @@ $res_stations = $conn->query("SELECT s.*, u.UserName as owner_name FROM stations
                     <h5 class="fw-bold mb-2" data-i18n="logout_title">تأكيد الخروج</h5>
                     <p class="small opacity-75 mb-4" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                     <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                         <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>

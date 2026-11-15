@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS `user` (
 INSERT INTO `user`
 (`UserID`, `UserName`, `ProfilePic`, `Email`, `Password`, `PhoneNumber`, `CarName`, `Role`, `AccountStatus`, `VerificationFile`, `VerificationToken`, `DeviceID`, `CurrentAccessCode`, `StationID`, `LastLatitude`, `LastLongitude`, `LastAddress`, `LastLocationUrl`, `LastLocationUpdatedAt`, `Last_Login`)
 VALUES
-(1, 'Princess Maria', NULL, 'shaheenmariaa@gmail.com', '$2y$10$Mo3HGNcAgF0lIMC121V8ZeBEy2/RfDZkYj.OKxoy0DR.00jg6czza', '0795279261', NULL, 'Admin', 'active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(2, 'Queen Hind', NULL, 'hiinnd.ali03@gmail.com', '$2y$10$sZPeu6l0hWkLR/yN1SGZHufxV2ukSoNoXFjtOAGuVu0.nc6WEiD9i', '0790530063', NULL, 'Admin', 'active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+(1, 'Princess Maria', NULL, 'shaheenmariaa@gmail.com', '!disabled-fixture-account', '0795279261', NULL, 'Admin', 'active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 'Queen Hind', NULL, 'hiinnd.ali03@gmail.com', '!disabled-fixture-account', '0790530063', NULL, 'Admin', 'active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 CREATE TABLE IF NOT EXISTS `blacklist` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -327,25 +327,25 @@ CREATE TABLE `owner_withdrawal_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Demo seed data: realistic Clevo system snapshot for Amman.
--- Password for all demo accounts: 123456
+-- Fixture accounts have disabled credentials. Provision authentication outside this dump.
 INSERT INTO `user`
 (`UserID`, `UserName`, `ProfilePic`, `Email`, `Password`, `PhoneNumber`, `CarName`, `Role`, `AccountStatus`, `VerificationFile`, `VerificationToken`, `DeviceID`, `CurrentAccessCode`, `StationID`, `LastLatitude`, `LastLongitude`, `LastAddress`, `LastLocationUrl`, `LastLocationUpdatedAt`, `Last_Login`)
 VALUES
-(3, 'Ahmad Naser', NULL, 'owner.abdoun@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000003', NULL, 'owner', 'active', 'uploads/verification/verify_1777057576_69ebbf2832d5a.jpg', NULL, 'OWN-AMM-003', NULL, 1, NULL, NULL, NULL, NULL, NULL, '2026-06-01 08:15:00'),
-(4, 'Leen Haddad', NULL, 'owner.sweifieh@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000004', NULL, 'owner', 'active', 'uploads/verification/verify_1777236018_69ee7832b1aea.jpg', NULL, 'OWN-AMM-004', NULL, 2, NULL, NULL, NULL, NULL, NULL, '2026-06-01 09:05:00'),
-(5, 'Omar Qasem', NULL, 'owner.khalda@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000005', NULL, 'owner', 'active', 'uploads/verification/verify_1777761128_69f67b6881d76.png', NULL, 'OWN-AMM-005', NULL, 3, NULL, NULL, NULL, NULL, NULL, '2026-06-01 10:45:00'),
-(6, 'Maya Saleh', NULL, 'owner.jubeiha@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000006', NULL, 'owner', 'active', 'uploads/verification/verify_1777837475_69f7a5a3e88b9.png', NULL, 'OWN-AMM-006', NULL, 4, NULL, NULL, NULL, NULL, NULL, '2026-06-01 11:30:00'),
-(7, 'Yazan Khatib', NULL, 'owner.marj@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000007', NULL, 'owner', 'active', 'uploads/verification/verify_1777911605_69f8c735c50e5.jpeg', NULL, 'OWN-AMM-007', NULL, 5, NULL, NULL, NULL, NULL, NULL, '2026-06-01 12:10:00'),
-(8, 'Dana Rawashdeh', NULL, 'owner.tabarbour@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000008', NULL, 'owner', 'active', 'uploads/verification/verify_1777913378_69f8ce226a00e.png', NULL, 'OWN-AMM-008', NULL, 6, NULL, NULL, NULL, NULL, NULL, '2026-06-01 13:20:00'),
-(9, 'Faris Alami', NULL, 'owner.tlaali@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000009', NULL, 'owner', 'active', 'uploads/verification/verify_1777914335_69f8d1df41a99.png', NULL, 'OWN-AMM-009', NULL, 7, NULL, NULL, NULL, NULL, NULL, '2026-06-01 14:00:00'),
-(10, 'Rama Darwish', NULL, 'owner.dabouq@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000010', NULL, 'owner', 'active', 'uploads/verification/verify_1777921083_69f8ec3b10513.jpeg', NULL, 'OWN-AMM-010', NULL, 8, NULL, NULL, NULL, NULL, NULL, '2026-06-01 14:35:00'),
-(11, 'Sami Mustafa', NULL, 'sami.mustafa@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000011', 'Toyota Corolla 2020', 'User', 'active', NULL, NULL, 'CUS-AMM-011', NULL, NULL, 31.94920000, 35.87560000, 'Abdoun, Amman', 'https://www.google.com/maps?q=31.9492,35.8756', '2026-06-01 18:20:00', '2026-06-01 18:20:00'),
-(12, 'Nour Ibrahim', NULL, 'nour.ibrahim@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000012', 'Kia Sportage 2022', 'User', 'active', NULL, NULL, 'CUS-AMM-012', NULL, NULL, 31.95870000, 35.86190000, 'Sweifieh, Amman', 'https://www.google.com/maps?q=31.9587,35.8619', '2026-06-01 19:05:00', '2026-06-01 19:05:00'),
-(13, 'Khaled Mansour', NULL, 'khaled.mansour@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000013', 'Hyundai Elantra 2021', 'User', 'active', NULL, NULL, 'CUS-AMM-013', NULL, NULL, 31.99900000, 35.84390000, 'Khalda, Amman', 'https://www.google.com/maps?q=31.9990,35.8439', '2026-06-01 20:10:00', '2026-06-01 20:10:00'),
-(14, 'Sara Abu Zaid', NULL, 'sara.abuzaid@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000014', 'Nissan Kicks 2023', 'User', 'active', NULL, NULL, 'CUS-AMM-014', NULL, NULL, 32.02450000, 35.87010000, 'Al Jubeiha, Amman', 'https://www.google.com/maps?q=32.0245,35.8701', '2026-06-01 21:15:00', '2026-06-01 21:15:00'),
-(15, 'Tareq Shannak', NULL, 'tareq.shannak@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000015', 'BMW 320i 2019', 'User', 'active', NULL, NULL, 'CUS-AMM-015', NULL, NULL, 31.90140000, 35.84270000, 'Marj Al Hamam, Amman', 'https://www.google.com/maps?q=31.9014,35.8427', '2026-06-01 22:05:00', '2026-06-01 22:05:00'),
-(16, 'Mahmoud Driver', NULL, 'driver.mahmoud@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000016', NULL, 'driver', 'active', NULL, NULL, 'DRV-AMM-016', NULL, 1, NULL, NULL, NULL, NULL, NULL, '2026-06-01 16:25:00'),
-(17, 'Razan Driver', NULL, 'driver.razan@clevo.test', '$2y$10$Td6tjpUgjSDxEYqLHw/HEeHaa1hkYi0ZBNpx3gWqPsJync4xF3tB2', '0791000017', NULL, 'driver', 'active', NULL, NULL, 'DRV-AMM-017', NULL, 2, NULL, NULL, NULL, NULL, NULL, '2026-06-01 17:05:00');
+(3, 'Ahmad Naser', NULL, 'owner.abdoun@clevo.test', '!disabled-fixture-account', '0791000003', NULL, 'owner', 'active', 'uploads/verification/verify_1777057576_69ebbf2832d5a.jpg', NULL, 'OWN-AMM-003', NULL, 1, NULL, NULL, NULL, NULL, NULL, '2026-06-01 08:15:00'),
+(4, 'Leen Haddad', NULL, 'owner.sweifieh@clevo.test', '!disabled-fixture-account', '0791000004', NULL, 'owner', 'active', 'uploads/verification/verify_1777236018_69ee7832b1aea.jpg', NULL, 'OWN-AMM-004', NULL, 2, NULL, NULL, NULL, NULL, NULL, '2026-06-01 09:05:00'),
+(5, 'Omar Qasem', NULL, 'owner.khalda@clevo.test', '!disabled-fixture-account', '0791000005', NULL, 'owner', 'active', 'uploads/verification/verify_1777761128_69f67b6881d76.png', NULL, 'OWN-AMM-005', NULL, 3, NULL, NULL, NULL, NULL, NULL, '2026-06-01 10:45:00'),
+(6, 'Maya Saleh', NULL, 'owner.jubeiha@clevo.test', '!disabled-fixture-account', '0791000006', NULL, 'owner', 'active', 'uploads/verification/verify_1777837475_69f7a5a3e88b9.png', NULL, 'OWN-AMM-006', NULL, 4, NULL, NULL, NULL, NULL, NULL, '2026-06-01 11:30:00'),
+(7, 'Yazan Khatib', NULL, 'owner.marj@clevo.test', '!disabled-fixture-account', '0791000007', NULL, 'owner', 'active', 'uploads/verification/verify_1777911605_69f8c735c50e5.jpeg', NULL, 'OWN-AMM-007', NULL, 5, NULL, NULL, NULL, NULL, NULL, '2026-06-01 12:10:00'),
+(8, 'Dana Rawashdeh', NULL, 'owner.tabarbour@clevo.test', '!disabled-fixture-account', '0791000008', NULL, 'owner', 'active', 'uploads/verification/verify_1777913378_69f8ce226a00e.png', NULL, 'OWN-AMM-008', NULL, 6, NULL, NULL, NULL, NULL, NULL, '2026-06-01 13:20:00'),
+(9, 'Faris Alami', NULL, 'owner.tlaali@clevo.test', '!disabled-fixture-account', '0791000009', NULL, 'owner', 'active', 'uploads/verification/verify_1777914335_69f8d1df41a99.png', NULL, 'OWN-AMM-009', NULL, 7, NULL, NULL, NULL, NULL, NULL, '2026-06-01 14:00:00'),
+(10, 'Rama Darwish', NULL, 'owner.dabouq@clevo.test', '!disabled-fixture-account', '0791000010', NULL, 'owner', 'active', 'uploads/verification/verify_1777921083_69f8ec3b10513.jpeg', NULL, 'OWN-AMM-010', NULL, 8, NULL, NULL, NULL, NULL, NULL, '2026-06-01 14:35:00'),
+(11, 'Sami Mustafa', NULL, 'sami.mustafa@clevo.test', '!disabled-fixture-account', '0791000011', 'Toyota Corolla 2020', 'User', 'active', NULL, NULL, 'CUS-AMM-011', NULL, NULL, 31.94920000, 35.87560000, 'Abdoun, Amman', 'https://www.google.com/maps?q=31.9492,35.8756', '2026-06-01 18:20:00', '2026-06-01 18:20:00'),
+(12, 'Nour Ibrahim', NULL, 'nour.ibrahim@clevo.test', '!disabled-fixture-account', '0791000012', 'Kia Sportage 2022', 'User', 'active', NULL, NULL, 'CUS-AMM-012', NULL, NULL, 31.95870000, 35.86190000, 'Sweifieh, Amman', 'https://www.google.com/maps?q=31.9587,35.8619', '2026-06-01 19:05:00', '2026-06-01 19:05:00'),
+(13, 'Khaled Mansour', NULL, 'khaled.mansour@clevo.test', '!disabled-fixture-account', '0791000013', 'Hyundai Elantra 2021', 'User', 'active', NULL, NULL, 'CUS-AMM-013', NULL, NULL, 31.99900000, 35.84390000, 'Khalda, Amman', 'https://www.google.com/maps?q=31.9990,35.8439', '2026-06-01 20:10:00', '2026-06-01 20:10:00'),
+(14, 'Sara Abu Zaid', NULL, 'sara.abuzaid@clevo.test', '!disabled-fixture-account', '0791000014', 'Nissan Kicks 2023', 'User', 'active', NULL, NULL, 'CUS-AMM-014', NULL, NULL, 32.02450000, 35.87010000, 'Al Jubeiha, Amman', 'https://www.google.com/maps?q=32.0245,35.8701', '2026-06-01 21:15:00', '2026-06-01 21:15:00'),
+(15, 'Tareq Shannak', NULL, 'tareq.shannak@clevo.test', '!disabled-fixture-account', '0791000015', 'BMW 320i 2019', 'User', 'active', NULL, NULL, 'CUS-AMM-015', NULL, NULL, 31.90140000, 35.84270000, 'Marj Al Hamam, Amman', 'https://www.google.com/maps?q=31.9014,35.8427', '2026-06-01 22:05:00', '2026-06-01 22:05:00'),
+(16, 'Mahmoud Driver', NULL, 'driver.mahmoud@clevo.test', '!disabled-fixture-account', '0791000016', NULL, 'driver', 'active', NULL, NULL, 'DRV-AMM-016', NULL, 1, NULL, NULL, NULL, NULL, NULL, '2026-06-01 16:25:00'),
+(17, 'Razan Driver', NULL, 'driver.razan@clevo.test', '!disabled-fixture-account', '0791000017', NULL, 'driver', 'active', NULL, NULL, 'DRV-AMM-017', NULL, 2, NULL, NULL, NULL, NULL, NULL, '2026-06-01 17:05:00');
 
 INSERT INTO `stations`
 (`StationID`, `UserID`, `Name`, `Location`, `Location_URL`, `Lat`, `Lon`, `PhoneNumber`, `Rating`, `Status`, `admin_status`, `CommercialRecordPath`, `Image`, `Has_At_Station`, `Has_Home_Service`, `Has_Delivery`, `OpeningTime`, `ClosingTime`)
@@ -435,10 +435,6 @@ VALUES
 (17, 'C260604160017', 12, 8, 31, 17, 'delivery', 31.96050000, 35.86250000, NULL, NULL, 'Sweifieh - work address\nServices: Exterior Polish', '2026-06-04', '16:00:00', 'Accepted', 19.00, 2.85, 'visa', 120.00, 3.00, 16.00, NULL, 0, '2026-06-02 09:15:00', 1, '2026-06-02 08:55:00'),
 (18, 'C260605100018', 13, 5, 18, NULL, 'home', 31.90400000, 35.84050000, NULL, NULL, 'Marj Al Hamam - garden entrance\nServices: Home Interior Wash', '2026-06-05', '10:00:00', 'Pending', 9.00, 1.35, NULL, 0.00, 0.00, 9.00, NULL, 0, NULL, 0, '2026-06-02 09:25:00');
 
-UPDATE `booking` SET `DriverAccessCode` = '800007' WHERE `BookingID` = 7;
-UPDATE `booking` SET `DriverAccessCode` = '800011' WHERE `BookingID` = 11;
-UPDATE `booking` SET `DriverAccessCode` = '800013' WHERE `BookingID` = 13;
-UPDATE `booking` SET `DriverAccessCode` = '800017' WHERE `BookingID` = 17;
 
 INSERT INTO `booking_services`
 (`BookingServiceID`, `BookingID`, `ServiceID`, `ServiceName`, `Price`)

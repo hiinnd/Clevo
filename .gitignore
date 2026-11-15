@@ -3,3 +3,8 @@
 /Clevo/vendor
 /Clevo/vendor
 /Clevo/vendor
+
+.env.*
+!.env.example
+/.security-test/
+/var/

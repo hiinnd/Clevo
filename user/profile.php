@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
 
@@ -15,12 +15,17 @@ $userData = $stmt->get_result()->fetch_assoc();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || isset($_POST['save_profile_image']))) {
     clevo_require_csrf_token();
-    $newName = trim($_POST['full_name']);
-    $newPhone = trim($_POST['phone']);
-    $newEmail = trim($_POST['email']);
-    $newCar = trim($_POST['car_name']); 
-
-    
+    $newName = clevo_clean_string($_POST['full_name'] ?? '', 100);
+    $newPhone = clevo_clean_string($_POST['phone'] ?? '', 20);
+    $newEmail = strtolower(clevo_clean_string($_POST['email'] ?? '', 101));
+    $newCar = clevo_clean_string($_POST['car_name'] ?? '', 100);
+    if ($newName === '' || !preg_match('/^07\d{8}$/D', $newPhone) || !filter_var($newEmail, FILTER_VALIDATE_EMAIL) || strlen($newEmail) > 100) throw new ClevoSecurityException('invalid_profile', 422);
+    // Changing a recovery address requires explicit re-verification rather than silently trusting it.
+    $emailChanged = strcasecmp($newEmail, (string) $userData['Email']) !== 0;
+    if ($emailChanged && clevo_stmt($conn, 'SELECT UserID FROM user WHERE Email = ? AND UserID <> ?', 'si', [$newEmail, $userID])->get_result()->fetch_assoc()) throw new ClevoSecurityException('profile_conflict', 409);
+    $pendingAddress = $newEmail;
+    $newEmail = $userData['Email'];
+    if (clevo_stmt($conn, 'SELECT UserID FROM user WHERE PhoneNumber = ? AND UserID <> ?', 'si', [$newPhone, $userID])->get_result()->fetch_assoc()) throw new ClevoSecurityException('profile_conflict', 409);
     $upd = $conn->prepare("UPDATE `user` SET UserName = ?, PhoneNumber = ?, Email = ?, CarName = ? WHERE UserID = ?");
     $upd->bind_param("ssssi", $newName, $newPhone, $newEmail, $newCar, $userID);
     
@@ -29,16 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
         
         
         if (isset($_FILES['profile_img']) && $_FILES['profile_img']['error'] === 0) {
-            $target_dir = "../uploads/profiles/";
-            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-            $imgName = "user_" . $userID . "_" . time() . "." . pathinfo($_FILES["profile_img"]["name"], PATHINFO_EXTENSION);
-            if (move_uploaded_file($_FILES["profile_img"]["tmp_name"], $target_dir . $imgName)) {
-                $imgUpd = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
-                $imgUpd->bind_param("si", $imgName, $userID);
-                $imgUpd->execute();
-            }
+            $imgName = clevo_save_upload($_FILES['profile_img'], 'profiles');
+            clevo_stmt($conn, 'UPDATE user SET ProfilePic = ? WHERE UserID = ?', 'si', [$imgName, $userID]);
         }
-        header("Location: profile.php?success=1");
+        if ($emailChanged) clevo_issue_verification($conn, clevo_account($conn, $userID), $pendingAddress);
+        header('Location: profile.php?success=1' . ($emailChanged ? '&email_pending=1' : ''));
         exit();
     }
 }
@@ -106,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
     </style>
 </head>
 <body>
+<?php if (isset($_GET['email_pending'])): ?><p class="text-center p-3">أرسلنا رابط التحقق إلى البريد الجديد. يبقى البريد الحالي صالحاً حتى التحقق. / Verify the new address using the emailed link; your current email remains active until then.</p><?php endif; ?>
     <div class="profile-header shadow">
         <div class="spacer-div"></div>
         <h4 class="text-white fw-black m-0" data-i18n="profile_page_title">المعلومات الشخصية</h4>
@@ -116,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
         <div class="profile-img-container">
             <div class="position-relative d-inline-block">
                 <?php $avatar = clevoProfileImageUrl($userData['ProfilePic'] ?? '', $userData['UserName'] ?? 'User'); ?>
-                <img src="<?= $avatar ?>" class="profile-img shadow">
+                <img src="<?= e($avatar) ?>" class="profile-img shadow">
                 <form id="imgForm" enctype="multipart/form-data" method="POST">
                     <?= csrf_input(); ?>
                     <input type="hidden" name="save_profile_image" value="1">
@@ -196,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
             });
         };
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

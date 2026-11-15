@@ -1,0 +1,8 @@
+Options -Indexes -ExecCGI
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|cgi|pl|py|sh|html?|svg|js)$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^verification(?:/|$) - [F,L,NC]
+</IfModule>

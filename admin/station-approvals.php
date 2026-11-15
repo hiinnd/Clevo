@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -40,13 +40,7 @@ $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['Prof
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
-function sendEmailNotification($toEmail, $userName)
-{
-    $subject = "تم قبول حسابك في Clevo";
-    $message = "<html><body dir='rtl' style='text-align: right;'><h2>أهلاً بك يا $userName</h2><p>تم قبول حسابك بنجاح.</p></body></html>";
-    $headers = "MIME-Version: 1.0\r\nContent-type:text/html;charset=UTF-8\r\nFrom: no-reply@clevo-system.com\r\n";
-    @mail($toEmail, $subject, $message, $headers);
-}
+
 
 
 $res_pending = $conn->query("
@@ -68,7 +62,7 @@ if (isset($_POST['action']) && isset($_POST['station_id'])) {
         exit;
     }
 
-    $pending_stmt = $conn->prepare("SELECT StationID, UserID, Name FROM stations WHERE StationID = ? AND admin_status = 'pending' LIMIT 1");
+    $pending_stmt = $conn->prepare("SELECT s.StationID, s.UserID, s.Name FROM stations s JOIN user u ON u.UserID = s.UserID WHERE s.StationID = ? AND s.admin_status = 'pending' AND u.EmailVerifiedAt IS NOT NULL LIMIT 1");
     $pending_stmt->bind_param("i", $station_id);
     $pending_stmt->execute();
     $pending_station = $pending_stmt->get_result()->fetch_assoc();
@@ -119,114 +113,15 @@ if (isset($_POST['action']) && isset($_POST['station_id'])) {
         $conn->commit();
     } catch (Throwable $e) {
         $conn->rollback();
-        error_log('Station approval action failed: ' . $e->getMessage());
+        error_log('CLEVO operation failed.');
         header("Location: station-approvals.php?error=database");
         exit;
     }
 
     if ($action === 'Approve') {
-
-        
-        $stmt = $conn->prepare("SELECT UserName, Email FROM user WHERE UserID = ?");
-        $stmt->bind_param("i", $u_id);
-        $stmt->execute();
-
-        $result = $stmt->get_result();
-        $user = $result->fetch_assoc();
-
-        if ($user) {
-            try {
-
-            $mail = new PHPMailer(true);
-
-            $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
-            $mail->SMTPAuth = true;
-
-            $mail->Username = 'support.clevo@gmail.com';
-            $mail->Password = 'aessfjspgpicvcje';
-
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = 587;
-
-            $mail->setFrom('support.clevo@gmail.com', 'Clevo');
-
-            $mail->addAddress($user['Email'], $user['UserName']);
-
-            $mail->isHTML(true);
-
-            $mail->Subject = 'Station Approved';
-            $mail->Body = "
-<div style='margin:0;padding:0;background:#f4f7fe;font-family:Arial,sans-serif;'>
-
-    <div style='max-width:650px;margin:40px auto;background:#ffffff;border-radius:30px;overflow:hidden;box-shadow:0 10px 35px rgba(0,0,0,0.08);'>
-
-        <div style='background:linear-gradient(135deg,#007bff,#2563eb);padding:50px 20px;text-align:center;'>
-
-            <div style='width:90px;height:90px;background:#ffffff;border-radius:50%;margin:auto;line-height:90px;font-size:42px;color:#16a34a;font-weight:bold;'>
-                ✔
-            </div>
-
-            <h1 style='color:#ffffff;margin-top:25px;font-size:34px;font-weight:800;'>
-                Congratulations 
-            </h1>
-
-            <p style='color:#dbeafe;font-size:17px;margin-top:10px;'>
-                Your station has been officially approved
-            </p>
-        </div>
-
-        <div style='padding:45px 35px;text-align:center;color:#111827;'>
-
-            <h2 style='margin-bottom:15px;font-size:26px;'>
-                Hello, {$user['UserName']} 
-            </h2>
-
-            <p style='font-size:17px;line-height:1.9;color:#4b5563;margin-bottom:15px;'>
-                We are excited to inform you that your station request
-                has been approved successfully on Clevo.
-            </p>
-
-            <p style='font-size:16px;line-height:1.8;color:#6b7280;margin-bottom:35px;'>
-                You can now access your dashboard and start managing
-                your station services and bookings.
-            </p>
-
-            <a href='http://localhost/Clevo/general/login.php'
-               style='display:inline-block;
-               background:linear-gradient(135deg,#007bff,#2563eb);
-               color:#ffffff;
-               text-decoration:none;
-               padding:16px 38px;
-               border-radius:14px;
-               font-size:18px;
-               font-weight:bold;
-               box-shadow:0 8px 20px rgba(37,99,235,0.3);'>
-               Login To Dashboard
-            </a>
-
-        </div>
-
-        <div style='background:#f8fafc;padding:25px;text-align:center;border-top:1px solid #e5e7eb;'>
-
-            <p style='margin:0;color:#94a3b8;font-size:14px;'>
-                Clevo System © 2026
-            </p>
-
-            <p style='margin-top:8px;color:#94a3b8;font-size:13px;'>
-                Smart Car Wash Management Platform
-            </p>
-        </div>
-
-    </div>
-</div>
-";
-
-            $mail->send();
-            } catch (Throwable $mailError) {
-                error_log('Station approval email failed: ' . $mailError->getMessage());
-            }
-        }
+        $recipient = clevo_account($conn, $u_id);
+        clevo_send_mail($recipient['Email'], $recipient['UserName'], 'Station approved',
+            '<p>' . e($recipient['UserName']) . '</p><a href="' . e(clevo_public_url('general/login.php')) . '">Login to CLEVO</a>');
     }
     header("Location: station-approvals.php?success=1");
     exit;
@@ -469,11 +364,9 @@ if (isset($_POST['action']) && isset($_POST['station_id'])) {
                                         <div class="col-12 col-md-auto d-flex gap-2">
                                             <?php
                                                 $verification_file = (string) ($row['VerificationFile'] ?? '');
-                                                $verification_src = str_starts_with($verification_file, 'uploads/')
-                                                    ? '../' . $verification_file
-                                                    : '../uploads/verification/' . basename($verification_file);
+                                                $verification_src = '../includes/media.php?user_id=' . (int) $row['UserID'];
                                             ?>
-                                            <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick='viewDoc(<?php echo json_encode($verification_src); ?>)' data-i18n="btn_view_doc">السجل</button>
+                                            <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick='viewDoc(<?php echo e(clevo_js($verification_src)); ?>)' data-i18n="btn_view_doc">السجل</button>
                                             <button class="btn btn-success btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo (int) $row['StationID']; ?>', 'Approve')" data-i18n="btn_approve">موافقة</button>
                                             <button class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo (int) $row['StationID']; ?>', 'Reject')" data-i18n="btn_reject">رفض</button>
                                         </div>
@@ -496,7 +389,7 @@ if (isset($_POST['action']) && isset($_POST['station_id'])) {
     <div class="modal fade" id="docModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content p-3 shadow-lg">
-                <h6 class="fw-bold mb-3 text-center text-primary" data-i18n="doc_title">إثبات السجل التجاري</h6><img src="" id="docImage" class="img-fluid rounded-4 mb-3 border"><button class="btn btn-secondary w-100 rounded-pill fw-bold" data-bs-dismiss="modal" data-i18n="btn_close">إغلاق</button>
+                <h6 class="fw-bold mb-3 text-center text-primary" data-i18n="doc_title">إثبات السجل التجاري</h6><img src="" id="docImage" class="img-fluid rounded-4 mb-3 border" onerror="this.style.display='none'"><a id="docDownload" class="btn btn-outline-primary mb-3" target="_blank" rel="noopener noreferrer">فتح/تحميل المستند / Open/download document</a><button class="btn btn-secondary w-100 rounded-pill fw-bold" data-bs-dismiss="modal" data-i18n="btn_close">إغلاق</button>
             </div>
         </div>
     </div>
@@ -577,6 +470,8 @@ if (isset($_POST['action']) && isset($_POST['station_id'])) {
         }
 
         function viewDoc(src) {
+            document.getElementById('docImage').style.display = '';
+            document.getElementById('docDownload').href = src;
             document.getElementById('docImage').src = src;
             new bootstrap.Modal(document.getElementById('docModal')).show();
         }

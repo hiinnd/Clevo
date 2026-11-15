@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -52,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_status_id'])) 
         $stmt->execute();
 
         if ($new_status === 'rejected') {
+            clevo_revoke_user($conn, $u_id);
             $device_id = trim((string) ($target_user['DeviceID'] ?? ''));
             $check_blacklist = $conn->prepare("SELECT id FROM blacklist WHERE user_id = ? LIMIT 1");
             $check_blacklist->bind_param("i", $u_id);
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_status_id'])) 
         exit();
     } catch (Throwable $e) {
         $conn->rollback();
-        error_log('User status update failed: ' . $e->getMessage());
+        error_log('CLEVO operation failed.');
     }
 }
 ?>
@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_status_id'])) 
                     <h5 class="fw-bold mb-2" data-i18n="logout_title">تأكيد الخروج</h5>
                     <p class="small opacity-75 mb-4" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                     <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                         <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>

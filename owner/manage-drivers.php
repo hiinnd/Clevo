@@ -1,67 +1,36 @@
 <?php
-
-session_start();
-include_once __DIR__ . '/../includes/config.php';
-
-
-$owner_id = clevo_require_role('owner', '../general/login.php');
-
-
-$station_query = mysqli_query($conn, "SELECT StationID FROM stations WHERE UserID = '$owner_id'");
-$station_data = mysqli_fetch_assoc($station_query);
-$my_station_id = $station_data['StationID'] ?? 0;
-
-
+require_once __DIR__ . '/../includes/config.php';
+$owner_id = clevo_require_role('owner');
+$station_data = clevo_stmt($conn, "SELECT StationID FROM stations WHERE UserID = ? AND admin_status = 'approved' ORDER BY StationID LIMIT 1", 'i', [$owner_id])->get_result()->fetch_assoc();
+$my_station_id = (int) ($station_data['StationID'] ?? 0);
 if (isset($_POST['action'])) {
-    header('Content-Type: application/json');
-    clevo_require_csrf_token(true);
+    if (!$my_station_id) throw new ClevoSecurityException('station_not_found', 404);
     $action = $_POST['action'];
-
-    if ((int) $my_station_id <= 0) {
-        echo json_encode($action === 'fetch_drivers' ? [] : ['status' => 'error', 'message' => 'station_not_found']);
-        exit;
+    if ($action === 'fetch_drivers') {
+        $rows = clevo_stmt($conn, "SELECT UserID AS id, UserName AS name, PhoneNumber AS phone FROM user WHERE LOWER(Role) = 'driver' AND AccountStatus = 'active' AND StationID = ? ORDER BY UserID DESC", 'i', [$my_station_id])->get_result()->fetch_all(MYSQLI_ASSOC);
+        header('Content-Type: application/json'); echo json_encode($rows); exit;
     }
-
-    if ($action == 'fetch_drivers') {
-        $query = mysqli_query($conn, "SELECT UserID as id, UserName as name, PhoneNumber as phone FROM user WHERE Role = 'driver' AND StationID = '$my_station_id' ORDER BY UserID DESC");
-        $drivers_list = [];
-        while($row = mysqli_fetch_assoc($query)) {
-            $drivers_list[] = [
-                'id' => $row['id'],
-                'name' => $row['name'],
-                'phone' => $row['phone']
-            ];
-        }
-        echo json_encode($drivers_list);
-        exit;
+    if ($action === 'add_driver') {
+        $name = clevo_clean_string($_POST['name'] ?? '', 100); $phone = clevo_clean_string($_POST['phone'] ?? '', 20);
+        if ($name === '' || !preg_match('/^07\d{8}$/D', $phone)) throw new ClevoSecurityException('invalid_driver', 422);
+        $hash = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+        try {
+            clevo_stmt($conn, "INSERT INTO user (UserName, PhoneNumber, Password, Role, AccountStatus, StationID, MustResetPassword) VALUES (?, ?, ?, 'driver', 'active', ?, 1)", 'sssi', [$name, $phone, $hash, $my_station_id]);
+        } catch (mysqli_sql_exception $e) { if ($e->getCode() === 1062) throw new ClevoSecurityException('driver_exists', 409); throw $e; }
+        clevo_json_response('success');
     }
-
-    if ($action == 'add_driver') {
-        $name = mysqli_real_escape_string($conn, $_POST['name']);
-        $phone = mysqli_real_escape_string($conn, $_POST['phone']);
-        
-        if(strlen($phone) !== 10) {
-            echo json_encode(['status' => 'error', 'message' => 'phone_length_error']);
-            exit;
-        }
-        
-        $default_pass = password_hash("123456", PASSWORD_DEFAULT);
-        $sql = "INSERT INTO user (UserName, PhoneNumber, Password, Role, AccountStatus, StationID) VALUES ('$name', '$phone', '$default_pass', 'driver', 'active', '$my_station_id')";
-        if (mysqli_query($conn, $sql)) { 
-            echo json_encode(['status' => 'success']); 
-        } else {
-            echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)]);
-        }
-        exit;
+    if ($action === 'delete_driver') {
+        $id = (int) ($_POST['id'] ?? 0);
+        $conn->begin_transaction();
+        try {
+            $row = clevo_stmt($conn, "SELECT UserID FROM user WHERE UserID = ? AND StationID = ? AND LOWER(Role) = 'driver' FOR UPDATE", 'ii', [$id, $my_station_id])->get_result()->fetch_assoc();
+            if (!$row) throw new ClevoSecurityException('not_found', 404);
+            clevo_stmt($conn, "UPDATE user SET AccountStatus = 'rejected' WHERE UserID = ?", 'i', [$id]);
+            clevo_revoke_user($conn, $id); $conn->commit();
+        } catch (Throwable $e) { $conn->rollback(); throw $e; }
+        clevo_json_response('success');
     }
-
-    if ($action == 'delete_driver') {
-        $id = intval($_POST['id']);
-        if (mysqli_query($conn, "DELETE FROM user WHERE UserID = '$id' AND Role = 'driver' AND StationID = '$my_station_id'")) { 
-            echo json_encode(['status' => 'success']); 
-        }
-        exit;
-    }
+    throw new ClevoSecurityException('invalid_action', 422);
 }
 ?>
 <!DOCTYPE html>
@@ -214,7 +183,7 @@ if (isset($_POST['action'])) {
                     <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
                     <p class="small opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                     <div class="d-grid gap-2 mt-4">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                         <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>
@@ -252,6 +221,7 @@ if (isset($_POST['action'])) {
             }
         }
 
+        function escapeDriverText(value) { const span = document.createElement('span'); span.textContent = String(value); return span.innerHTML; }
         async function renderDrivers() {
             const container = document.getElementById('driversContainer');
             const lang = localStorage.getItem('app_lang') || 'ar';
@@ -279,8 +249,8 @@ if (isset($_POST['action'])) {
                                 <i class="fas fa-user-tie"></i>
                             </div>
                             <div class="text-start">
-                                <h6 class="mb-0 fw-bold">${displayName}</h6>
-                                <small class="fw-bold opacity-75 text-secondary">${d.phone}</small>
+                                <h6 class="mb-0 fw-bold">${escapeDriverText(displayName)}</h6>
+                                <small class="fw-bold opacity-75 text-secondary">${escapeDriverText(d.phone)}</small>
                             </div>
                         </div>
                         <button class="btn-delete-driver" onclick="openDeleteModal(${d.id})">

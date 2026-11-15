@@ -1,6 +1,5 @@
 <?php
 
-session_start();
 include_once __DIR__ . '/../includes/config.php'; 
 include_once __DIR__ . '/../includes/app-helpers.php'; 
 $owner_id = clevo_require_role('owner', '../general/login.php');
@@ -40,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 
         echo json_encode(['status' => 'success'], JSON_UNESCAPED_UNICODE);
     } else {
-        echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['status' => 'error', 'message' => 'request_failed'], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
@@ -235,7 +234,7 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
                 <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
                 <p class="small opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                 <div class="d-grid gap-2 mt-4">
-                    <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                    <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                     <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </div>
             </div>
@@ -348,7 +347,8 @@ $reviewStats = $stats_query->get_result()->fetch_assoc() ?: ['total_reviews' => 
                     const rawName = el.getAttribute('data-name');
                     const badgeHtml = el.querySelector('span') ? el.querySelector('span').outerHTML : '';
                     const translatedName = await translateTextLive(rawName);
-                    el.innerHTML = translatedName + ' ' + badgeHtml;
+                    el.textContent = translatedName + ' ';
+                    if (badgeHtml) el.insertAdjacentHTML('beforeend', badgeHtml);
                 });
 
                 document.querySelectorAll('.db-comment-text, .db-reply-text').forEach(async (el) => {

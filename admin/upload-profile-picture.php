@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -11,7 +11,8 @@ if (!isset($_SESSION['userID']) || $_SESSION['role'] !== 'Admin') {
 clevo_require_csrf_token();
 
 $admin_id = (int) ($_SESSION['userID'] ?? 0);
-$redirect = $_SERVER['HTTP_REFERER'] ?? 'admin-dashboard.php';
+$candidate = basename(parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_PATH) ?: '');
+$redirect = preg_match('/^[a-z-]+\.php$/D', $candidate) && is_file(__DIR__ . '/' . $candidate) ? $candidate : 'admin-dashboard.php';
 $separator = str_contains($redirect, '?') ? '&' : '?';
 
 if (!isset($_FILES['admin_pic_upload'])) {

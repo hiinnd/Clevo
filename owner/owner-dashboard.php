@@ -1,18 +1,16 @@
 <?php
-
-session_start();
 include_once __DIR__ . '/../includes/config.php';
 
 
 $owner_id = clevo_require_role('owner', '../general/login.php');
 
-if (isset($_GET['change_status'])) {
-    if (!validate_csrf_token($_GET['csrf_token'] ?? '')) {
+if (isset($_POST['change_status'])) {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
         http_response_code(403);
         exit('CSRF token validation failed.');
     }
     $allowed = ['Active', 'Busy', 'Closed'];
-    $newStatus = in_array($_GET['change_status'], $allowed, true) ? $_GET['change_status'] : 'Active';
+    $newStatus = in_array($_POST['change_status'], $allowed, true) ? $_POST['change_status'] : 'Active';
     $stmt = $conn->prepare("UPDATE stations SET Status = ? WHERE UserID = ? AND admin_status = 'approved' LIMIT 1");
     $stmt->bind_param("si", $newStatus, $owner_id);
     $stmt->execute();
@@ -345,9 +343,9 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                                     <span id="statusDisplay"></span>
                                 </button>
                                 <ul class="dropdown-menu shadow">
-                                    <li><a class="dropdown-item" href="?change_status=Active&csrf_token=<?= e(generate_csrf_token()) ?>" id="opt-active"></a></li>
-                                    <li><a class="dropdown-item" href="?change_status=Busy&csrf_token=<?= e(generate_csrf_token()) ?>" id="opt-busy"></a></li>
-                                    <li><a class="dropdown-item" href="?change_status=Closed&csrf_token=<?= e(generate_csrf_token()) ?>" id="opt-closed"></a></li>
+                                    <li><form method="POST" class="m-0"><?= csrf_input(); ?><input type="hidden" name="change_status" value="Active"><button type="submit" class="dropdown-item" id="opt-active"></button></form></li>
+                                    <li><form method="POST" class="m-0"><?= csrf_input(); ?><input type="hidden" name="change_status" value="Busy"><button type="submit" class="dropdown-item" id="opt-busy"></button></form></li>
+                                    <li><form method="POST" class="m-0"><?= csrf_input(); ?><input type="hidden" name="change_status" value="Closed"><button type="submit" class="dropdown-item" id="opt-closed"></button></form></li>
                                 </ul>
                             </div>
                         </div>
@@ -456,7 +454,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
                     <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
                     <p class="small opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                     <div class="d-grid gap-2 mt-4">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                         <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>
@@ -632,7 +630,7 @@ $recent_reviews = $recent_reviews_stmt->get_result();
             const icon = document.getElementById('themeIcon');
             if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 
-            const name = "<?php echo $_SESSION['userName'] ?? 'Owner'; ?>";
+            const name = <?= clevo_js($_SESSION['userName'] ?? 'Owner') ?>;
 
             const displayOwnerName = isRtl ? name : await translateDbContent(name);
             document.querySelectorAll('.uName').forEach(el => el.innerText = displayOwnerName);

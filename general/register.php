@@ -1,161 +1,22 @@
 <?php
-session_start();
-
-use PHPMailer\PHPMailer\PHPMailer;
-
-require_once '../vendor/autoload.php';
-include_once(__DIR__ . "/../includes/config.php");
-include_once(__DIR__ . "/../includes/app-helpers.php");
-
-$error = "";
-$registration_success = false;
-$registered_role = "";
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_action'])) {
-    clevo_require_csrf_token();
-    $role      = $_POST['role'];
-    $name      = trim($_POST['full_name']);
-    $email     = trim($_POST['email']);
-    $phone_suffix = trim($_POST['phone_suffix']);
-
-    if (strlen($phone_suffix) !== 8) {
-        $error = "system_error";
-    } else {
-        $phone     = "07" . $phone_suffix;
-        $pass      = $_POST['password'];
-        $confirm   = $_POST['confirm_password'];
-        $st_name   = trim($_POST['station_name'] ?? "");
-
-        $password_regex = "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/";
-
-        $check = $conn->prepare("SELECT UserID FROM `user` WHERE PhoneNumber = ? OR Email = ?");
-        $check->bind_param("ss", $phone, $email);
-        $check->execute();
-
-        if ($check->get_result()->num_rows > 0) {
-            $error = "phone_exists";
-        } elseif (!preg_match($password_regex, $pass)) {
-            $error = "weak_password";
-        } elseif ($pass !== $confirm) {
-            $error = "pass_mismatch";
-        } else {
-            $file_path = NULL;
-            if ($role === 'owner') {
-                if (isset($_FILES['verification_file']) && $_FILES['verification_file']['error'] === 0) {
-                    $target_dir = "../uploads/verification/";
-                    if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-                    $file_name = "verify_" . time() . "_" . uniqid() . "." . pathinfo($_FILES["verification_file"]["name"], PATHINFO_EXTENSION);
-                    move_uploaded_file($_FILES["verification_file"]["tmp_name"], $target_dir . $file_name);
-                    $file_path = $file_name;
-                }
-            }
-
-            if ($role === 'owner' && (empty($st_name) || empty($file_path))) {
-                $error = "owner_docs_required";
-            } else {
-                $db_committed = false;
-                $conn->begin_transaction();
-                try {
-                    
-                    $hashed_pass = password_hash($pass, PASSWORD_DEFAULT);
-                    $status = 'pending';
-                    $token = bin2hex(random_bytes(32));
-                    $stmt = $conn->prepare("INSERT INTO `user` (UserName, Email, PhoneNumber, Password, Role, AccountStatus, VerificationFile, VerificationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param("ssssssss", $name, $email, $phone, $hashed_pass, $role, $status, $file_path, $token);
-                    $stmt->execute();
-                    $new_id = $conn->insert_id;
-
-                    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                    $host_name = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                    $app_path = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/Clevo/general/register.php')), '/\\');
-                    $link = $scheme . "://" . $host_name . $app_path . "/Emails/verify.php?token=" . urlencode($token);
-                    $wallet_stmt = $conn->prepare("INSERT INTO `wallet` (UserID, Balance) VALUES (?, 0.00)");
-                    $wallet_stmt->bind_param("i", $new_id);
-                    $wallet_stmt->execute();
-
-                    $loyalty_stmt = $conn->prepare("INSERT INTO `loyalty` (UserID, PointsBalance) VALUES (?, 0)");
-                    $loyalty_stmt->bind_param("i", $new_id);
-                    $loyalty_stmt->execute();
-                    if ($role === 'customer') {
-                        clevoCreateRoleNotification(
-                            $conn,
-                            'Admin',
-                            'مستخدم جديد سجل في النظام',
-                            'قام المستخدم ' . $name . ' بإنشاء حساب جديد كزبون في التطبيق.',
-                            'info',
-                            '../admin/manage-users.php',
-                            'New user registered in the system',
-                            'User ' . $name . ' created a new customer account in the app.'
-                        );
-                    }
-                    if ($role === 'owner') {
-                        $stmt_st = $conn->prepare("INSERT INTO `stations` (Name, UserID, Status, admin_status, CommercialRecordPath) VALUES (?, ?, 'Closed', 'pending', ?)");
-                        $stmt_st->bind_param("sis", $st_name, $new_id, $file_path);
-                        $stmt_st->execute();
-                        $new_station_id = (int) $conn->insert_id;
-                        $link_station = $conn->prepare("UPDATE `user` SET StationID = ? WHERE UserID = ?");
-                        $link_station->bind_param("ii", $new_station_id, $new_id);
-                        $link_station->execute();
-
-                        clevoCreateRoleNotification(
-                            $conn,
-                            'Admin',
-                            'طلب تسجيل محطة جديدة',
-                            'قام ' . $name . ' بتقديم طلب تسجيل محطة: ' . $st_name . '، يرجى مراجعة السجل التجاري.',
-                            'warning',
-                            '../admin/station-approvals.php',
-                            'New station registration request',
-                            $name . ' submitted a station registration request: ' . $st_name . '. Please review the commercial record.'
-                        );
-                    }
-
-                    $conn->commit();
-                    $db_committed = true;
-                    $mail = new PHPMailer(true);
-
-                    $mail->isSMTP();
-
-                    $mail->Host = 'smtp.gmail.com';
-
-                    $mail->SMTPAuth = true;
-
-                    $mail->Username = 'support.clevo@gmail.com';
-
-                    $mail->Password = 'aessfjspgpicvcje';
-
-                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-
-                    $mail->Port = 587;
-
-                    $mail->setFrom('support.clevo@gmail.com', 'Clevo');
-
-                    $mail->addAddress($email);
-
-                    $mail->isHTML(true);
-
-                    $mail->Subject = 'Verify Your Email';
-
-
-                    ob_start();
-
-                    include __DIR__ . '/../Emails/verify_template.php';
-
-                    $template = ob_get_clean();
-
-                    $mail->Body = $template;
-
-                    $mail->send();
-                    $registration_success = true;
-                    $registered_role = $role;
-                } catch (Throwable $e) {
-                    if (!$db_committed) {
-                        $conn->rollback();
-                    }
-                    $error = "system_error";
-                }
-            }
-        }
-    }
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/app-helpers.php';
+$error = ''; $registration_success = false; $registered_role = '';
+if (isset($_POST['register_action'])) {
+    clevo_auth_throttle($conn, 'register', clevo_clean_string($_POST['email'] ?? '', 101));
+    $document = null;
+    try {
+        if (!in_array($_POST['role'] ?? '', ['customer','owner'], true)) throw new ClevoSecurityException('invalid_registration', 422);
+        if (!is_string($_POST['password'] ?? null) || $_POST['password'] !== ($_POST['confirm_password'] ?? null)) throw new ClevoSecurityException('pass_mismatch', 422);
+        if (($_POST['role'] ?? '') === 'owner') $document = clevo_save_upload($_FILES['verification_file'] ?? [], 'verification');
+        $account = clevo_register_account($conn, [
+            'role' => $_POST['role'], 'full_name' => $_POST['full_name'] ?? '', 'email' => $_POST['email'] ?? '',
+            'phone' => '07' . clevo_clean_string($_POST['phone_suffix'] ?? '', 9), 'password' => $_POST['password'],
+            'station_name' => $_POST['station_name'] ?? ''
+        ], $document);
+        $registration_success = true; $registered_role = clevo_role($account['Role']);
+        clevoCreateRoleNotification($conn, 'Admin', 'تسجيل حساب جديد', 'New account submitted for verification.', 'info', '../admin/manage-users.php');
+    } catch (ClevoSecurityException $e) { $error = in_array($e->reason, ['weak_password','pass_mismatch','owner_docs_required'], true) ? $e->reason : 'system_error'; }
 }
 ?>
 

@@ -1,6 +1,5 @@
 <?php
 
-session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -39,7 +38,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     if ($description_en === '') {
         $description_en = $description_ar;
     }
-    $price = floatval($_POST['price']);
+    $price = filter_var($_POST['price'] ?? null, FILTER_VALIDATE_FLOAT);
+    if ($name_ar === '' || $price === false || $price < 0 || $price > 100000) throw new ClevoSecurityException('invalid_service', 422);
     $edit_id = intval($_POST['edit_id']);
     
     $is_station = isset($_POST['type_station']) ? 1 : 0;
@@ -220,7 +220,7 @@ while($row = $services_res->fetch_assoc()){
                                             <?php endforeach; ?>
                                         </div>
                                         <div class="d-flex gap-2 me-3">
-                                            <button class="btn btn-sm btn-outline-primary rounded-circle" style="width:35px; height:35px;" onclick='editService(<?php echo json_encode($s); ?>)'><i class="fas fa-edit"></i></button>
+                                            <button class="btn btn-sm btn-outline-primary rounded-circle" style="width:35px; height:35px;" onclick='editService(<?php echo e(clevo_js($s)); ?>)'><i class="fas fa-edit"></i></button>
                                             <button type="button" class="btn btn-sm text-danger d-flex align-items-center justify-content-center" onclick="confirmDeleteService(<?php echo (int) $s['id']; ?>)"><i class="fas fa-trash-alt"></i></button>
                                         </div>
                                     </div>
@@ -240,7 +240,7 @@ while($row = $services_res->fetch_assoc()){
                 <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
                 <p class="small opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                 <div class="d-grid gap-2 mt-4">
-                    <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                    <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                     <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </div>
             </div>

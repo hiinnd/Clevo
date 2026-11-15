@@ -4,57 +4,12 @@ include_once __DIR__ . "/app-helpers.php";
 
 function clevoEnsureBookingServicesTable(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $conn->query("CREATE TABLE IF NOT EXISTS booking_services (
-        BookingServiceID INT(11) NOT NULL AUTO_INCREMENT,
-        BookingID INT(11) NOT NULL,
-        ServiceID INT(11) DEFAULT NULL,
-        ServiceName VARCHAR(255) DEFAULT NULL,
-        Price DECIMAL(10,2) DEFAULT 0.00,
-        PRIMARY KEY (BookingServiceID),
-        KEY BookingID (BookingID),
-        KEY ServiceID (ServiceID),
-        CONSTRAINT booking_services_booking_fk FOREIGN KEY (BookingID) REFERENCES booking(BookingID) ON DELETE CASCADE,
-        CONSTRAINT booking_services_service_fk FOREIGN KEY (ServiceID) REFERENCES services(ServiceID) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    clevo_require_schema($conn, 'booking_services', []);
 }
 
 function clevoEnsureBookingPaymentColumns(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') {
-        return;
-    }
-
-    $columns = [];
-    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'booking'");
-    $stmt->bind_param("s", $db);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) {
-        $columns[$row['COLUMN_NAME']] = true;
-    }
-
-    if (!isset($columns['Points_Used'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Points_Used DECIMAL(10,2) DEFAULT 0.00 AFTER Payment_Method");
-    }
-    if (!isset($columns['Points_Discount'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Points_Discount DECIMAL(10,2) DEFAULT 0.00 AFTER Points_Used");
-    }
-    if (!isset($columns['Payable_Amount'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Payable_Amount DECIMAL(10,2) DEFAULT NULL AFTER Points_Discount");
-    }
+    clevo_require_schema($conn, 'booking', ['Points_Used','Points_Discount','Payable_Amount']);
 }
 
 function clevoSaveBookingServices(mysqli $conn, int $bookingID, array $services): void
@@ -156,32 +111,7 @@ function clevoApplyPointsDiscount(mysqli $conn, int $bookingID, int $userID, flo
 
 function clevoEnsureBookingWorkflowColumns(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') {
-        return;
-    }
-
-    $columns = [];
-    $stmt = $conn->prepare("SELECT COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'booking'");
-    $stmt->bind_param("s", $db);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) {
-        $columns[$row['COLUMN_NAME']] = $row;
-    }
-
-    if (!isset($columns['Accepted_At'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Accepted_At DATETIME DEFAULT NULL AFTER Payment_Method");
-    }
-    if (isset($columns['Status']) && !str_contains((string) $columns['Status']['COLUMN_TYPE'], "'Cancelled'")) {
-        $conn->query("ALTER TABLE booking MODIFY Status ENUM('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled','Cancelled_Timeout','Completed') DEFAULT 'Pending'");
-    }
+    clevo_require_schema($conn, 'booking', ['Accepted_At']);
 }
 
 function clevoBookingCanBeChanged(string $status): bool

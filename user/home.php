@@ -1,7 +1,5 @@
 <?php
 
-session_start();
-
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
@@ -1269,7 +1267,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
     <script src="../assets/service-translations.js"></script>
 
     <script>
-        const API_KEY = "fe43aec0ea2f78313d0d8a5887ba992b";
+
 
         const showM = (id) => new bootstrap.Modal(document.getElementById(id)).show();
 
@@ -1549,6 +1547,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
         function saveUserLocation(lat, lon, address = '') {
             const body = new URLSearchParams();
+            body.append('csrf_token', <?= clevo_js(generate_csrf_token()) ?>);
             body.append('latitude', lat);
             body.append('longitude', lon);
             body.append('address', address);
@@ -1584,7 +1583,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
 
 
-                    fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=${currentLang}`)
+                    fetch(`../includes/weather.php?lat=${lat}&lon=${lon}&lang=${currentLang}`)
 
 
 
@@ -1681,7 +1680,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
 
             const currentLang = isAr ? 'ar' : 'en';
 
-            fetch(`https://api.openweathermap.org/data/2.5/weather?q=Amman,JO&appid=${API_KEY}&units=metric&lang=${currentLang}`)
+            fetch(`../includes/weather.php?lang=${currentLang}`)
 
                 .then(r => r.json())
 
@@ -2102,6 +2101,7 @@ $plan_features_en = $activePlan ? clevoPlanFeatures($activePlan, 'en') : [];
         }
     </script>
 
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 
 </body>

@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -60,100 +60,22 @@ function driverPaymentLabel(?string $method): string
     ][$method ?? ''] ?? ($method ?: '-');
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    header('Content-Type: application/json; charset=utf-8');
-    clevo_require_csrf_token(true);
-    $action = $_POST['action'];
-
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
     if ($action === 'update_location') {
-        $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT);
-        $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
-        if ($lat === false || $lng === false) {
-            echo json_encode(['status' => 'error']);
-            exit;
-        }
-
-        $update_gps = $conn->prepare("UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE BookingID = ? AND DriverID = ? AND Status IN ('Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning')");
-        $update_gps->bind_param("ddii", $lat, $lng, $driver_booking_id, $driver_id);
-        echo json_encode(['status' => $update_gps->execute() ? 'success' : 'error']);
-        exit;
+        $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT); $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
+        if ($lat === false || $lng === false || abs($lat) > 90 || abs($lng) > 180) throw new ClevoSecurityException('invalid_location', 422);
+        $updated = clevo_stmt($conn, "UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE BookingID = ? AND DriverID = ? AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')", 'ddii', [$lat, $lng, $driver_booking_id, $driver_id]);
+        clevo_json_response('success');
     }
-
-    if ($action === 'update_status') {
-        $order_id = (int) ($_POST['order_id'] ?? 0);
-        $status = $_POST['status'] ?? '';
-        $allowed = ['Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning', 'Completed'];
-        if (!in_array($status, $allowed, true)) {
-            echo json_encode(['status' => 'error']);
-            exit;
-        }
-
-        if ($order_id !== $driver_booking_id) {
-            echo json_encode(['status' => 'error']);
-            exit;
-        }
-
-        $before = $conn->prepare("SELECT Status, Total_Price, Service_Location, Payment_Method FROM booking WHERE BookingID = ? AND DriverID = ? LIMIT 1");
-        $before->bind_param("ii", $driver_booking_id, $driver_id);
-        $before->execute();
-        $beforeRow = $before->get_result()->fetch_assoc();
-
-        if ($status === 'Completed'
-            && $beforeRow
-            && in_array($beforeRow['Service_Location'], ['home', 'delivery'], true)
-            && empty($beforeRow['Payment_Method'])) {
-            echo json_encode(['status' => 'payment_required']);
-            exit;
-        }
-
-        $stmt = $conn->prepare("UPDATE booking SET Status = ? WHERE BookingID = ? AND DriverID = ?");
-        $stmt->bind_param("sii", $status, $driver_booking_id, $driver_id);
-        $ok = $stmt->execute();
-
-        if ($ok) {
-            $notice = $conn->prepare("SELECT b.UserID, b.Order_Number, s.UserID AS OwnerID FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ?");
-            $notice->bind_param("i", $order_id);
-            $notice->execute();
-            $meta = $notice->get_result()->fetch_assoc();
-            if ($meta) {
-                if ($status === 'Completed' && ($beforeRow['Status'] ?? '') !== 'Completed') {
-                    clevoAddLoyaltyPoints($conn, (int) $meta['UserID'], (float) ($beforeRow['Total_Price'] ?? 0.0));
-                    if (($beforeRow['Payment_Method'] ?? '') === 'plan') {
-                        clevoCreditOwnerForBooking($conn, $order_id);
-                    }
-                }
-
-                $title = 'تحديث حالة الطلب';
-                $body = 'تم تحديث حالة طلبك #' . ($meta['Order_Number'] ?: $order_id) . ' إلى: ' . driverStatusLabel($status);
-                $type = $status === 'Completed' ? 'success' : 'info';
-                foreach ([(int) $meta['UserID'], (int) $meta['OwnerID']] as $notifyUser) {
-                    if ($notifyUser <= 0) continue;
-                    $target = $notifyUser === (int) $meta['UserID'] ? 'order-details.php?id=' . $order_id : 'incoming-orders.php';
-                    clevoCreateNotification(
-                        $conn,
-                        $notifyUser,
-                        $title,
-                        $body,
-                        $type,
-                        $target,
-                        'Order status updated',
-                        'Your order #' . ($meta['Order_Number'] ?: $order_id) . ' status is now: ' . driverStatusLabelEn($status)
-                    );
-                }
-            }
-        }
-
-        $logout = $ok && $status === 'Completed';
-        if ($logout) {
-            $_SESSION = [];
-            if (isset($_COOKIE['access_token'])) {
-                setcookie('access_token', '', ['expires' => time() - 3600, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
-            }
-            session_destroy();
-        }
-        echo json_encode(['status' => $ok ? 'success' : 'error', 'logout' => $logout]);
-        exit;
+    if (in_array($action, ['update_status','update_booking_status'], true)) {
+        if ((int) ($_POST['order_id'] ?? 0) !== $driver_booking_id || !$driver_booking_id) throw new ClevoSecurityException('not_found', 404);
+        $status = clevo_clean_string($_POST['status'] ?? '', 30);
+        clevo_driver_transition($conn, $driver_id, $driver_booking_id, $status);
+        if ($status === 'Completed') { $_SESSION = []; session_destroy(); }
+        header('Content-Type: application/json'); echo json_encode(['status' => 'success', 'logout' => $status === 'Completed']); exit;
     }
+    throw new ClevoSecurityException('invalid_action', 422);
 }
 
 $task_stmt = $conn->prepare("SELECT b.*, u.UserName AS CustomerName, u.CarName, u.PhoneNumber AS CustomerPhone

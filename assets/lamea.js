@@ -153,9 +153,9 @@ async function sendMessage() {
         body.scrollTop = body.scrollHeight;
 
         try {
-            const response = await fetch("https://marya-shahin.app.n8n.cloud/webhook/Website", {
+            const response = await fetch("../includes/assistant.php", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": window.clevoCsrfToken || "" },
                 body: JSON.stringify({
                     message: message,
                     session: "user-clevo-" + (localStorage.getItem('userID') || localStorage.getItem('user_id') || 'guest')

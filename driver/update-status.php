@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -13,74 +12,22 @@ if (!$driver_id || !$driver_booking_id || $driver_role !== 'driver') {
 
 clevoEnsureTrackingColumns($conn);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_booking_status') {
-    header('Content-Type: application/json; charset=utf-8');
-    clevo_require_csrf_token(true);
-    $status = $_POST['status'] ?? '';
-    $order_id = (int) ($_POST['order_id'] ?? 0);
-    if ($order_id !== $driver_booking_id) {
-        echo json_encode(['status' => 'error']);
-        exit;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    if ($action === 'update_location') {
+        $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT); $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
+        if ($lat === false || $lng === false || abs($lat) > 90 || abs($lng) > 180) throw new ClevoSecurityException('invalid_location', 422);
+        $updated = clevo_stmt($conn, "UPDATE booking SET Driver_Lat = ?, Driver_Lon = ? WHERE BookingID = ? AND DriverID = ? AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')", 'ddii', [$lat, $lng, $driver_booking_id, $driver_id]);
+        clevo_json_response('success');
     }
-    $allowed = ['Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning', 'Completed'];
-    if (!in_array($status, $allowed, true)) {
-        echo json_encode(['status' => 'error']);
-        exit;
+    if (in_array($action, ['update_status','update_booking_status'], true)) {
+        if ((int) ($_POST['order_id'] ?? 0) !== $driver_booking_id || !$driver_booking_id) throw new ClevoSecurityException('not_found', 404);
+        $status = clevo_clean_string($_POST['status'] ?? '', 30);
+        clevo_driver_transition($conn, $driver_id, $driver_booking_id, $status);
+        if ($status === 'Completed') { $_SESSION = []; session_destroy(); }
+        header('Content-Type: application/json'); echo json_encode(['status' => 'success', 'logout' => $status === 'Completed']); exit;
     }
-
-    $check = $conn->prepare("SELECT Status, UserID, Order_Number, Total_Price, Service_Location, Payment_Method FROM booking WHERE BookingID = ? AND DriverID = ? LIMIT 1");
-    $check->bind_param("ii", $order_id, $driver_id);
-    $check->execute();
-    $booking = $check->get_result()->fetch_assoc();
-    if (!$booking) {
-        echo json_encode(['status' => 'error']);
-        exit;
-    }
-
-    if ($status === 'Completed') {
-        if (in_array($booking['Service_Location'], ['home', 'delivery'], true) && empty($booking['Payment_Method'])) {
-            echo json_encode(['status' => 'payment_required']);
-            exit;
-        }
-    }
-
-    $stmt = $conn->prepare("UPDATE booking SET Status = ? WHERE BookingID = ? AND DriverID = ?");
-    $stmt->bind_param("sii", $status, $order_id, $driver_id);
-    $ok = $stmt->execute();
-    $logout = false;
-    if ($ok && $status === 'Completed' && $booking['Status'] !== 'Completed') {
-        clevoAddLoyaltyPoints($conn, (int) $booking['UserID'], (float) ($booking['Total_Price'] ?? 0));
-        if (($booking['Payment_Method'] ?? '') === 'plan') {
-            clevoCreditOwnerForBooking($conn, $order_id);
-        }
-        $ownerStmt = $conn->prepare("SELECT s.UserID AS OwnerID FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ? LIMIT 1");
-        $ownerStmt->bind_param("i", $order_id);
-        $ownerStmt->execute();
-        $ownerID = (int) ($ownerStmt->get_result()->fetch_assoc()['OwnerID'] ?? 0);
-        $orderNumber = (string) ($booking['Order_Number'] ?: $order_id);
-        foreach ([(int) $booking['UserID'], $ownerID] as $notifyUser) {
-            if ($notifyUser <= 0) continue;
-            $target = $notifyUser === (int) $booking['UserID'] ? 'order-details.php?id=' . $order_id : 'incoming-orders.php';
-            clevoCreateNotification(
-                $conn,
-                $notifyUser,
-                'تم إنهاء الطلب',
-                "تم إنهاء وتسليم الطلب #$orderNumber.",
-                'success',
-                $target,
-                'Order completed',
-                "Order #$orderNumber was completed and delivered."
-            );
-        }
-        $_SESSION = [];
-        if (isset($_COOKIE['access_token'])) {
-            setcookie('access_token', '', ['expires' => time() - 3600, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
-        }
-        session_destroy();
-        $logout = true;
-    }
-    echo json_encode(['status' => $ok ? 'success' : 'error', 'logout' => $logout]);
-    exit;
+    throw new ClevoSecurityException('invalid_action', 422);
 }
 
 $task_stmt = $conn->prepare("SELECT b.BookingID, b.Order_Number, b.Status, u.UserName AS customer_name

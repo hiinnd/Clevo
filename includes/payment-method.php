@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once(__DIR__ . "/config.php");
 include_once(__DIR__ . "/booking-helpers.php");
 include_once(__DIR__ . "/app-helpers.php");
@@ -535,6 +535,7 @@ $csrf_token = generate_csrf_token();
             }
         }
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

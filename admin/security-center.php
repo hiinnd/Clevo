@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['blacklist_id'])) {
         $conn->commit();
     } catch (Throwable $e) {
         $conn->rollback();
-        error_log('Unban failed: ' . $e->getMessage());
+        error_log('CLEVO operation failed.');
     }
     header("Location: security-center.php?unbanned=success");
     exit;

@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once __DIR__ . '/../includes/config.php';
 
 header('Content-Type: application/json; charset=utf-8');

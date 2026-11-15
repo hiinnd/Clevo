@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once(__DIR__ . "/config.php");
 include_once(__DIR__ . "/booking-helpers.php");
 include_once(__DIR__ . "/app-helpers.php");
@@ -21,6 +21,7 @@ $usePoints = ($_GET['use_points'] ?? '') === '1';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_visa_paid') {
     header('Content-Type: application/json; charset=utf-8');
     clevo_require_csrf_token(true);
+    if (clevo_production()) throw new ClevoSecurityException('payment_gateway_not_configured', 503);
     if ($bookingID <= 0) {
         if ($planID > 0) {
             $subscription = clevoCreateUserPlanSubscription($conn, $userID, $planID);
@@ -372,6 +373,7 @@ $csrf_token = generate_csrf_token();
             document.getElementById('mirrorDate').innerText = val || "MM/YY";
         }
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

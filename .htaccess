@@ -1,0 +1,10 @@
+Options -Indexes
+<FilesMatch "(?i)^(\.env(?:\..*)?|composer\.(?:json|lock)|clevo\.sql|AGENTS\.md)$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^api/v1/index\.php(?:/|$) - [L]
+    RewriteRule ^(?:\.git|\.vscode|\.aws|\.codex|\.agents|\.security-test|vendor|tests|docs|deploy|var|migrations|scripts)(?:/|$) - [F,L,NC]
+    RewriteRule ^api/v1(?:/(.*))?$ api/v1/index.php/$1 [QSA,L]
+</IfModule>

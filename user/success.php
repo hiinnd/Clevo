@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
@@ -689,6 +688,7 @@ $userName = $_SESSION['userName'] ?? 'User';
             localStorage.setItem('clevo_order_status', <?= json_encode($status) ?>);
         });
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
     <div class="modal fade" id="cancelModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">

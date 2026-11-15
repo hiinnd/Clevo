@@ -1,0 +1,14 @@
+# Merge into the actual HTTPS virtual host; replace all paths and validate apachectl -t.
+# Keep private storage outside every document root / Alias.
+<Directory "/srv/www/clevo">
+    AllowOverride All
+    Options -Indexes
+    Require all granted
+</Directory>
+<Directory "/srv/clevo-private">
+    Require all denied
+</Directory>
+# %U is the path only. Never add query strings, Authorization/Cookie headers or request bodies.
+LogFormat "%a %t \"%m %U %H\" %>s %b" clevo_redacted
+CustomLog logs/clevo-access.log clevo_redacted
+# Existing HTTPS certificate/proxy settings belong to the deployment environment.

@@ -267,7 +267,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <p class="mb-0" style="color: var(--text-muted, #94a3b8) !important; font-size: 0.95rem;" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
             
             <div class="d-grid gap-2 mt-4">
-                <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                 <button type="button" class="btn rounded-pill py-2 fw-bold custom-cancel-btn" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
             </div>
         </div>

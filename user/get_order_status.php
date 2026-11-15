@@ -1,5 +1,4 @@
 <?php
-session_start();
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
 
@@ -13,6 +12,7 @@ clevoEnsureTrackingColumns($conn);
 
 $bookingID = (int) ($_GET['id'] ?? 0);
 $userID = (int) $_SESSION['userID'];
+if (clevo_current_role() === 'driver' && (int) ($_SESSION['driver_booking_id'] ?? 0) !== $bookingID) throw new ClevoSecurityException('not_found', 404);
 $role = strtolower($_SESSION['role'] ?? $_SESSION['Role'] ?? '');
 
 $stmt = $conn->prepare("SELECT b.Status, b.Latitude, b.Longitude, b.Driver_Lat, b.Driver_Lon,

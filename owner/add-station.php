@@ -1,13 +1,12 @@
 <?php
 
-session_start();
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
 $owner_id = clevo_require_role('owner', '../general/login.php');
 $existingStation = null;
 if ($owner_id > 0) {
-    $stmt = $conn->prepare("SELECT * FROM stations WHERE UserID = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT * FROM stations WHERE UserID = ? ORDER BY StationID LIMIT 1");
     $stmt->bind_param("i", $owner_id);
     $stmt->execute();
     $existingStation = $stmt->get_result()->fetch_assoc();
@@ -16,25 +15,26 @@ if ($owner_id > 0) {
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
     clevo_require_csrf_token(true);
-    $name = mysqli_real_escape_string($conn, $_POST['stName']);
-    $location = mysqli_real_escape_string($conn, $_POST['stLocation']);
-    $lat = trim($_POST['stLat']) !== '' ? mysqli_real_escape_string($conn, $_POST['stLat']) : ($existingStation['Lat'] ?? '');
-    $lon = trim($_POST['stLon']) !== '' ? mysqli_real_escape_string($conn, $_POST['stLon']) : ($existingStation['Lon'] ?? '');
-    $location_url = trim($_POST['stLocationUrl'] ?? '') !== '' ? mysqli_real_escape_string($conn, $_POST['stLocationUrl']) : ($existingStation['Location_URL'] ?? '');
+    $name = clevo_clean_string($_POST['stName'] ?? '', 100);
+    $location = clevo_clean_string($_POST['stLocation'] ?? '', 255);
+    $lat = trim($_POST['stLat']) !== '' ? clevo_clean_string($_POST['stLat'] ?? '', 30) : ($existingStation['Lat'] ?? '');
+    $lon = trim($_POST['stLon']) !== '' ? clevo_clean_string($_POST['stLon'] ?? '', 30) : ($existingStation['Lon'] ?? '');
+    $location_url = trim($_POST['stLocationUrl'] ?? '') !== '' ? clevo_clean_string($_POST['stLocationUrl'] ?? '', 255) : ($existingStation['Location_URL'] ?? '');
     $open_time = $_POST['openTime'];
     $close_time = $_POST['closeTime'];
 
+    if ($name === '' || !preg_match('/^\d{2}:\d{2}(?::\d{2})?$/D', $open_time) || !preg_match('/^\d{2}:\d{2}(?::\d{2})?$/D', $close_time)) throw new ClevoSecurityException('invalid_station', 422);
+    if ($lat !== '' && (filter_var($lat, FILTER_VALIDATE_FLOAT) === false || abs((float) $lat) > 90)) throw new ClevoSecurityException('invalid_location', 422);
+    if ($lon !== '' && (filter_var($lon, FILTER_VALIDATE_FLOAT) === false || abs((float) $lon) > 180)) throw new ClevoSecurityException('invalid_location', 422);
+    if ($location_url !== '' && (!filter_var($location_url, FILTER_VALIDATE_URL) || !in_array(parse_url($location_url, PHP_URL_SCHEME), ['http','https'], true))) throw new ClevoSecurityException('invalid_url', 422);
     $image_name = $existingStation['Image'] ?? 'default_station.png';
     if (isset($_FILES['stImage']) && $_FILES['stImage']['error'] == 0) {
-        $target_dir = "../uploads/stations/";
-        if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
-        $image_name = time() . "_" . basename($_FILES["stImage"]["name"]);
-        move_uploaded_file($_FILES["stImage"]["tmp_name"], $target_dir . $image_name);
+        $image_name = clevo_save_upload($_FILES['stImage'], 'stations');
     }
 
     if ($existingStation) {
-        $update = $conn->prepare("UPDATE stations SET Name = ?, Location = ?, Location_URL = ?, Lat = ?, Lon = ?, OpeningTime = ?, ClosingTime = ?, Image = ? WHERE UserID = ?");
-        $update->bind_param("ssssssssi", $name, $location, $location_url, $lat, $lon, $open_time, $close_time, $image_name, $owner_id);
+        $update = $conn->prepare("UPDATE stations SET Name = ?, Location = ?, Location_URL = ?, Lat = ?, Lon = ?, OpeningTime = ?, ClosingTime = ?, Image = ? WHERE StationID = ? AND UserID = ?");
+        $update->bind_param("ssssssssii", $name, $location, $location_url, $lat, $lon, $open_time, $close_time, $image_name, $existingStation['StationID'], $owner_id);
         $success = $update->execute();
     } else {
         $success = false;
@@ -61,14 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
             $success = true;
         } catch (Throwable $e) {
             $conn->rollback();
-            error_log('New station request failed: ' . $e->getMessage());
+            error_log('CLEVO operation failed.');
         }
     }
 
     if ($success) {
         echo json_encode(['status' => 'success']);
     } else {
-        echo json_encode(['status' => 'error', 'message' => $conn->error]);
+        echo json_encode(['status' => 'error', 'message' => 'request_failed']);
     }
     exit;
 }
@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
                     <h5 class="fw-bold mb-2" data-i18n="logout_title">تأكيد الخروج</h5>
                     <p class="text-muted-custom small mb-4" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                     <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                         <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>

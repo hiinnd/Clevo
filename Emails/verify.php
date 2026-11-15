@@ -1,30 +1,19 @@
 <?php
-
-include_once(__DIR__ . "/../includes/config.php");
-
-$token = trim((string) ($_GET['token'] ?? ''));
-
-if ($token === '') {
-    echo "No token found.";
-    exit();
+require_once __DIR__ . '/../includes/config.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    clevo_auth_throttle($conn, 'verify');
+    clevo_verify_email($conn, clevo_clean_string($_POST['token'] ?? '', 130));
+    clevo_json_response('success');
 }
-
-$stmt = $conn->prepare("SELECT UserID, Role, AccountStatus FROM `user` WHERE VerificationToken = ? LIMIT 1");
-$stmt->bind_param("s", $token);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
-
-if (!$user || $user['AccountStatus'] === 'rejected') {
-    echo "Verification failed or this account is already verified.";
-    exit();
-}
-
-$user_id = (int) $user['UserID'];
-$verified_status = strtolower((string) $user['Role']) === 'owner' ? 'pending' : 'active';
-$update = $conn->prepare("UPDATE `user` SET AccountStatus = ?, VerificationToken = NULL WHERE UserID = ?");
-$update->bind_param("si", $verified_status, $user_id);
-$update->execute();
-
-header("Location: verify_success.php");
-exit();
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') { header('Allow: GET, POST'); http_response_code(405); exit; }
 ?>
+<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLEVO verification</title><body><p id="status">جارٍ التحقق من البريد / Verifying email…</p>
+<script>
+const token = new URLSearchParams(location.hash.slice(1)).get('token') || '';
+history.replaceState(null, '', location.pathname);
+fetch(location.pathname, {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({token,csrf_token:<?= clevo_js(generate_csrf_token()) ?>})})
+ .then(r=>r.json()).then(d=>{if(d.status==='success') location.replace('verify_success.php'); else document.getElementById('status').textContent='الرابط غير صالح أو انتهت صلاحيته / Invalid or expired link';})
+ .catch(()=>{document.getElementById('status').textContent='تعذّر التحقق / Verification unavailable';});
+</script></body></html>

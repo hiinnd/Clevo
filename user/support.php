@@ -1,12 +1,13 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 include_once __DIR__ . '/../includes/support-helpers.php';
 
 $uName = $_SESSION['userName'] ?? '';
 $uID = isset($_SESSION['userID']) ? (int) $_SESSION['userID'] : 0;
-$uRole = $_SESSION['role'] ?? 'user';
+$uRole = clevo_current_role();
+if (!in_array($uRole, ['owner','driver'], true)) $uRole = 'user';
 $prefillSubject = trim((string) ($_GET['subject'] ?? ''));
 $success = false;
 
@@ -22,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_ticket_action'])
 
     if ($subject !== '' && $message !== '') {
         $stmt = $conn->prepare("INSERT INTO support_tickets (user_id, user_name, user_type, subject, message, status, is_guest) VALUES (?, ?, ?, ?, ?, 'New', ?)");
-        $stmt->bind_param("issssi", $uID, $senderName, $uRole, $subject, $message, $isGuest);
+        $ticketUserID = $uID ?: null;
+        $stmt->bind_param("issssi", $ticketUserID, $senderName, $uRole, $subject, $message, $isGuest);
         if ($stmt->execute()) {
             clevoAddSupportMessage($conn, (int) $conn->insert_id, 'user', $uID ?: null, $message);
             $success = true;
@@ -247,6 +249,7 @@ if ($uID > 0) {
             if (openTicket) document.getElementById('ticket-' + openTicket)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         };
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

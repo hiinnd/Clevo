@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['user_id'])) {
         exit;
         
     } else {
-        echo "Error Updating User Status: " . $conn->error;
+        echo "Error Updating User Status: " . 'request_failed';
     }
 }
 ?>

@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -7,6 +7,7 @@ clevoEnsureTrackingColumns($conn);
 
 $bookingID = (int) ($_GET['id'] ?? 0);
 $viewerID = clevo_current_user_id();
+if (clevo_current_role() === 'driver' && (int) ($_SESSION['driver_booking_id'] ?? 0) !== $bookingID) throw new ClevoSecurityException('not_found', 404);
 if ($viewerID <= 0) {
     header("Location: ../general/login.php");
     exit;

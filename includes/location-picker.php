@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/config.php'; clevo_require_role('customer'); ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl" data-theme="dark">
 <head>
@@ -224,6 +225,7 @@
             localStorage.setItem('selected_google_maps_url', mapsUrl);
 
             const body = new URLSearchParams();
+            body.append('csrf_token', <?= clevo_js(generate_csrf_token()) ?>);
             body.append('latitude', selected.lat);
             body.append('longitude', selected.lng);
             body.append('address', document.getElementById('address-text').innerText || '');

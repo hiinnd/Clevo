@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/booking-helpers.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
@@ -23,8 +23,8 @@ $timeout_stmt->execute();
 clevoEnsureNotificationsTargetColumn($conn);
 
 // Support marking a single notification as read via ?read=ID (used by JS fetch)
-if (isset($_GET['read']) && is_numeric($_GET['read'])) {
-    $notif_id = intval($_GET['read']);
+if (isset($_POST['read']) && is_numeric($_POST['read'])) {
+    $notif_id = intval($_POST['read']);
     $stmtRead = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?");
     $stmtRead->bind_param("ii", $notif_id, $userID);
     $stmtRead->execute();
@@ -306,11 +306,11 @@ function clevo_user_notification_fallback_en(string $text, bool $isTitle = false
                 const id = el.dataset.id;
                 const target = (el.dataset.target || '').trim();
                 if (target) {
-                    fetch('?read=' + encodeURIComponent(id), {credentials: 'same-origin'}).finally(() => {
+                    fetch(window.location.pathname, {method:'POST', credentials:'same-origin', headers:{'X-CSRF-Token': <?= clevo_js(generate_csrf_token()) ?>, 'Content-Type':'application/x-www-form-urlencoded'}, body:'read='+encodeURIComponent(id)}).finally(() => {
                         window.location.href = target;
                     });
                 } else {
-                    location.href = '?read=' + encodeURIComponent(id);
+                    fetch(window.location.pathname, {method:'POST',headers:{'X-CSRF-Token': <?= clevo_js(generate_csrf_token()) ?>,'Content-Type':'application/x-www-form-urlencoded'},body:'read='+encodeURIComponent(id)}).then(()=>location.reload());
                 }
             } catch (e) {
                 console.error(e);
@@ -404,6 +404,7 @@ function clevo_user_notification_fallback_en(string $text, bool $isTitle = false
             }
         };
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

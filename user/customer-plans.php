@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once(__DIR__ . "/../includes/config.php");
 include_once(__DIR__ . "/../includes/app-helpers.php");
 include_once(__DIR__ . "/../includes/plan-helpers.php");
@@ -280,7 +280,7 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
             features.forEach(feature => {
                 const chip = document.createElement('span');
                 chip.className = 'feature-pill';
-                chip.innerHTML = '<i class="fas fa-check me-1"></i>' + feature;
+                const checkIcon = document.createElement('i'); checkIcon.className = 'fas fa-check me-1'; chip.append(checkIcon, document.createTextNode(feature));
                 el.appendChild(chip);
             });
         }
@@ -323,6 +323,7 @@ $plans = $plans_stmt ? $plans_stmt->fetch_all(MYSQLI_ASSOC) : [];
             <?php endif; ?>
         };
     </script>
+    <script>window.clevoCsrfToken = <?= clevo_js(generate_csrf_token()) ?>;</script>
     <script src="../assets/lamea.js?v=20260605b"></script>
 </body>
 </html>

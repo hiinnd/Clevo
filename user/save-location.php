@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 
 $userID = clevo_require_role(['customer', 'user'], '../general/login.php');
@@ -21,11 +21,6 @@ if ($latitude === false || $latitude === null || $longitude === false || $longit
     exit;
 }
 
-$conn->query("ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `LastLatitude` DECIMAL(10,8) DEFAULT NULL");
-$conn->query("ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `LastLongitude` DECIMAL(11,8) DEFAULT NULL");
-$conn->query("ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `LastAddress` TEXT DEFAULT NULL");
-$conn->query("ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `LastLocationUrl` VARCHAR(255) DEFAULT NULL");
-$conn->query("ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `LastLocationUpdatedAt` TIMESTAMP NULL DEFAULT NULL");
 
 if ($mapsUrl === '') {
     $mapsUrl = 'https://www.google.com/maps?q=' . $latitude . ',' . $longitude;

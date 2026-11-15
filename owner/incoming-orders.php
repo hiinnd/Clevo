@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php'; 
 include_once __DIR__ . '/../includes/booking-helpers.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
@@ -89,32 +89,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     }
 
     
+    if ($action === 'reissue_driver_code') {
+        $code = clevo_issue_driver_code($conn, $owner_id, (int) ($_POST['order_id'] ?? 0));
+        clevo_json_response('success', ['driver_code' => $code]);
+    }
     if ($action == 'assign_driver') {
         $order_id = (int) ($_POST['order_id'] ?? 0);
         $driver_id = (int) ($_POST['driver_id'] ?? 0);
         $order_num = clevo_clean_string($_POST['order_number'] ?? '', 40);
-        do {
-            $new_access_code = (string) random_int(100000, 999999);
-            $code_check = $conn->prepare("SELECT BookingID FROM booking WHERE DriverAccessCode = ? LIMIT 1");
-            $code_check->bind_param("s", $new_access_code);
-            $code_check->execute();
-            $code_exists = $code_check->get_result()->num_rows > 0;
-        } while ($code_exists);
-
         $conn->begin_transaction();
         try {
             $update_order = $conn->prepare("UPDATE booking b
                 JOIN stations s ON b.StationID = s.StationID
-                SET b.Status = 'Accepted', b.DriverID = ?, b.DriverAccessCode = ?, b.Accepted_At = NOW(), b.notification_sent = 0
+                SET b.Status = 'Accepted', b.DriverID = ?, b.DriverAccessCode = NULL, b.Accepted_At = NOW(), b.notification_sent = 0
                 WHERE b.BookingID = ? AND b.Status = 'Pending' AND b.Service_Location = 'delivery' AND s.UserID = ?");
-            $update_order->bind_param("isii", $driver_id, $new_access_code, $order_id, $owner_id);
+            $update_order->bind_param("iii", $driver_id, $order_id, $owner_id);
             $update_order->execute();
 
             $check_driver = $conn->prepare("SELECT u.UserID FROM user u
                 JOIN stations s ON u.StationID = s.StationID
-                WHERE u.UserID = ? AND LOWER(u.Role) = 'driver' AND u.AccountStatus = 'active' AND s.UserID = ?
+                WHERE u.UserID = ? AND LOWER(u.Role) = 'driver' AND u.AccountStatus = 'active' AND s.UserID = ? AND u.StationID = (SELECT StationID FROM booking WHERE BookingID = ?)
                 LIMIT 1");
-            $check_driver->bind_param("ii", $driver_id, $owner_id);
+            $check_driver->bind_param("iii", $driver_id, $owner_id, $order_id);
             $check_driver->execute();
             $driver_valid = $check_driver->get_result()->num_rows > 0;
 
@@ -122,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 throw new RuntimeException('assign_failed');
             }
 
+            $new_access_code = clevo_issue_driver_code($conn, $owner_id, $order_id);
             $res = $conn->prepare("SELECT UserID FROM booking WHERE BookingID = ? LIMIT 1");
             $res->bind_param("i", $order_id);
             $res->execute();
@@ -140,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 "Your order #$order_num was accepted and a driver was assigned. Please choose a payment method within 10 minutes."
             );
 
-            $msg_d = "لديك مهمة جديدة للطلب #" . $order_num . "، كود الدخول هو: " . $new_access_code;
+            $msg_d = 'A new delivery task is assigned. Contact your station owner for the one-time sign-in code.';
             clevoCreateNotification(
                 $conn,
                 $driver_id,
@@ -149,11 +146,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 'info',
                 '../driver/driver-dashboard.php',
                 'New task',
-                "You have a new task for order #$order_num. Login code: $new_access_code"
+                'A new delivery task is assigned. Contact your station owner for the one-time sign-in code.'
             );
 
             $conn->commit();
-            echo json_encode(['status' => 'success', 'data' => [], 'message' => 'driver_assigned']);
+            echo json_encode(['status' => 'success', 'data' => ['driver_code' => $new_access_code], 'message' => 'driver_assigned']);
         } catch (Throwable $e) {
             $conn->rollback();
             echo json_encode(['status' => 'error', 'data' => [], 'message' => 'assign_failed']);
@@ -418,8 +415,8 @@ $csrf_token = generate_csrf_token();
                                             <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Latitude']) ?>,<?= e($order['Longitude']) ?>" data-i18n="open_map">فتح الموقع على الخريطة</a>
                                         <?php endif; ?>
                                     <?php endif; ?>
-                                    <?php if(in_array($order['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'], true) && !empty($order['d_code'])): ?>
-                                        <p class="mb-0 small text-success fw-bold"><i class="fas fa-key me-1"></i> <span data-i18n="driver_code">كود السائق:</span> <?= e($order['d_code']) ?></p>
+                                    <?php if(in_array($order['Status'], ['Accepted', 'Arrived', 'In Progress', 'Pickup', 'Washing', 'Returning'], true) && !empty($order['DriverID'])): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="reissueDriverCode(<?= (int) $order['BookingID'] ?>)">رمز دخول جديد للسائق / New driver sign-in code</button>
                                     <?php endif; ?>
                                     <?php if(!empty($order['Driver_Lat']) && !empty($order['Driver_Lon'])): ?>
                                         <a class="small fw-bold text-decoration-none" target="_blank" href="https://www.google.com/maps?q=<?= e($order['Driver_Lat']) ?>,<?= e($order['Driver_Lon']) ?>" data-i18n="driver_live_location">موقع السائق المباشر</a>
@@ -507,7 +504,7 @@ $csrf_token = generate_csrf_token();
                 <h5 class="fw-bold" data-i18n="logout_title">تأكيد الخروج</h5>
                 <p class="small opacity-75" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                 <div class="d-grid gap-2 mt-4">
-                    <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                    <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                     <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </div>
             </div>
@@ -568,7 +565,7 @@ $csrf_token = generate_csrf_token();
             params.append('action', 'accept_order');
             params.append('order_id', orderId);
             withLoading(btn, () => postAction(params).then(data => {
-                if (data.status === 'success') location.reload();
+                if (data.status === 'success') { if (data.data?.driver_code) { showStatus('success', 'Driver code (15 minutes, one use)', data.data.driver_code); } else location.reload(); }
                 else showStatus('error', t('error_title'), t('error_body'));
             }));
         }
@@ -587,13 +584,14 @@ $csrf_token = generate_csrf_token();
                     return;
                 }
                 drivers.forEach(d => {
-                    const safeName = String(d.name).replace(/[&<>"']/g, ch => ({'&':'&','<':'<','>':'>','"':'"',"'":''+'\''}[ch]));
+                    const nameNode = document.createElement('span'); nameNode.textContent = String(d.name); const safeName = nameNode.innerHTML;
                     container.innerHTML += `<div class="driver-item shadow-sm" onclick="finalAssign('${orderId}', '${String(orderNum).replace(/'/g, "\\'")}', '${d.id}')"><div class="fw-bold small">${safeName}</div></div>`;
                 });
                 showM('assignDriverModal');
             });
         }
 
+        function reissueDriverCode(orderId) { postAction(new URLSearchParams({action:'reissue_driver_code',order_id:orderId})).then(data => { if(data.status === 'success') showStatus('success', 'Driver code (15 minutes, one use)', data.data.driver_code); }); }
         function finalAssign(orderId, orderNum, driverId) {
             const params = new URLSearchParams();
             params.append('action', 'assign_driver');

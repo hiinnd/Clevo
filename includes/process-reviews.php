@@ -1,17 +1,20 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/config.php';
 include_once __DIR__ . '/app-helpers.php';
+$ownerID = clevo_require_role('owner');
 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'submit_reply') {
-    $review_id = mysqli_real_escape_string($conn, $_POST['review_id']);
-    $reply_text = mysqli_real_escape_string($conn, $_POST['reply_text']);
+    clevo_require_csrf_token(true);
+    $review_id = (int) ($_POST['review_id'] ?? 0);
+    $reply_text = clevo_clean_string($_POST['reply_text'] ?? '', 2000);
     
-    $update_sql = "UPDATE reviews SET Owner_Reply = '$reply_text' WHERE ReviewID = '$review_id'";
+    $update = $conn->prepare('UPDATE reviews r JOIN booking b ON b.BookingID = r.BookingID JOIN stations s ON s.StationID = b.StationID SET r.Owner_Reply = ? WHERE r.ReviewID = ? AND s.UserID = ?');
+    $update->bind_param('sii', $reply_text, $review_id, $ownerID);
     
-    if (mysqli_query($conn, $update_sql)) {
-        $user_query = mysqli_query($conn, "SELECT b.UserID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = '$review_id'");
+    if ($update->execute() && $update->affected_rows > 0) {
+        $user_query = clevo_stmt($conn, 'SELECT b.UserID FROM booking b JOIN reviews r ON b.BookingID = r.BookingID WHERE r.ReviewID = ?', 'i', [$review_id])->get_result();
         $user_data = mysqli_fetch_assoc($user_query);
         $customer_id = $user_data['UserID'];
 
@@ -169,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             fetch('process-reviews.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=submit_reply&review_id=${reviewId}&reply_text=${encodeURIComponent(replyText)}`
+                body: new URLSearchParams({action:'submit_reply', review_id:reviewId, reply_text:replyText, csrf_token:<?= clevo_js(generate_csrf_token()) ?>})
             })
             .then(res => res.json())
             .then(data => {

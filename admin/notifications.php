@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -30,35 +30,20 @@ $admin_pic = $res_pic->fetch_assoc()['ProfilePic'] ?? 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
 
-if (isset($_GET['read']) && is_numeric($_GET['read'])) {
-    $notif_id = intval($_GET['read']);
-    $stmt_read = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR target_role = 'Admin')");
-    $stmt_read->bind_param("ii", $notif_id, $admin_id);
-    $stmt_read->execute();
-    header("Location: notifications.php");
-    exit;
+if (isset($_POST['read'])) {
+    clevo_mark_notification($conn, (int) $admin_id, 'admin', (int) $_POST['read']);
+    header('Location: notifications.php'); exit;
 }
-
-
-if (isset($_GET['read_all'])) {
-    $stmt_read_all = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
-    $stmt_read_all->bind_param("i", $admin_id);
-    $stmt_read_all->execute();
-    header("Location: notifications.php");
-    exit;
+if (isset($_POST['read_all'])) {
+    clevo_stmt($conn, 'UPDATE notifications SET is_read = 1 WHERE user_id = ?', 'i', [(int) $admin_id]);
+    clevo_stmt($conn, "INSERT IGNORE INTO notification_reads (NotificationID, UserID) SELECT id, ? FROM notifications WHERE user_id IS NULL AND LOWER(target_role) = 'admin'", 'i', [(int) $admin_id]);
+    header('Location: notifications.php'); exit;
 }
+$stmt_notifications = $conn->prepare("SELECT n.*, IF(n.user_id IS NULL, nr.ReadAt IS NOT NULL, n.is_read) AS is_read FROM notifications n LEFT JOIN notification_reads nr ON nr.NotificationID = n.id AND nr.UserID = ? WHERE n.user_id = ? OR (n.user_id IS NULL AND LOWER(n.target_role) = 'admin') ORDER BY n.created_at DESC LIMIT 50");
+$stmt_notifications->bind_param('ii', $admin_id, $admin_id); $stmt_notifications->execute(); $res_notifications = $stmt_notifications->get_result();
+$stmt_unread = $conn->prepare("SELECT COUNT(*) AS total FROM notifications n LEFT JOIN notification_reads nr ON nr.NotificationID = n.id AND nr.UserID = ? WHERE (n.user_id = ? AND n.is_read = 0) OR (n.user_id IS NULL AND LOWER(n.target_role) = 'admin' AND nr.ReadAt IS NULL)");
+$stmt_unread->bind_param('ii', $admin_id, $admin_id); $stmt_unread->execute(); $unread_count = (int) $stmt_unread->get_result()->fetch_assoc()['total'];
 
-
-$stmt_notifications = $conn->prepare("SELECT * FROM notifications WHERE user_id = ? OR target_role = 'Admin' ORDER BY created_at DESC LIMIT 50");
-$stmt_notifications->bind_param("i", $admin_id);
-$stmt_notifications->execute();
-$res_notifications = $stmt_notifications->get_result();
-
-
-$stmt_unread = $conn->prepare("SELECT COUNT(*) AS total FROM notifications WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
-$stmt_unread->bind_param("i", $admin_id);
-$stmt_unread->execute();
-$unread_count = (int) ($stmt_unread->get_result()->fetch_assoc()['total'] ?? 0);
 ?>
 
 <!DOCTYPE html>
@@ -138,7 +123,7 @@ $unread_count = (int) ($stmt_unread->get_result()->fetch_assoc()['total'] ?? 0);
                             <h6 class="mb-0 fw-bold" data-i18n="notif_header">مركز الإشعارات</h6>
                         </div>
                         <?php if ($unread_count > 0): ?>
-                        <a href="?read_all=1" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-i18n="btn_read_all">تحديد الكل كمقروء</a>
+                        <form method="POST" class="m-0"><?= csrf_input(); ?><input type="hidden" name="read_all" value="1"><button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" data-i18n="btn_read_all">تحديد الكل كمقروء</button></form>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -207,7 +192,7 @@ $unread_count = (int) ($stmt_unread->get_result()->fetch_assoc()['total'] ?? 0);
                     <h5 class="fw-bold mb-2" data-i18n="logout_title">تأكيد الخروج</h5>
                     <p class="small opacity-75 mb-4" data-i18n="logout_msg">هل أنت متأكد من الخروج؟</p>
                     <div class="d-grid gap-2">
-                        <a href="../general/logout.php" class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</a>
+                        <form method="POST" action="../general/logout.php" class="m-0"><?= csrf_input(); ?><button type="submit"  class="btn btn-danger rounded-pill py-2 fw-bold" data-i18n="btn_confirm_logout">نعم، خروج</button></form>
                         <button type="button" class="btn btn-light border rounded-pill py-2 fw-bold" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                     </div>
                 </div>
@@ -273,7 +258,7 @@ $unread_count = (int) ($stmt_unread->get_result()->fetch_assoc()['total'] ?? 0);
         }
 
         function confirmLogout() { lModal.show(); }
-        function markAsReadAndClose() { if (currentNotifId) window.location.href = '?read=' + currentNotifId; else nModal.hide(); }
+        function markAsReadAndClose() { if (currentNotifId) fetch(window.location.pathname,{method:'POST',headers:{'X-CSRF-Token': <?= clevo_js(generate_csrf_token()) ?>,'Content-Type':'application/x-www-form-urlencoded'},body:'read='+encodeURIComponent(currentNotifId)}).then(()=>location.reload()); else nModal.hide(); }
 
         function applySettings() {
             const l = localStorage.getItem('app_lang') || 'ar';

@@ -1,5 +1,5 @@
 <?php
-session_start(); 
+
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -52,8 +52,8 @@ $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name
                              WHERE st.id IN (SELECT MAX(id) FROM support_tickets GROUP BY COALESCE(user_id, user_name)) 
                              ORDER BY st.id DESC LIMIT 5");
 
-$stmt_notif = $conn->prepare("SELECT COUNT(*) as total FROM notifications WHERE is_read = 0 AND (user_id = ? OR target_role = 'Admin')");
-$stmt_notif->bind_param("i", $admin_id);
+$stmt_notif = $conn->prepare("SELECT COUNT(*) AS total FROM notifications n LEFT JOIN notification_reads nr ON nr.NotificationID = n.id AND nr.UserID = ? WHERE (n.user_id = ? AND n.is_read = 0) OR (n.user_id IS NULL AND LOWER(n.target_role) = 'admin' AND nr.ReadAt IS NULL)");
+$stmt_notif->bind_param("ii", $admin_id, $admin_id);
 $stmt_notif->execute();
 $res_un_notif = $stmt_notif->get_result();
 $unread_count = $res_un_notif->fetch_assoc()['total'] ?? 0;

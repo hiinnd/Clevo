@@ -1,117 +1,23 @@
 <?php
 function clevoEnsureTrackingColumns(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') {
-        return;
-    }
-
-    $columns = [];
-    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'booking'");
-    $stmt->bind_param("s", $db);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) {
-        $columns[$row['COLUMN_NAME']] = true;
-    }
-
-    if (!isset($columns['Driver_Lat'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Driver_Lat DECIMAL(10,8) DEFAULT NULL AFTER Longitude");
-    }
-    if (!isset($columns['Driver_Lon'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN Driver_Lon DECIMAL(11,8) DEFAULT NULL AFTER Driver_Lat");
-    }
-    if (!isset($columns['DriverAccessCode'])) {
-        $conn->query("ALTER TABLE booking ADD COLUMN DriverAccessCode VARCHAR(10) DEFAULT NULL AFTER DriverID");
-    }
-    $indexCheck = $conn->prepare("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'booking' AND INDEX_NAME = 'uq_booking_driver_access_code' LIMIT 1");
-    $indexCheck->bind_param("s", $db);
-    $indexCheck->execute();
-    if ($indexCheck->get_result()->num_rows === 0) {
-        $conn->query("ALTER TABLE booking ADD UNIQUE KEY uq_booking_driver_access_code (DriverAccessCode)");
-    }
-
-    $conn->query("ALTER TABLE booking MODIFY Status ENUM('Pending','Accepted','Arrived','In Progress','Pickup','Washing','Returning','Rejected','Cancelled','Cancelled_Timeout','Completed') DEFAULT 'Pending'");
+    clevo_require_schema($conn, 'booking', ['Driver_Lat','Driver_Lon','DriverAccessCode','DriverAccessCodeHash','DriverAccessCodeExpiresAt','DriverAccessCodeUsedAt']);
 }
 
 function clevoEnsureNotificationsTargetColumn(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) return;
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') return;
-
-    $columns = [];
-    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'notifications'");
-    $stmt->bind_param("s", $db);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) {
-        $columns[$row['COLUMN_NAME']] = true;
-    }
-
-    if (!isset($columns['target_role'])) {
-        $conn->query("ALTER TABLE notifications ADD COLUMN target_role VARCHAR(50) DEFAULT NULL AFTER user_id");
-    }
-    if (!isset($columns['target_url'])) {
-        $conn->query("ALTER TABLE notifications ADD COLUMN target_url VARCHAR(255) DEFAULT NULL AFTER body");
-    }
-    if (!isset($columns['title_en'])) {
-        $conn->query("ALTER TABLE notifications ADD COLUMN title_en VARCHAR(255) DEFAULT NULL AFTER title");
-    }
-    if (!isset($columns['body_en'])) {
-        $conn->query("ALTER TABLE notifications ADD COLUMN body_en TEXT DEFAULT NULL AFTER body");
-    }
+    clevo_require_schema($conn, 'notifications', ['target_role','target_url','title_en','body_en']);
 }
 
 function clevoEnsureServiceLanguageColumns(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) return;
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') return;
-
-    $columns = [];
-    $stmt = $conn->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'services'");
-    $stmt->bind_param("s", $db);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc()) {
-        $columns[$row['COLUMN_NAME']] = true;
-    }
-
-    if (!isset($columns['Name_ar'])) {
-        $conn->query("ALTER TABLE services ADD COLUMN Name_ar VARCHAR(100) DEFAULT NULL AFTER Name");
-    }
-    if (!isset($columns['Name_en'])) {
-        $conn->query("ALTER TABLE services ADD COLUMN Name_en VARCHAR(100) DEFAULT NULL AFTER Name_ar");
-    }
-    if (!isset($columns['Description_ar'])) {
-        $conn->query("ALTER TABLE services ADD COLUMN Description_ar TEXT DEFAULT NULL AFTER Description");
-    }
-    if (!isset($columns['Description_en'])) {
-        $conn->query("ALTER TABLE services ADD COLUMN Description_en TEXT DEFAULT NULL AFTER Description_ar");
-    }
-
-    $conn->query("UPDATE services SET Name_ar = COALESCE(NULLIF(Name_ar, ''), Name) WHERE Name_ar IS NULL OR Name_ar = ''");
-    $conn->query("UPDATE services SET Name_en = COALESCE(NULLIF(Name_en, ''), Name) WHERE Name_en IS NULL OR Name_en = ''");
-    $conn->query("UPDATE services SET Description_ar = COALESCE(NULLIF(Description_ar, ''), Description) WHERE Description_ar IS NULL OR Description_ar = ''");
-    $conn->query("UPDATE services SET Description_en = COALESCE(NULLIF(Description_en, ''), Description) WHERE Description_en IS NULL OR Description_en = ''");
+    clevo_require_schema($conn, 'services', ['Name_ar','Name_en','Description_ar','Description_en']);
 }
 
 function clevoStationImageUrl(?string $image): string
 {
     $image = trim((string) $image);
+    if (str_starts_with($image, 'private:')) return clevo_media_url($image);
     if ($image === '' || $image === 'default_station.png') {
         return '../assets/Images/stations/clevo-station-exterior.png';
     }
@@ -266,65 +172,13 @@ function clevoRecordWalletTransaction(mysqli $conn, int $walletID, float $amount
 
 function clevoEnsureReviewUniqueBooking(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $db = $conn->query("SELECT DATABASE() AS db")->fetch_assoc()['db'] ?? '';
-    if ($db === '') {
-        return;
-    }
-
-    $indexCheck = $conn->prepare("SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'reviews' AND INDEX_NAME = 'uq_reviews_booking' LIMIT 1");
-    $indexCheck->bind_param("s", $db);
-    $indexCheck->execute();
-    if ($indexCheck->get_result()->num_rows === 0) {
-        $conn->query("DELETE r1 FROM reviews r1
-            JOIN reviews r2 ON r1.BookingID = r2.BookingID AND r1.ReviewID > r2.ReviewID");
-        $conn->query("ALTER TABLE reviews ADD UNIQUE KEY uq_reviews_booking (BookingID)");
-    }
+    clevo_require_schema($conn, 'reviews', [], ['uq_reviews_booking']);
 }
 
 function clevoEnsureOwnerPayoutTables(mysqli $conn): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $conn->query("CREATE TABLE IF NOT EXISTS owner_bank_accounts (
-        id INT(11) NOT NULL AUTO_INCREMENT,
-        owner_id INT(11) NOT NULL,
-        account_holder_name VARCHAR(150) NOT NULL,
-        bank_name VARCHAR(150) NOT NULL,
-        iban VARCHAR(34) NOT NULL,
-        account_number VARCHAR(50) DEFAULT NULL,
-        swift_code VARCHAR(20) DEFAULT NULL,
-        notes VARCHAR(255) DEFAULT NULL,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        UNIQUE KEY owner_id (owner_id),
-        CONSTRAINT owner_bank_accounts_owner_fk FOREIGN KEY (owner_id) REFERENCES user(UserID) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS owner_withdrawal_requests (
-        id INT(11) NOT NULL AUTO_INCREMENT,
-        owner_id INT(11) NOT NULL,
-        wallet_id INT(11) DEFAULT NULL,
-        amount DECIMAL(10,2) NOT NULL,
-        status ENUM('pending','paid','rejected') DEFAULT 'pending',
-        bank_snapshot TEXT DEFAULT NULL,
-        requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        processed_at TIMESTAMP NULL DEFAULT NULL,
-        PRIMARY KEY (id),
-        KEY owner_id (owner_id),
-        KEY wallet_id (wallet_id),
-        CONSTRAINT owner_withdrawal_owner_fk FOREIGN KEY (owner_id) REFERENCES user(UserID) ON DELETE CASCADE,
-        CONSTRAINT owner_withdrawal_wallet_fk FOREIGN KEY (wallet_id) REFERENCES wallet(WalletID) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    clevo_require_schema($conn, 'owner_bank_accounts', []);
+    clevo_require_schema($conn, 'owner_withdrawal_requests', []);
 }
 
 function clevoGetOwnerBankAccount(mysqli $conn, int $ownerID): ?array
@@ -515,37 +369,11 @@ function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $t
     return $stmt->execute();
 }
 
-function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID, int $maxSize = 10485760): ?string
+function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID, int $maxSize = 5242880): ?string
 {
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || $userID <= 0) {
-        return null;
-    }
-
-    if (($file['size'] ?? 0) <= 0 || ($file['size'] ?? 0) > $maxSize) {
-        return null;
-    }
-
-    $tmpName = (string) ($file['tmp_name'] ?? '');
-    $mime = is_file($tmpName) && function_exists('mime_content_type') ? mime_content_type($tmpName) : (string) ($file['type'] ?? '');
-    $extensions = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/gif' => 'gif',
-        'image/webp' => 'webp',
-    ];
-
-    if (!isset($extensions[$mime])) {
-        return null;
-    }
-
-    $targetDir = __DIR__ . '/../uploads/profiles/';
-    if (!is_dir($targetDir)) {
-        mkdir($targetDir, 0777, true);
-    }
-
-    $safePrefix = preg_replace('/[^a-z0-9_-]/i', '', $prefix) ?: 'user';
-    $newName = $safePrefix . "_" . $userID . "_" . time() . "_" . bin2hex(random_bytes(4)) . "." . $extensions[$mime];
-    return move_uploaded_file($tmpName, $targetDir . $newName) ? $newName : null;
+    if ($userID !== clevo_current_user_id() || $userID <= 0) throw new ClevoSecurityException('forbidden', 403);
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return null;
+    return clevo_save_upload($file, 'profiles');
 }
 
 function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
@@ -587,6 +415,7 @@ function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
 function clevoProfileImageUrl(?string $image, string $name = 'User'): string
 {
     $image = trim((string) $image);
+    if (str_starts_with($image, 'private:')) return clevo_media_url($image);
     if ($image === '' || $image === 'default_user.png') {
         return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=0ea5e9&color=fff';
     }

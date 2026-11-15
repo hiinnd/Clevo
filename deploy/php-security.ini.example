@@ -1,0 +1,18 @@
+; Merge into the actual production PHP/SAPI configuration. Replace filesystem paths.
+; Use a supported, patched PHP runtime; this file cannot patch an old PHP binary.
+display_errors=Off
+display_startup_errors=Off
+log_errors=On
+zend.exception_ignore_args=On
+expose_php=Off
+session.use_strict_mode=On
+session.use_only_cookies=On
+session.use_trans_sid=Off
+session.cookie_secure=On
+session.cookie_httponly=On
+session.cookie_samesite=Lax
+session.upload_progress.enabled=Off
+upload_tmp_dir=/srv/clevo-private/tmp
+upload_max_filesize=5M
+post_max_size=6M
+max_file_uploads=2
