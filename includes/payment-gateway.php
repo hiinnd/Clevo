@@ -296,7 +296,7 @@ $csrf_token = generate_csrf_token();
             }
 
 
-            showModal('<i class="fas fa-check-circle text-success fa-3x"></i>', t.successTitle, planID ? t.planSuccessMsg : t.successMsg);
+
             
             fetch(window.location.href, {
                 method: 'POST',
@@ -306,9 +306,10 @@ $csrf_token = generate_csrf_token();
             .then(res => res.json())
             .then(data => {
                 if (data.status !== 'success') {
-                    showModal('<i class="fas fa-exclamation-circle text-warning fa-3x"></i>', t.errorTitle, lang === 'ar' ? 'انتهت مهلة الدفع أو تم دفع الطلب مسبقاً.' : 'Payment expired or was already completed.');
+                    showModal('<i class="fas fa-exclamation-circle text-warning fa-3x"></i>', t.errorTitle, data.message === 'payment_gateway_not_configured' ? (lang === 'ar' ? 'الدفع بالبطاقات غير متاح حالياً.' : 'Card payments are currently unavailable.') : (lang === 'ar' ? 'انتهت مهلة الدفع أو تم دفع الطلب مسبقاً.' : 'Payment expired or was already completed.'));
                     return;
                 }
+                showModal('<i class="fas fa-check-circle text-success fa-3x"></i>', t.successTitle, planID ? t.planSuccessMsg : t.successMsg);
                 setTimeout(() => {
                     location.href = planID ? '../user/customer-plans.php?subscribed=1' : '../user/booking-history.php';
                 }, 1200);

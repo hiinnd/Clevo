@@ -139,7 +139,7 @@ function clevoRestorePlanWashForBooking(mysqli $conn, int $bookingID): void
 {
     clevo_db_atomic($conn,function()use($conn,$bookingID):void {
     clevoEnsurePlanColumns($conn);
-    $stmt = $conn->prepare("SELECT UserPlanID, Plan_Washes_Used, Payment_Method FROM booking WHERE BookingID = ? LIMIT 1 FOR UPDATE");
+    $stmt = $conn->prepare("SELECT UserID, UserPlanID, Plan_Washes_Used, Payment_Method FROM booking WHERE BookingID = ? LIMIT 1 FOR UPDATE");
     $stmt->bind_param("i", $bookingID);
     $stmt->execute();
     $booking = $stmt->get_result()->fetch_assoc();
@@ -149,6 +149,7 @@ function clevoRestorePlanWashForBooking(mysqli $conn, int $bookingID): void
     if (!$booking || $userPlanID <= 0 || $used <= 0 || ($booking['Payment_Method'] ?? '') !== 'plan') {
         return;
     }
+    if(!clevo_stmt($conn,'SELECT id FROM user_plans WHERE id=? AND user_id=? FOR UPDATE','ii',[$userPlanID,(int)$booking['UserID']])->get_result()->fetch_assoc())throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
 
     $restore = $conn->prepare("UPDATE user_plans SET remaining_washes = remaining_washes + ?, status = IF(status = 'expired' AND end_date >= CURDATE(), 'active', status) WHERE id = ?");
     $restore->bind_param("ii", $used, $userPlanID);

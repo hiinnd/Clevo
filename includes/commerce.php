@@ -105,6 +105,7 @@ function clevo_pay_booking(mysqli $conn,int $user,int $booking,string $method,bo
         $b=clevo_stmt($conn,'SELECT * FROM booking WHERE BookingID=? AND UserID=? FOR UPDATE','ii',[$booking,$user])->get_result()->fetch_assoc();
         if (!$b) throw new ClevoSecurityException('not_found',404);
         if ($b['Status']!=='Accepted' || !empty($b['Payment_Method'])) throw new ClevoSecurityException('payment_already_set_or_expired',409);
+        clevo_payment_window($b);
         if ($method==='cash'&&$b['Service_Location']!=='station') throw new ClevoSecurityException('not_allowed',422);
         // Lock all loyalty buckets before calculating a quote, not only before spending it.
         clevo_stmt($conn,'SELECT LoyaltyID FROM loyalty WHERE UserID=? ORDER BY LoyaltyID FOR UPDATE','i',[$user])->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -149,8 +150,7 @@ function clevo_complete_owner_booking(mysqli $conn,int $owner,int $booking): voi
         if (!$b) throw new ClevoSecurityException('not_found',404);
         if ($b['Status']==='Completed') return;
         if (!in_array($b['Status'],['Accepted','In Progress'],true)||empty($b['Payment_Method'])) throw new ClevoSecurityException('payment_or_state_required',409);
-        $receipt=clevo_stmt($conn,'SELECT Status FROM payments WHERE BookingID=?','i',[$booking])->get_result()->fetch_assoc();
-        if ($receipt&&$receipt['Status']==='refunded') throw new ClevoSecurityException('payment_refunded',409);
+        clevo_assert_booking_payment($conn,$b,true);
         clevo_stmt($conn,"UPDATE booking SET Status='Completed' WHERE BookingID=?",'i',[$booking]);
         if (clevo_db_effect($conn,$booking,'completion_reward')) clevoAddLoyaltyPoints($conn,(int)$b['UserID'],(float)$b['Total_Price']);
         if ($b['Payment_Method']==='plan') clevoCreditOwnerForBooking($conn,$booking);
@@ -160,6 +160,30 @@ function clevo_complete_owner_booking(mysqli $conn,int $owner,int $booking): voi
     });
 }
 
+function clevo_assert_booking_payment(mysqli $conn,array $booking,bool $cashCollection=false):void
+{
+    $id=(int)$booking['BookingID'];$method=(string)$booking['Payment_Method'];
+    $p=clevo_stmt($conn,'SELECT UserID,Method,Status,Amount,Currency FROM payments WHERE BookingID=?','i',[$id])->get_result()->fetch_assoc();
+    if($p&&$p['Status']==='refunded')throw new ClevoSecurityException('payment_refunded',409);
+    if($p&&(int)$p['UserID']!==(int)$booking['UserID'])throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+    if($p&&$p['Currency']!=='JOD')throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+    if($method==='plan'){
+        if((int)$booking['Plan_Washes_Used']<=0||!(int)$booking['UserPlanID']||!clevo_stmt($conn,'SELECT id FROM user_plans WHERE id=? AND user_id=?','ii',[(int)$booking['UserPlanID'],(int)$booking['UserID']])->get_result()->fetch_assoc())throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+        if($p&&($p['Method']!=='plan'||$p['Status']!=='recorded'))throw new ClevoSecurityException('payment_required',409);
+        if($p&&clevo_db_money($p['Amount'])!==0)throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+        return;
+    }
+    if($method==='cash'&&$cashCollection&&$booking['Service_Location']==='station'){
+        if(!$p)clevo_stmt($conn,"INSERT INTO payments (BookingID,UserID,Method,Status,Amount) VALUES (?,?,'cash','recorded',?)",'iis',[$id,(int)$booking['UserID'],clevo_db_decimal(clevo_db_money(clevoBookingPayableAmount($booking)))]);
+        elseif($p['Method']!=='cash')throw new ClevoSecurityException('payment_required',409);
+        elseif(clevo_db_money($p['Amount'])!==clevo_db_money(clevoBookingPayableAmount($booking)))throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+        return;
+    }
+    if(!$p)throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+    if(!in_array($method,['wallet','points','visa'],true)||$p['Method']!==$method||$p['Status']!=='recorded')throw new ClevoSecurityException('payment_required',409);
+    if(clevo_db_money($p['Amount'])!==clevo_db_money(clevoBookingPayableAmount($booking)))throw new ClevoSecurityException('legacy_payment_requires_reconciliation',409);
+}
+
 function clevo_accept_owner_booking(mysqli $conn,int $owner,int $booking): void
 {
     clevo_db_atomic($conn,function()use($conn,$owner,$booking):void {
@@ -167,6 +191,7 @@ function clevo_accept_owner_booking(mysqli $conn,int $owner,int $booking): void
         if (!$b) throw new ClevoSecurityException('not_found',404);
         if ($b['Status']==='Accepted') return;
         if ($b['Status']!=='Pending') throw new ClevoSecurityException('invalid_transition',409);
+        if(strtotime($b['created_at'].' UTC')<time()-600)throw new ClevoSecurityException('booking_expired',409);
         clevo_stmt($conn,"UPDATE booking SET Status='Accepted',Accepted_At=UTC_TIMESTAMP(),notification_sent=0 WHERE BookingID=?",'i',[$booking]);
         $order=clevoBookingReference($b,$booking);
         $message=$b['Payment_Method']==='plan'?"Order #$order accepted using your plan.":"Order #$order accepted. Choose a payment method within 10 minutes.";
@@ -175,6 +200,11 @@ function clevo_accept_owner_booking(mysqli $conn,int $owner,int $booking): void
         clevoCreateRoleNotification($conn,'Admin','قبول طلب من صاحب محطة',"تم قبول الطلب #$order.",'info','financial-reports.php','Order accepted by station owner',"Order #$order accepted.");
         clevo_db_audit($conn,$owner,'booking.accepted','booking',$booking);
     });
+}
+
+function clevo_payment_window(array $booking):void
+{
+    if(in_array($booking['Service_Location'],['home','delivery'],true)&&strtotime(($booking['Accepted_At']??$booking['created_at']).' UTC')<time()-600)throw new ClevoSecurityException('payment_expired',409);
 }
 
 function clevo_record_driver_location(mysqli $conn,int $driver,int $booking,float $lat,float $lon): bool

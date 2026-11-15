@@ -18,34 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     $requestID = (int) ($_POST['request_id'] ?? 0);
     $newStatus = $_POST['status'] ?? '';
     if ($requestID > 0 && in_array($newStatus, ['paid', 'rejected'], true)) {
-        clevo_db_begin($conn);
-        try {
-            $stmt = $conn->prepare("SELECT * FROM owner_withdrawal_requests WHERE id = ? AND status = 'pending' LIMIT 1 FOR UPDATE");
-            $stmt->bind_param("i", $requestID);
-            $stmt->execute();
-            $request = $stmt->get_result()->fetch_assoc();
-            if (!$request) {
-                throw new RuntimeException('request_not_found');
-            }
-
-            if ($newStatus === 'rejected') {
-                $walletID = (int) ($request['wallet_id'] ?? 0);
-                $amount = (float) ($request['amount'] ?? 0);
-                if ($walletID<=0 || $amount<=0) throw new RuntimeException('refund_failed');
-                clevo_wallet_entry($conn,$walletID,clevo_db_money($request['amount']),'credit',"withdrawal:$requestID:refund",null,'Rejected withdrawal refund');
-            }
-
-            $update = $conn->prepare("UPDATE owner_withdrawal_requests SET status = ?, processed_at = NOW() WHERE id = ? AND status = 'pending'");
-            $update->bind_param("si", $newStatus, $requestID);
-            $update->execute();
-            if ($update->affected_rows <= 0) {
-                throw new RuntimeException('update_failed');
-            }
-            clevo_db_audit($conn,(int)$admin_id,'withdrawal.processed','owner_withdrawal_requests',$requestID);
-            clevo_db_commit($conn);
-        } catch (Throwable $e) {
-            clevo_db_rollback($conn);
-        }
+        clevo_market_withdrawal_status($conn,(int)$admin_id,$requestID,$newStatus);
     }
     header("Location: financial-reports.php");
     exit();

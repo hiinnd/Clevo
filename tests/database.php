@@ -194,9 +194,16 @@ clevo_stmt($partial,"INSERT INTO database_migration_steps VALUES ('002_database_
 check(!(bool)$partial->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='payments'")->fetch_assoc(),'Partial-step refusal adds no financial tables');
 putenv('DB_DATABASE='.$dbName);
 
+// Non-expiring accepted station bookings must not starve the bounded expiry batch.
+for($i=0;$i<201;$i++)$conn->query("INSERT INTO booking (UserID,StationID,ServiceID,Status,Service_Location,Payment_Method,created_at) VALUES (1,1,1,'Accepted','station','cash',UTC_TIMESTAMP()-INTERVAL 1 HOUR)");
+$conn->query("INSERT INTO booking (UserID,StationID,ServiceID,Status,created_at) VALUES (1,1,1,'Pending',UTC_TIMESTAMP()-INTERVAL 11 MINUTE)");$expiredBooking=(int)$conn->insert_id;
+cancelExpiredBookings($conn,1);
+check($conn->query("SELECT Status FROM booking WHERE BookingID=$expiredBooking")->fetch_assoc()['Status']==='Cancelled_Timeout','Expiry batch cannot be starved by 201 non-expiring accepted station bookings');
+
 // Metadata/source compatibility: prepare static DML without executing writes.
 $prepared=0;$prepareFailures=[];
-$iterator=new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__),FilesystemIterator::SKIP_DOTS));
+$iterator=new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(new RecursiveDirectoryIterator(dirname(__DIR__),FilesystemIterator::SKIP_DOTS),
+    static fn($file)=>!$file->isDir()||!in_array($file->getFilename(),['.git','vendor','.security-test','tests','migrations','scripts'],true)));
 foreach($iterator as $file){$path=str_replace('\\','/',$file->getPathname());if($file->getExtension()!=='php'||preg_match('~/(vendor|tests|migrations|scripts|\.git|\.security-test)/~',$path))continue;
     foreach(token_get_all(file_get_contents($path)) as $token){if(!is_array($token)||$token[0]!==T_CONSTANT_ENCAPSED_STRING)continue;$literal=$token[1];$sql=substr($literal,1,-1);$sql=$literal[0]==="'"?str_replace(["\\'","\\\\"],["'","\\"],$sql):stripcslashes($sql);if(!preg_match('/^\s*(SELECT|INSERT INTO|UPDATE|DELETE FROM)\b/i',$sql)||str_contains($sql,'$')||str_contains($sql,'?\'')||str_contains($sql,'<'))continue;
         // SQL fragments are not complete commands; only statements used directly by prepare/query are checked here.

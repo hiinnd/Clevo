@@ -5,6 +5,7 @@ function clevo_booking_dto(array $row, string $role): array
     $keys = ['BookingID', 'Order_Number', 'StationID', 'Status', 'Service_Location', 'Booking_Date', 'Booking_Time'];
     if ($role !== 'driver') $keys = array_merge($keys, ['Total_Price', 'Payable_Amount', 'Payment_Method', 'Points_Discount']);
     if (in_array($role, ['driver', 'owner', 'customer'], true)) $keys = array_merge($keys, ['Latitude', 'Longitude', 'Address_Details']);
+    if ($role==='admin') $keys=array_merge($keys,['UserID','DriverID','OwnerIDSnapshot','Admin_Commission','UserPlanID','ScheduledAtUtc','BookingTimeZone']);
     return array_intersect_key($row, array_flip($keys));
 }
 function clevo_mark_notification(mysqli $conn, int $user, string $role, int $id): void

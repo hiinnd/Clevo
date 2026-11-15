@@ -1,5 +1,7 @@
 # Database phase validation results
 
+The later API phase reran and extended these checks; its current results are in [API_TEST_RESULTS.md](API_TEST_RESULTS.md). Counts below describe the completed database phase.
+
 Executed 2026-11-15 in the repository workspace. PHP CLI 8.2.12, MariaDB 10.4.32 on loopback port 13379, PHP test HTTP server on 18089 and isolated Apache/mod_php on 18090. These are observed local versions, not endorsed production patch levels. No production database/configuration was supplied or contacted.
 
 ## Final executed checks

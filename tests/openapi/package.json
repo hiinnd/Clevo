@@ -1,0 +1,11 @@
+{
+  "name": "clevo-api-contract-validation",
+  "private": true,
+  "description": "Development-only OpenAPI validation; not a backend runtime dependency.",
+  "scripts": {
+    "validate": "redocly lint --config redocly.yaml ../../docs/openapi.v1.json"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.78.0"
+  }
+}

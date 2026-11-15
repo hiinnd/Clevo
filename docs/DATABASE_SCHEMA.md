@@ -1,8 +1,8 @@
 # CLEVO schema inventory
 
-Generated from actual migrated disposable metadata on 2026-11-15. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 32; columns: 277; index columns: 142; foreign-key columns: 43. This is not a live production inventory.
+Generated from actual migrated disposable metadata on 2026-11-15. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 35; columns: 311; index columns: 166; foreign-key columns: 51. This is not a live production inventory.
 
-Source: `scripts/database-inventory.php` output after 001/002/003. Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+Source: `scripts/database-inventory.php` output after the applied versioned migrations (including API migration 004 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
 
 ## `audit_logs`
 
@@ -160,6 +160,7 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `ScheduledAtUtc` | `datetime` | YES | `NULL` |  |
 | `BookingTimeZone` | `varchar(64)` | YES | `NULL` |  |
 | `OwnerIDSnapshot` | `int(11)` | YES | `NULL` |  |
+| `DriverAcceptedAt` | `datetime(6)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -427,6 +428,37 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `fk_payment_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
 | `fk_payment_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
+## `payment_sessions`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `SessionID` | `char(48)` | NO | `NULL` |  |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `BookingID` | `int(11)` | NO | `NULL` |  |
+| `Method` | `enum('wallet','cash','plan')` | NO | `NULL` |  |
+| `UsePoints` | `tinyint(1)` | NO | `0` |  |
+| `QuotedAmount` | `decimal(10,2)` | NO | `NULL` |  |
+| `QuotedPoints` | `decimal(10,2)` | NO | `NULL` |  |
+| `Status` | `enum('created','confirmed')` | NO | `'created'` |  |
+| `PaymentID` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `ExpiresAt` | `datetime(6)` | NO | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_payment_session_booking` | INDEX | `BookingID` |
+| `fk_payment_session_receipt` | INDEX | `PaymentID` |
+| `idx_session_user` | INDEX | `UserID`, `CreatedAt` |
+| `PRIMARY` | PRIMARY | `SessionID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_payment_session_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+| `fk_payment_session_receipt` | `PaymentID` | `payments.PaymentID` | RESTRICT / RESTRICT |
+| `fk_payment_session_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
+
 ## `plans`
 
 Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
@@ -452,6 +484,36 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `PRIMARY` | PRIMARY | `id` |
 
 No declared outbound foreign key.
+
+## `refund_requests`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `RefundID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `BookingID` | `int(11)` | NO | `NULL` |  |
+| `Reason` | `varchar(2000)` | NO | `NULL` |  |
+| `Status` | `enum('pending','approved','rejected')` | NO | `'pending'` |  |
+| `DecisionNote` | `varchar(2000)` | YES | `NULL` |  |
+| `ProcessedBy` | `int(11)` | YES | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `ProcessedAt` | `datetime(6)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_refund_processor` | INDEX | `ProcessedBy` |
+| `idx_refund_queue` | INDEX | `Status`, `CreatedAt` |
+| `idx_refund_user` | INDEX | `UserID`, `RefundID` |
+| `PRIMARY` | PRIMARY | `RefundID` |
+| `uq_refund_request_booking` | UNIQUE | `BookingID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_refund_processor` | `ProcessedBy` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_refund_request_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+| `fk_refund_request_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `request_idempotency`
 
@@ -495,6 +557,34 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
 | `reviews_ibfk_1` | `BookingID` | `booking.BookingID` | CASCADE / RESTRICT |
+
+## `saved_addresses`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `AddressID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `Label` | `varchar(80)` | NO | `NULL` |  |
+| `AddressText` | `varchar(2000)` | NO | `NULL` |  |
+| `Latitude` | `decimal(10,8)` | NO | `NULL` |  |
+| `Longitude` | `decimal(11,8)` | NO | `NULL` |  |
+| `IsDefault` | `tinyint(1)` | NO | `0` |  |
+| `ArchivedAt` | `datetime(6)` | YES | `NULL` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `UpdatedAt` | `datetime(6)` | NO | `current_timestamp(6)` | on update current_timestamp(6) |
+| `DefaultUserID` | `int(11)` | YES | `NULL` | STORED GENERATED |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_address_user` | INDEX | `UserID`, `ArchivedAt`, `AddressID` |
+| `PRIMARY` | PRIMARY | `AddressID` |
+| `uq_address_default` | UNIQUE | `DefaultUserID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_address_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `security_mail_queue`
 
@@ -674,14 +764,20 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `status` | `enum('New','Replied','Closed')` | YES | `'New'` |  |
 | `is_guest` | `tinyint(1)` | YES | `0` |  |
 | `created_at` | `datetime` | YES | `current_timestamp()` |  |
+| `Category` | `enum('support','dispute')` | NO | `'support'` |  |
+| `BookingID` | `int(11)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
+| `fk_ticket_booking` | INDEX | `BookingID` |
+| `idx_ticket_admin` | INDEX | `Category`, `status`, `id` |
+| `idx_ticket_inbox` | INDEX | `user_id`, `status`, `id` |
 | `PRIMARY` | PRIMARY | `id` |
 | `user_id` | INDEX | `user_id` |
 
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
+| `fk_ticket_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
 | `support_tickets_ibfk_1` | `user_id` | `user.UserID` | SET NULL / RESTRICT |
 
 ## `tracking_records`

@@ -14,7 +14,13 @@ function clevo_json_response(string $status, array $data = [], string $message =
     http_response_code($httpCode);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
-    echo json_encode(['status' => $status, 'data' => $data, 'message' => $message], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    $body=['status'=>$status,'data'=>$data,'message'=>$message];
+    if(defined('CLEVO_API')&&CLEVO_API){
+        $id=$GLOBALS['clevo_request_id']??=bin2hex(random_bytes(16)); header('X-Request-ID: '.$id);
+        $body['meta']=['request_id'=>$id]+($GLOBALS['clevo_api_meta']??[]);
+        if($status==='error')$body['error']=['code'=>$message,'details'=>$GLOBALS['clevo_api_errors']??new stdClass()];
+    }
+    echo json_encode($body, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -106,8 +112,9 @@ function clevo_cors(): void
     if ($origin !== '') {
         if (!clevo_allowed_origin($origin)) throw new ClevoSecurityException('origin_not_allowed', 403);
         header('Access-Control-Allow-Origin: ' . $origin);
-        header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Authorization, Content-Type, Idempotency-Key');
+        header('Access-Control-Expose-Headers: X-Request-ID, Retry-After');
         // Bearer-only API; no credentialed cookie CORS and no wildcard origins.
     }
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {

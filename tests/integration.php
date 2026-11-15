@@ -75,6 +75,8 @@ foreach ([[$customer, $station, $driver], [$other, $station2, $otherDriver]] as 
     clevo_stmt($conn, "INSERT INTO booking (UserID, StationID, ServiceID, DriverID, Service_Location, Status, Total_Price, Admin_Commission, Payment_Method) VALUES (?, ?, ?, ?, 'delivery', 'Accepted', 10, 1, 'wallet')", 'iiii', [$who, $where, $where === $station ? $service : $service + 1, $whoDriver]);
 }
 $booking = (int) $conn->query('SELECT MIN(BookingID) AS id FROM booking')->fetch_assoc()['id']; $booking2 = $booking + 1;
+// Synthetic funded jobs: a payment flag alone is no longer sufficient to execute/complete work.
+$conn->query("INSERT INTO payments (BookingID,UserID,Method,Status,Amount) SELECT BookingID,UserID,'wallet','recorded',10 FROM booking WHERE BookingID IN ($booking,$booking2)");
 clevo_stmt($conn, 'INSERT INTO wallet (UserID, Balance) VALUES (?, 20), (?, 99)', 'ii', [$customer, $other]);
 clevo_stmt($conn, "INSERT INTO notifications (user_id, title, body) VALUES (?, 'Own notification', 'own'), (?, 'Other notification', 'private')", 'ii', [$customer, $other]);
 $notification = (int) $conn->query('SELECT MIN(id) AS id FROM notifications')->fetch_assoc()['id']; $notification2 = $notification + 1;
@@ -189,6 +191,7 @@ check(file_get_contents($jar) !== $beforeCookie, 'Web login rotates its session 
 foreach(['/user/home.php','/user/search-stations.php','/user/booking-history.php','/user/customer-plans.php','/user/user-wallet.php','/user/station-details.php?id='.$station] as $page){
     [$status,,$html]=http('GET',$page,null,null,$jar);check($status===200&&inline_js_valid($html),'Migrated customer page and JavaScript remain compatible: '.$page);
 }
+[$gatewayStatus,,$gatewayHtml]=http('GET','/includes/payment-gateway.php',null,null,$jar);check($gatewayStatus===200&&inline_js_valid($gatewayHtml),'Legacy gateway page compiles without premature payment success');
 preg_match('/name="csrf_token" value="([a-f0-9]+)"/', $body, $m); $customerCsrf = $m[1] ?? '';
 $webBody=['action'=>'create_booking','service_ids'=>json_encode([$service]),'service_location'=>'station','booking_date'=>(new DateTimeImmutable('+2 days'))->format('Y-m-d'),'booking_time'=>'12:00','csrf_token'=>$customerCsrf,'idempotency_key'=>bin2hex(random_bytes(16))];
 [$status,$json]=http('POST','/user/station-details.php?id='.$station,$webBody,null,$jar,[],true);$webBooking=(int)($json['booking_id']??0);

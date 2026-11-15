@@ -37,137 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $code = clevo_issue_driver_code($conn, $owner_id, (int) ($_POST['order_id'] ?? 0));
         clevo_json_response('success', ['driver_code' => $code]);
     }
-    if ($action == 'assign_driver') {
-        $order_id = (int) ($_POST['order_id'] ?? 0);
-        $driver_id = (int) ($_POST['driver_id'] ?? 0);
-        $order_num = clevo_clean_string($_POST['order_number'] ?? '', 40);
-        clevo_db_begin($conn);
-        try {
-            $update_order = $conn->prepare("UPDATE booking b
-                JOIN stations s ON b.StationID = s.StationID
-                SET b.Status = 'Accepted', b.DriverID = ?, b.DriverAccessCode = NULL, b.Accepted_At = NOW(), b.notification_sent = 0
-                WHERE b.BookingID = ? AND b.Status = 'Pending' AND b.Service_Location = 'delivery' AND s.UserID = ?");
-            $update_order->bind_param("iii", $driver_id, $order_id, $owner_id);
-            $update_order->execute();
-
-            $check_driver = $conn->prepare("SELECT u.UserID FROM user u
-                JOIN stations s ON u.StationID = s.StationID
-                WHERE u.UserID = ? AND LOWER(u.Role) = 'driver' AND u.AccountStatus = 'active' AND s.UserID = ? AND u.StationID = (SELECT StationID FROM booking WHERE BookingID = ?)
-                LIMIT 1");
-            $check_driver->bind_param("iii", $driver_id, $owner_id, $order_id);
-            $check_driver->execute();
-            $driver_valid = $check_driver->get_result()->num_rows > 0;
-
-            if ($update_order->affected_rows <= 0 || !$driver_valid) {
-                throw new RuntimeException('assign_failed');
-            }
-
-            clevo_stmt($conn,'INSERT INTO driver_assignments (BookingID,DriverID,StationID,AssignedBy) SELECT BookingID,DriverID,StationID,? FROM booking WHERE BookingID=?','ii',[$owner_id,$order_id]);
-            clevo_db_audit($conn,$owner_id,'driver.assigned','booking',$order_id);
-            $new_access_code = clevo_issue_driver_code($conn, $owner_id, $order_id);
-            $res = $conn->prepare("SELECT UserID FROM booking WHERE BookingID = ? LIMIT 1");
-            $res->bind_param("i", $order_id);
-            $res->execute();
-            $customer = $res->get_result()->fetch_assoc();
-            $customer_id = (int) ($customer['UserID'] ?? 0);
-
-            $msg_c = "تم قبول طلبك #$order_num. تم تعيين السائق، ويرجى اختيار طريقة الدفع خلال 10 دقائق من زر الدفع.";
-            clevoCreateNotification(
-                $conn,
-                $customer_id,
-                'تم قبول الطلب',
-                $msg_c,
-                'success',
-                '../user/order-details.php?id=' . $order_id,
-                'Order accepted',
-                "Your order #$order_num was accepted and a driver was assigned. Please choose a payment method within 10 minutes."
-            );
-
-            $msg_d = 'A new delivery task is assigned. Contact your station owner for the one-time sign-in code.';
-            clevoCreateNotification(
-                $conn,
-                $driver_id,
-                'مهمة جديدة',
-                $msg_d,
-                'info',
-                '../driver/driver-dashboard.php',
-                'New task',
-                'A new delivery task is assigned. Contact your station owner for the one-time sign-in code.'
-            );
-
-            clevo_db_commit($conn);
-            echo json_encode(['status' => 'success', 'data' => ['driver_code' => $new_access_code], 'message' => 'driver_assigned']);
-        } catch (Throwable $e) {
-            clevo_db_rollback($conn);
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'assign_failed']);
-        }
-        exit;
+    if($action==='assign_driver') {
+        $order_id=(int)($_POST['order_id']??0);$driver_id=(int)($_POST['driver_id']??0);
+        $code=clevo_db_atomic($conn,function()use($conn,$owner_id,$order_id,$driver_id){clevo_market_assign($conn,$owner_id,$order_id,$driver_id);return clevo_issue_driver_code($conn,$owner_id,$order_id);});
+        clevo_json_response('success',['driver_code'=>$code],'driver_assigned');
     }
-
-    
-    if ($action == 'reject_order') {
-        $order_id = (int) ($_POST['order_id'] ?? 0);
-        $res = $conn->prepare("SELECT b.UserID, b.Order_Number FROM booking b JOIN stations s ON b.StationID = s.StationID WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ? LIMIT 1");
-        $res->bind_param("ii", $order_id, $owner_id);
-        $res->execute();
-        $order_data = $res->get_result()->fetch_assoc();
-        if (!$order_data) {
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'order_not_found']);
-            exit;
-        }
-        $customer_id = (int) $order_data['UserID'];
-        $order_num = (string) $order_data['Order_Number'];
-
-        clevo_db_begin($conn);
-        try {
-            $update = $conn->prepare("UPDATE booking b JOIN stations s ON b.StationID = s.StationID SET b.Status = 'Rejected' WHERE b.BookingID = ? AND b.Status = 'Pending' AND s.UserID = ?");
-            $update->bind_param("ii", $order_id, $owner_id);
-            $update->execute();
-            if ($update->affected_rows <= 0) {
-                throw new RuntimeException('reject_failed');
-            }
-
-            $refund = clevoRefundBookingPayment($conn, $order_id, 'rejected');
-            if (($refund['message'] ?? '') === 'wallet_refund_failed') {
-                throw new RuntimeException('refund_failed');
-            }
-
-            $msg = "نعتذر، تم رفض طلبك #$order_num من قبل المحطة. يمكنك حجز محطة أخرى.";
-            clevoCreateNotification(
-                $conn,
-                $customer_id,
-                'رفض الطلب',
-                $msg,
-                'danger',
-                null,
-                'Order rejected',
-                "Sorry, your order #$order_num was rejected by the station. You can book another station."
-            );
-            
-            try {
-                $admin_msg = "قام صاحب المحطة (ID: $owner_id) برفض الطلب #$order_num.";
-                clevoCreateRoleNotification(
-                    $conn,
-                    'Admin',
-                    'رفض طلب من صاحب محطة',
-                    $admin_msg,
-                    'warning',
-                    '../admin/financial-reports.php',
-                    'Order rejected by station owner',
-                    "Station owner ID $owner_id rejected order #$order_num."
-                );
-            } catch (Throwable $e) {
-                
-            }
-            clevo_db_commit($conn);
-            echo json_encode(['status' => 'success', 'data' => [], 'message' => 'rejected']);
-        } catch (Throwable $e) {
-            clevo_db_rollback($conn);
-            echo json_encode(['status' => 'error', 'data' => [], 'message' => 'db_error']);
-        }
-        exit;
+    if($action==='reject_order') {
+        clevo_market_reject($conn,$owner_id,(int)($_POST['order_id']??0));
+        clevo_json_response('success',[],'rejected');
     }
-
     if ($action==='complete_order') {
         clevo_complete_owner_booking($conn,$owner_id,(int)($_POST['order_id']??0));
         clevo_json_response('success',[],'completed');

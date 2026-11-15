@@ -1,5 +1,7 @@
 # CLEVO database changes
 
+Subsequent API migration `004_mobile_api.sql` and its deployment/grant requirements are documented in [API_INTEGRATION.md](API_INTEGRATION.md); see [API_TEST_RESULTS.md](API_TEST_RESULTS.md) for the later full regression run. Counts below retain the database phase baseline; the generated schema/ERD now include migration 004.
+
 Phase: 2026-11-15. This is an incremental PHP/mysqli/MySQL refactor, following the authentication phase. Existing identifiers, table/column names, roles, bookings, balances, subscriptions and historical values are preserved. No production database was connected to, reset or migrated. Validation used fresh disposable databases reconstructed from the repository's actual legacy schema and populated development snapshot, plus synthetic concurrency fixtures.
 
 Read [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md), [DATABASE_ERD.md](DATABASE_ERD.md), [DATABASE_BACKUP_RESTORE.md](DATABASE_BACKUP_RESTORE.md) and [DATABASE_TEST_RESULTS.md](DATABASE_TEST_RESULTS.md). The original [audit](AUDIT_REPORT.md) and architecture documents describe their historical baseline; this document records the subsequent implementation.

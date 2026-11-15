@@ -324,7 +324,7 @@ function clevoRescheduleBookingForUser(mysqli $conn, int $bookingID, int $userID
 function cancelExpiredBookings(mysqli $conn, ?int $userID = null): void
 {
     $where=$userID===null?'':' AND UserID=?';
-    $sql="SELECT BookingID FROM booking WHERE Status IN ('Pending','Accepted') AND COALESCE(notification_sent,0)=0 AND created_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE".$where." LIMIT 200";
+    $sql="SELECT BookingID FROM booking WHERE COALESCE(notification_sent,0)=0 AND ((Status='Pending' AND created_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE) OR (Status='Accepted' AND Service_Location IN ('home','delivery') AND (Payment_Method IS NULL OR Payment_Method='') AND COALESCE(Accepted_At,created_at)<UTC_TIMESTAMP()-INTERVAL 10 MINUTE))".$where." ORDER BY BookingID LIMIT 200";
     $ids=clevo_stmt($conn,$sql,$userID===null?'':'i',$userID===null?[]:[$userID])->get_result()->fetch_all(MYSQLI_ASSOC);
     foreach ($ids as $id) clevo_db_atomic($conn,function()use($conn,$id):void {
         $bookingID=(int)$id['BookingID'];

@@ -8,3 +8,4 @@
 !.env.example
 /.security-test/
 /var/
+/tests/openapi/node_modules/

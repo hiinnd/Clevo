@@ -1,0 +1,118 @@
+<?php
+declare(strict_types=1);
+
+// One registry drives routing, access policy, request validation and API inventory/spec generation.
+function clevo_api_routes():array
+{
+    $routes=[];
+    $add=function(string $method,string $path,string $handler,string $role='any',?string $schema=null,bool $key=false,int $status=200,string $previous='added')use(&$routes):void{
+        $routes[]=['method'=>$method,'path'=>$path,'handler'=>$handler,'roles'=>$role,'schema'=>$schema,'idempotent'=>$key,'status'=>$status,'change'=>$previous];
+    };
+    foreach(['stations','stations/search'] as $path)$add('GET',$path,'catalog.stations','public');
+    $add('GET','stations/{id}','catalog.station','public');
+    $add('GET','stations/{id}/services','catalog.services','public');
+    $add('GET','stations/{id}/availability','catalog.availability','public');
+    $add('GET','stations/{id}/reviews','catalog.reviews','public');
+    $add('GET','subscription-plans','catalog.plans','public');
+    $add('GET','me','customer.profile','any',null,false,200,'modified');
+    $add('PATCH','me','customer.profile_update','any','Profile',true);
+    $add('POST','me/avatar','customer.avatar','any','Avatar',true);
+    $add('GET','me/verification-document','customer.verification');
+    $add('GET','me/addresses','customer.addresses');
+    $add('POST','me/addresses','customer.address_create','any','Address',true,201);
+    $add('PUT','me/addresses/{id}','customer.address_update','any','Address',true);
+    $add('DELETE','me/addresses/{id}','customer.address_delete','any','Empty',true);
+    $add('GET','me/wallet','payments.wallet','any',null,false,200,'modified');
+    $add('GET','me/wallet/transactions','payments.wallet_transactions');
+    $add('GET','me/subscriptions','payments.subscriptions','customer');
+    $add('POST','me/subscriptions','payments.purchase','customer','Purchase',true,201);
+    $add('GET','notifications','customer.notifications','any',null,false,200,'modified');
+    $add('PATCH','notifications/{id}/read','customer.notification_read','any','Empty',false,200,'modified');
+    $add('POST','notifications/read-all','customer.notification_all','any','Empty');
+    $add('GET','bookings/history','bookings.history','customer');
+    $add('GET','bookings','bookings.list','customer',null,false,200,'modified');
+    $add('POST','bookings','bookings.create','customer','Booking',true,200,'modified');
+    $add('GET','bookings/{id}','bookings.detail','any',null,false,200,'modified');
+    $add('GET','bookings/{id}/status','bookings.status');
+    $add('GET','bookings/{id}/price-breakdown','bookings.price','customer,owner,admin');
+    $add('POST','bookings/{id}/cancel','bookings.cancel','customer','Empty',true);
+    $add('POST','bookings/{id}/reschedule','bookings.reschedule','customer','Reschedule',true);
+    $add('POST','bookings/{id}/payments','payments.booking_pay','customer','Payment',true,200,'modified');
+    $add('POST','bookings/{id}/reviews','customer.review','customer','Review',true,201);
+    $add('GET','me/reviews','customer.reviews','customer');
+    $add('GET','owner/stations','owner.stations','owner');
+    $add('PATCH','owner/stations/{id}','owner.station_update','owner','StationPatch',true);
+    $add('POST','owner/stations/{id}/image','owner.station_image','owner','StationImage',true);
+    $add('GET','owner/stations/{id}/services','owner.services','owner',null,false,200,'modified');
+    $add('POST','owner/stations/{id}/services','owner.service_create','owner','ServiceCreate',true,201);
+    $add('PATCH','owner/services/{id}','owner.service_update','owner','ServicePatch',true);
+    $add('DELETE','owner/services/{id}','owner.service_delete','owner','Empty',true);
+    $add('PATCH','owner/stations/{id}/availability','owner.availability','owner','Availability',true);
+    $add('GET','owner/bookings','owner.bookings','owner');
+    foreach(['accept','reject','complete'] as $action)$add('POST','owner/bookings/{id}/'.$action,'owner.'.$action,'owner','Empty',true);
+    $add('POST','owner/bookings/{id}/driver','owner.assign','owner','Assignment',true);
+    $add('POST','owner/bookings/{id}/driver-code','owner.driver_code','owner','Empty',false);
+    $add('GET','owner/drivers','owner.drivers','owner');
+    $add('POST','owner/drivers','owner.driver_create','owner','DriverCreate',true,201);
+    $add('PATCH','owner/drivers/{id}','owner.driver_update','owner','DriverPatch',true);
+    $add('POST','owner/drivers/{id}/invitation','owner.driver_invite','owner','DriverInvitation',true);
+    $add('DELETE','owner/drivers/{id}','owner.driver_delete','owner','Empty',true);
+    $add('GET','owner/earnings','owner.earnings','owner');
+    $add('GET','owner/bank-account','owner.bank','owner');
+    $add('PUT','owner/bank-account','owner.bank_update','owner','Bank',true);
+    $add('GET','owner/withdrawals','owner.withdrawals','owner');
+    $add('POST','owner/withdrawals','owner.withdrawal_create','owner','Empty',true,201);
+    $add('GET','owner/reviews','owner.reviews','owner');
+    $add('PATCH','owner/reviews/{id}/reply','owner.review_reply','owner','Reply',true);
+    foreach(['jobs','tasks'] as $alias){
+        $old=$alias==='tasks'?'modified':'added';
+        $add('GET','driver/'.$alias,'driver.jobs','driver',null,false,200,$old);
+        $add('GET','driver/'.$alias.'/history','driver.history','driver');
+        $add('GET','driver/'.$alias.'/{id}','driver.detail','driver',null,false,200,$old);
+        $add('POST','driver/'.$alias.'/{id}/accept','driver.accept','driver','Empty',true);
+        $add('PATCH','driver/'.$alias.'/{id}/status','driver.status','driver','DriverStatus',true);
+        $add('POST','driver/'.$alias.'/{id}/location','driver.location','driver','Location',true);
+    }
+    $add('POST','payment-sessions','payments.session_create','customer','PaymentSession',true,201);
+    $add('GET','payment-sessions/{session}','payments.session','customer');
+    $add('POST','payment-sessions/{session}/confirm','payments.confirm','customer','Empty',true);
+    $add('GET','payments','payments.list','customer');
+    $add('GET','payments/{id}','payments.detail','customer');
+    $add('GET','refund-requests','payments.refunds','customer');
+    $add('POST','refund-requests','payments.refund_create','customer','Refund',true,201);
+    $add('GET','support-requests','customer.support');
+    $add('POST','support-requests','customer.support_create','any','Support',true,201);
+    $add('GET','support-requests/{id}','customer.support_detail');
+    $add('GET','support-requests/{id}/messages','customer.support_messages');
+    $add('POST','support-requests/{id}/messages','customer.support_reply','any','Reply',true,201);
+    $add('GET','admin/security-status','admin.security','admin',null,false,200,'unchanged');
+    $add('GET','admin/users','admin.users','admin');
+    $add('GET','admin/users/{id}','admin.user','admin');
+    $add('GET','admin/users/{id}/verification-document','admin.verification','admin');
+    $add('PATCH','admin/users/{id}/status','admin.user_status','admin','AccountStatus',true);
+    $add('GET','admin/stations','admin.stations','admin');
+    $add('GET','admin/stations/{id}','admin.station','admin');
+    $add('PATCH','admin/stations/{id}/status','admin.station_status','admin','StationStatus',true);
+    $add('DELETE','admin/stations/{id}','admin.station_archive','admin','Empty',true);
+    $add('GET','admin/bookings','admin.bookings','admin');
+    $add('GET','admin/bookings/{id}','admin.booking','admin');
+    $add('GET','admin/financial-reports','admin.financial','admin');
+    $add('GET','admin/subscription-plans','admin.plans','admin');
+    $add('POST','admin/subscription-plans','admin.plan_create','admin','PlanCreate',true,201);
+    $add('PATCH','admin/subscription-plans/{id}','admin.plan_update','admin','PlanPatch',true);
+    $add('DELETE','admin/subscription-plans/{id}','admin.plan_delete','admin','Empty',true);
+    $add('GET','admin/subscriptions','admin.subscriptions','admin');
+    $add('PATCH','admin/subscriptions/{id}','admin.subscription_status','admin','SubscriptionStatus',true);
+    foreach(['support-requests','disputes'] as $name){
+        $add('GET','admin/'.$name,'admin.'.($name==='disputes'?'disputes':'support'),'admin');
+        $add('GET','admin/'.$name.'/{id}','admin.support_detail','admin');
+        $add('POST','admin/'.$name.'/{id}/messages','admin.support_reply','admin','Reply',true,201);
+        $add('PATCH','admin/'.$name.'/{id}/status','admin.support_status','admin','TicketStatus',true);
+    }
+    $add('GET','admin/refund-requests','admin.refunds','admin');
+    $add('PATCH','admin/refund-requests/{id}','admin.refund_decision','admin','Decision',true);
+    $add('GET','admin/withdrawals','admin.withdrawals','admin');
+    $add('GET','admin/withdrawals/{id}','admin.withdrawal','admin');
+    $add('PATCH','admin/withdrawals/{id}','admin.withdrawal_status','admin','WithdrawalStatus',true);
+    return $routes;
+}

@@ -14,7 +14,7 @@ function clevoEnsureSupportMessagesTable(mysqli $conn): void
 function clevoCleanupExpiredSupportChats(mysqli $conn): void
 {
     clevoEnsureSupportMessagesTable($conn);
-    $conn->query("DELETE t FROM support_tickets t
+    $conn->query("UPDATE support_tickets t
         JOIN (
             SELECT TicketID,
                    MAX(CASE WHEN SenderRole = 'admin' THEN CreatedAt END) AS last_admin_at,
@@ -22,6 +22,7 @@ function clevoCleanupExpiredSupportChats(mysqli $conn): void
             FROM support_messages
             GROUP BY TicketID
         ) m ON m.TicketID = t.id
+        SET t.status = 'Closed'
         WHERE t.status = 'Replied'
           AND m.last_admin_at IS NOT NULL
           AND (m.last_user_at IS NULL OR m.last_admin_at > m.last_user_at)

@@ -24,9 +24,17 @@ try {
     if (!$running) {
         $databaseProcess = Start-Process -FilePath (Join-Path $MysqlBin 'mysqld.exe') -ArgumentList @("--defaults-file=$dataRoot\my.ini", '--bind-address=127.0.0.1', "--port=$DatabasePort", '--console', '--skip-log-bin', '--innodb-buffer-pool-size=32M') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $testRoot 'mysql-stdout.log') -RedirectStandardError (Join-Path $testRoot 'mysql-stderr.log')
         $databaseStarted = $true
-        Start-Sleep -Seconds 3
-        if ($databaseProcess.HasExited) { throw 'Isolated database did not start.' }
     }
+    $databaseReady = $false
+    $readyDeadline = [DateTime]::UtcNow.AddSeconds(45)
+    do {
+        if ($databaseStarted -and $databaseProcess.HasExited) { throw 'Isolated database did not start.' }
+        & php (Join-Path $PSScriptRoot 'database-ready.php') $DatabasePort
+        if ($LASTEXITCODE -eq 11) { throw 'Refusing tests: database is not the dedicated workspace test datadir.' }
+        if ($LASTEXITCODE -eq 0) { $databaseReady = $true; break }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $readyDeadline)
+    if (!$databaseReady) { throw 'Isolated database readiness timed out; no tests or migrations were run.' }
     $databaseName = 'clevo_security_test_' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
     $privateRoot = Join-Path $testRoot 'private'
     New-Item -ItemType Directory -Path $privateRoot -Force | Out-Null
@@ -57,8 +65,12 @@ try {
         $unitExit = $LASTEXITCODE
         & php tests/scan-secrets.php
         $scanExit = $LASTEXITCODE
+        & php tests/api-contract.php
+        $contractExit = $LASTEXITCODE
         & php tests/integration.php
         $integrationExit = $LASTEXITCODE
+        $apiExit = 0
+        if ($integrationExit -eq 0) { & php tests/api.php; $apiExit = $LASTEXITCODE }
         & php tests/database.php
         $databaseExit = $LASTEXITCODE
         $apacheExit = 0
@@ -68,10 +80,18 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $integrationExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/database tests failed. See assertion labels above.' }
+        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/API/database tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile
     if ($serverProcess -and !$serverProcess.HasExited) { Stop-Process -Id $serverProcess.Id }
-    if ($databaseStarted -and $databaseProcess -and !$databaseProcess.HasExited) { Stop-Process -Id $databaseProcess.Id }
+    if ($databaseStarted -and $databaseProcess -and !$databaseProcess.HasExited) {
+        # Verify the datadir again before sending shutdown; only stop our own process on failure.
+        & php (Join-Path $PSScriptRoot 'database-ready.php') $DatabasePort
+        if ($LASTEXITCODE -eq 0) {
+            & (Join-Path $MysqlBin 'mysqladmin.exe') --no-defaults --protocol=tcp --host=127.0.0.1 "--port=$DatabasePort" --user=root --connect-timeout=2 shutdown
+            $null = $databaseProcess.WaitForExit(5000)
+        }
+        if (!$databaseProcess.HasExited) { Stop-Process -Id $databaseProcess.Id }
+    }
 }

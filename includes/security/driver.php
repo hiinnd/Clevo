@@ -12,8 +12,7 @@ function clevo_driver_transition(mysqli $conn, int $driver, int $job, string $ta
         $row = clevo_stmt($conn, "SELECT b.* FROM booking b JOIN stations s ON s.StationID = b.StationID WHERE b.BookingID = ? AND b.DriverID = ? AND b.StationID = ? AND s.admin_status = 'approved' AND b.Service_Location = 'delivery' FOR UPDATE", 'iii', [$job, $driver, (int) $account['StationID']])->get_result()->fetch_assoc();
         if (!$row || !in_array($target, $transitions[$row['Status']] ?? [], true)) throw new ClevoSecurityException('invalid_transition', 409);
         if (empty($row['Payment_Method'])) throw new ClevoSecurityException('payment_required', 409);
-        $receipt=clevo_stmt($conn,'SELECT Status FROM payments WHERE BookingID=?','i',[$job])->get_result()->fetch_assoc();
-        if ($receipt&&$receipt['Status']==='refunded') throw new ClevoSecurityException('payment_refunded',409);
+        clevo_assert_booking_payment($conn,$row);
         clevo_stmt($conn, 'UPDATE booking SET Status = ? WHERE BookingID = ? AND DriverID = ? AND Status = ?', 'siis', [$target, $job, $driver, $row['Status']]);
         if ($target === 'Completed') {
             if (clevo_db_effect($conn,$job,'completion_reward')) clevoAddLoyaltyPoints($conn, (int) $row['UserID'], (float) $row['Total_Price']);

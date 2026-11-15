@@ -23,13 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
     // Changing a recovery address requires explicit re-verification rather than silently trusting it.
     $emailChanged = strcasecmp($newEmail, (string) $userData['Email']) !== 0;
     if ($emailChanged && clevo_stmt($conn, 'SELECT UserID FROM user WHERE Email = ? AND UserID <> ?', 'si', [$newEmail, $userID])->get_result()->fetch_assoc()) throw new ClevoSecurityException('profile_conflict', 409);
-    $pendingAddress = $newEmail;
-    $newEmail = $userData['Email'];
-    if (clevo_stmt($conn, 'SELECT UserID FROM user WHERE PhoneNumber = ? AND UserID <> ?', 'si', [$newPhone, $userID])->get_result()->fetch_assoc()) throw new ClevoSecurityException('profile_conflict', 409);
-    $upd = $conn->prepare("UPDATE `user` SET UserName = ?, PhoneNumber = ?, Email = ?, CarName = ? WHERE UserID = ?");
-    $upd->bind_param("ssssi", $newName, $newPhone, $newEmail, $newCar, $userID);
-    
-    if ($upd->execute()) {
+    clevo_market_profile($conn,$userID,['full_name'=>$newName,'phone'=>$newPhone,'email'=>$newEmail,'car_name'=>$newCar]);
+    {
         $_SESSION['userName'] = $newName;
         
         
@@ -37,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_profile']) || i
             $imgName = clevo_save_upload($_FILES['profile_img'], 'profiles');
             clevo_stmt($conn, 'UPDATE user SET ProfilePic = ? WHERE UserID = ?', 'si', [$imgName, $userID]);
         }
-        if ($emailChanged) clevo_issue_verification($conn, clevo_account($conn, $userID), $pendingAddress);
+
         header('Location: profile.php?success=1' . ($emailChanged ? '&email_pending=1' : ''));
         exit();
     }

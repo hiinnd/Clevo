@@ -61,6 +61,7 @@ try {
         @('/database/seeds/development.sql','GET',403),
         @('/includes/security/environment.php','GET',403),@('/uploads/verification/any.pdf','GET',403),
         @('/uploads/profiles/blocked.php','GET',403),@('/api/v1/auth/login','GET',405),
+        @('/api/v1/stations','GET',200),@('/api/v1/me','GET',401),
         @('/api/v1/auth/login','OPTIONS',204)
     )
     foreach($case in $cases){
@@ -71,6 +72,8 @@ try {
     }
     Write-Output ("Isolated Apache rules: "+($checks-$failures)+"/"+$checks+" checks passed; "+$failures+" failed.")
     if($failures){throw 'Apache rules failed.'}
+    & php (Join-Path $PSScriptRoot 'apache-api.php') $Port
+    if($LASTEXITCODE -ne 0){throw 'Apache bearer/API checks failed.'}
 } finally {
     if($server -and !$server.HasExited){Stop-Process -Id $server.Id}
 }

@@ -1,5 +1,7 @@
 # CLEVO authentication and authorization API
 
+The subsequent REST API phase is documented in [API_INTEGRATION.md](API_INTEGRATION.md), with the current [OpenAPI specification](openapi.v1.json) and [test results](API_TEST_RESULTS.md). This document retains the authentication contract established during the security phase.
+
 Subsequent database-phase booking/payment writes are documented in [DATABASE_API.md](DATABASE_API.md); their shared transactions and migration requirements are in [DATABASE_CHANGES.md](DATABASE_CHANGES.md).
 
 Implemented security phase, 2026-11-15. PHP/MySQL remain the backend. The older audit/architecture files describe the pre-change baseline and target system; this document describes the **implemented** API surface. Setup, migrations, credential rotation and limitations are in [SECURITY_CHANGES.md](SECURITY_CHANGES.md).

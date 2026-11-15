@@ -47,18 +47,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_service'])){
     $is_pickup = isset($_POST['type_pickup']) ? 1 : 0;
 
     
-    if($edit_id > 0){
-        $stmt = $conn->prepare("UPDATE services SET Name = ?, Name_ar = ?, Name_en = ?, Description = ?, Description_ar = ?, Description_en = ?, Price = ?, is_station = ?, is_home = ?, is_pickup = ? WHERE ServiceID = ? AND StationID = ?");
-        $stmt->bind_param("ssssssdiiiii", $name_en, $name_ar, $name_en, $description_en, $description_ar, $description_en, $price, $is_station, $is_home, $is_pickup, $edit_id, $station_id);
-    } else {
-        $stmt = $conn->prepare("INSERT INTO services (StationID, Name, Name_ar, Name_en, Description, Description_ar, Description_en, Price, is_station, is_home, is_pickup) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("issssssdiii", $station_id, $name_en, $name_ar, $name_en, $description_en, $description_ar, $description_en, $price, $is_station, $is_home, $is_pickup);
-    }
-    
-    if($stmt && $stmt->execute()){
-        header("Location: manage-services.php?msg=success");
-        exit();
-    }
+    clevo_market_service($conn,$owner_id,(int)$station_id,$edit_id,['name_ar'=>$name_ar,'name_en'=>$name_en,'description_ar'=>$description_ar,'description_en'=>$description_en,'price'=>$price,'is_station'=>(bool)$is_station,'is_home'=>(bool)$is_home,'is_pickup'=>(bool)$is_pickup]);
+    header('Location: manage-services.php?msg=success'); exit();
 }
 
 

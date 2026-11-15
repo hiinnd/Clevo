@@ -281,7 +281,7 @@ function clevo_booking_visible(mysqli $conn, array $identity, int $id): ?array
         'driver' => "b.DriverID = ? AND b.StationID = (SELECT StationID FROM user WHERE UserID = b.DriverID) AND s.admin_status = 'approved' AND b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning')",
         'admin' => '? > 0', default => '1 = 0 AND ? > 0',
     };
-    $row = clevo_stmt($conn, "SELECT b.*, s.UserID AS OwnerID FROM booking b JOIN stations s ON s.StationID = b.StationID WHERE b.BookingID = ? AND $filter", 'ii', [$id, $user])->get_result()->fetch_assoc();
+    $row = clevo_stmt($conn, "SELECT b.*, s.UserID AS OwnerID,p.Method AS ReceiptMethod,p.Status AS ReceiptStatus,p.Amount AS ReceiptAmount,p.Currency AS ReceiptCurrency,p.UserID AS ReceiptUserID,up.user_id AS PlanOwnerUserID FROM booking b JOIN stations s ON s.StationID = b.StationID LEFT JOIN payments p ON p.BookingID=b.BookingID LEFT JOIN user_plans up ON up.id=b.UserPlanID WHERE b.BookingID = ? AND $filter", 'ii', [$id, $user])->get_result()->fetch_assoc();
     if ($role === 'driver' && !empty($identity['session']['DriverBookingID']) && (int) $identity['session']['DriverBookingID'] !== $id) return null;
     return $row;
 }
@@ -369,20 +369,17 @@ function clevo_reset_password(mysqli $conn, string $grant, string $password): vo
 
 function clevo_issue_verification(mysqli $conn, array $account, ?string $targetEmail = null): void
 {
-    $email = $targetEmail ?? $account['Email'];
-    if (!filter_var($email ?? '', FILTER_VALIDATE_EMAIL)) throw new ClevoSecurityException('invalid_email', 422);
-    $secret = bin2hex(random_bytes(32));
-    $conn->begin_transaction();
-    try {
-        clevo_account($conn, (int) $account['UserID'], true);
-        $id = clevo_new_challenge($conn, (int) $account['UserID'], $targetEmail ? 'email_change' : 'email', $secret, 3600, $targetEmail);
-        if ($targetEmail) clevo_stmt($conn, 'UPDATE `user` SET PendingEmail = ? WHERE UserID = ?', 'si', [$targetEmail, (int) $account['UserID']]);
-        $conn->commit();
-    } catch (Throwable $e) { $conn->rollback(); throw $e; }
-    // URL fragments never reach HTTP access logs. The landing page submits the token via POST.
-    $link = clevo_public_url('Emails/verify.php#token=' . rawurlencode($id . '.' . $secret));
-    clevo_send_mail($email, $account['UserName'], 'Verify your CLEVO email',
-        '<p>' . e($account['UserName']) . '</p><a href="' . e($link) . '">Verify email (valid for one hour)</a>');
+    require_once __DIR__.'/../database.php';
+    $email=$targetEmail??$account['Email'];
+    if (!filter_var($email??'',FILTER_VALIDATE_EMAIL)) throw new ClevoSecurityException('invalid_email',422);
+    clevo_db_atomic($conn,function()use($conn,$account,$targetEmail,$email):void {
+        clevo_account($conn,(int)$account['UserID'],true);
+        $secret=bin2hex(random_bytes(32));
+        $id=clevo_new_challenge($conn,(int)$account['UserID'],$targetEmail?'email_change':'email',$secret,3600,$targetEmail);
+        if($targetEmail) clevo_stmt($conn,'UPDATE user SET PendingEmail=? WHERE UserID=?','si',[$targetEmail,(int)$account['UserID']]);
+        $link=clevo_public_url('Emails/verify.php#token='.rawurlencode($id.'.'.$secret));
+        clevo_send_mail($email,$account['UserName'],'Verify your CLEVO email','<p>'.e($account['UserName']).'</p><a href="'.e($link).'">Verify email (valid for one hour)</a>');
+    });
 }
 
 function clevo_verify_email(mysqli $conn, string $token): void

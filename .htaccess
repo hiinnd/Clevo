@@ -4,6 +4,8 @@ Options -Indexes
 </FilesMatch>
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     RewriteRule ^api/v1/index\.php(?:/|$) - [L]
     RewriteRule ^(?:\.git|\.vscode|\.aws|\.codex|\.agents|\.security-test|vendor|tests|docs|deploy|var|migrations|scripts|database)(?:/|$) - [F,L,NC]
     RewriteRule ^api/v1(?:/(.*))?$ api/v1/index.php/$1 [QSA,L]

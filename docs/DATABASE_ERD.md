@@ -55,8 +55,14 @@ erDiagram
     payments {
         bigint PaymentID PK
     }
+    payment_sessions {
+        char SessionID PK
+    }
     plans {
         int id PK
+    }
+    refund_requests {
+        bigint RefundID PK
     }
     request_idempotency {
         int UserID PK
@@ -65,6 +71,9 @@ erDiagram
     }
     reviews {
         int ReviewID PK
+    }
+    saved_addresses {
+        bigint AddressID PK
     }
     security_mail_queue {
         bigint ID PK
@@ -135,12 +144,20 @@ erDiagram
     wallet |o--o{ owner_withdrawal_requests : "wallet_id"
     booking ||--o| payments : "BookingID"
     user ||--o{ payments : "UserID"
+    booking ||--o{ payment_sessions : "BookingID"
+    payments |o--o{ payment_sessions : "PaymentID"
+    user ||--o{ payment_sessions : "UserID"
+    user |o--o{ refund_requests : "ProcessedBy"
+    booking ||--o| refund_requests : "BookingID"
+    user ||--o{ refund_requests : "UserID"
     user ||--o{ request_idempotency : "UserID"
     booking |o--o| reviews : "BookingID"
+    user ||--o{ saved_addresses : "UserID"
     stations |o--o{ services : "StationID"
     user |o--o{ stations : "UserID"
     user |o--o{ support_messages : "SenderID"
     support_tickets ||--o{ support_messages : "TicketID"
+    booking |o--o{ support_tickets : "BookingID"
     user |o--o{ support_tickets : "user_id"
     booking ||--o{ tracking_records : "BookingID"
     user ||--o{ tracking_records : "DriverID"

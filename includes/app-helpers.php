@@ -363,6 +363,7 @@ function clevoCreditOwnerForBooking(mysqli $conn, int $bookingID): void
         $b=clevo_stmt($conn,'SELECT b.*,COALESCE(b.OwnerIDSnapshot,s.UserID) AS OwnerID FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=? FOR UPDATE','i',[$bookingID])->get_result()->fetch_assoc();
         if (!$b || !in_array($b['Payment_Method'],['wallet','points','plan','visa'],true) || in_array($b['Status'],['Cancelled','Rejected','Cancelled_Timeout'],true)) return;
         if ($b['Payment_Method']==='plan' && $b['Status']!=='Completed') return;
+        if ($b['Payment_Method']==='plan') clevo_assert_booking_payment($conn,$b);
         if ($b['Payment_Method']!=='plan' && !clevo_stmt($conn,"SELECT PaymentID FROM payments WHERE BookingID=? AND Status='recorded'",'i',[$bookingID])->get_result()->fetch_assoc()) return;
         $wallet=clevoEnsureWallet($conn,(int)$b['OwnerID']); $walletID=(int)$wallet['WalletID'];
         $reference=clevoBookingReference($b,$bookingID);

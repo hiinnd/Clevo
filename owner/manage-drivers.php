@@ -10,24 +10,12 @@ if (isset($_POST['action'])) {
         $rows = clevo_stmt($conn, "SELECT UserID AS id, UserName AS name, PhoneNumber AS phone FROM user WHERE LOWER(Role) = 'driver' AND AccountStatus = 'active' AND StationID = ? ORDER BY UserID DESC", 'i', [$my_station_id])->get_result()->fetch_all(MYSQLI_ASSOC);
         header('Content-Type: application/json'); echo json_encode($rows); exit;
     }
-    if ($action === 'add_driver') {
-        $name = clevo_clean_string($_POST['name'] ?? '', 100); $phone = clevo_clean_string($_POST['phone'] ?? '', 20);
-        if ($name === '' || !preg_match('/^07\d{8}$/D', $phone)) throw new ClevoSecurityException('invalid_driver', 422);
-        $hash = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
-        try {
-            clevo_stmt($conn, "INSERT INTO user (UserName, PhoneNumber, Password, Role, AccountStatus, StationID, MustResetPassword) VALUES (?, ?, ?, 'driver', 'active', ?, 1)", 'sssi', [$name, $phone, $hash, $my_station_id]);
-        } catch (mysqli_sql_exception $e) { if ($e->getCode() === 1062) throw new ClevoSecurityException('driver_exists', 409); throw $e; }
+    if($action==='add_driver') {
+        clevo_market_driver_save($conn,$owner_id,$my_station_id,0,['name'=>clevo_clean_string($_POST['name']??'',100),'phone'=>clevo_clean_string($_POST['phone']??'',20)]);
         clevo_json_response('success');
     }
-    if ($action === 'delete_driver') {
-        $id = (int) ($_POST['id'] ?? 0);
-        $conn->begin_transaction();
-        try {
-            $row = clevo_stmt($conn, "SELECT UserID FROM user WHERE UserID = ? AND StationID = ? AND LOWER(Role) = 'driver' FOR UPDATE", 'ii', [$id, $my_station_id])->get_result()->fetch_assoc();
-            if (!$row) throw new ClevoSecurityException('not_found', 404);
-            clevo_stmt($conn, "UPDATE user SET AccountStatus = 'rejected' WHERE UserID = ?", 'i', [$id]);
-            clevo_revoke_user($conn, $id); $conn->commit();
-        } catch (Throwable $e) { $conn->rollback(); throw $e; }
+    if($action==='delete_driver') {
+        clevo_market_driver_save($conn,$owner_id,$my_station_id,(int)($_POST['id']??0),['active'=>false]);
         clevo_json_response('success');
     }
     throw new ClevoSecurityException('invalid_action', 422);
