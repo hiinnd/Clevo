@@ -1,8 +1,8 @@
 # CLEVO schema inventory
 
-Generated from actual migrated disposable metadata on 2026-11-16. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 45; columns: 443; index columns: 228; foreign-key columns: 75. This is not a live production inventory.
+Generated from actual migrated disposable metadata on 2026-11-16. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 50; columns: 503; index columns: 254; foreign-key columns: 85. This is not a live production inventory.
 
-Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking 005 and commercial payments 006 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking 005, payments 006, driver tracking 007 and notifications 008 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
 
 ## `audit_logs`
 
@@ -172,6 +172,9 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `CommissionBasisMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
 | `CommissionMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
 | `OwnerAmountMinor` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `DeliveryWorkflowVersion` | `smallint(5) unsigned` | YES | `NULL` |  |
+| `DeliveryStage` | `varchar(32)` | YES | `NULL` |  |
+| `DriverLocationEpochUtc` | `datetime(6)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -285,6 +288,61 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 
 No declared outbound foreign key.
 
+## `delivery_confirmations`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `ConfirmationID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `AssignmentID` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `Kind` | `enum('pickup','delivery')` | NO | `NULL` |  |
+| `Nonce` | `char(32)` | NO | `NULL` |  |
+| `CodeHash` | `varchar(255)` | YES | `NULL` |  |
+| `Attempts` | `smallint(5) unsigned` | NO | `0` |  |
+| `IssuedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `ExpiresAt` | `datetime(6)` | NO | `NULL` |  |
+| `ConsumedAt` | `datetime(6)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_confirmation_expiry` | INDEX | `ExpiresAt` |
+| `PRIMARY` | PRIMARY | `ConfirmationID` |
+| `uq_delivery_confirmation` | UNIQUE | `AssignmentID`, `Kind` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_confirmation_assignment` | `AssignmentID` | `driver_assignments.AssignmentID` | RESTRICT / RESTRICT |
+
+## `delivery_events`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `EventID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `BookingID` | `int(11)` | NO | `NULL` |  |
+| `AssignmentID` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `FromStage` | `varchar(32)` | YES | `NULL` |  |
+| `ToStage` | `varchar(32)` | NO | `NULL` |  |
+| `ActorID` | `int(11)` | YES | `NULL` |  |
+| `ActorRole` | `enum('owner','driver','system','admin')` | NO | `NULL` |  |
+| `Reason` | `varchar(80)` | NO | `NULL` |  |
+| `ChangedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_delivery_actor` | INDEX | `ActorID` |
+| `fk_delivery_assignment` | INDEX | `AssignmentID` |
+| `idx_delivery_history` | INDEX | `BookingID`, `EventID` |
+| `PRIMARY` | PRIMARY | `EventID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_delivery_actor` | `ActorID` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_delivery_assignment` | `AssignmentID` | `driver_assignments.AssignmentID` | RESTRICT / RESTRICT |
+| `fk_delivery_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
+
 ## `driver_assignments`
 
 Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
@@ -299,6 +357,11 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `AssignedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
 | `EndedAt` | `datetime(6)` | YES | `NULL` |  |
 | `ActiveBookingID` | `int(11)` | YES | `NULL` | STORED GENERATED |
+| `AcceptedAt` | `datetime(6)` | YES | `NULL` |  |
+| `LastSequence` | `bigint(20) unsigned` | NO | `0` |  |
+| `LastCapturedAt` | `datetime(6)` | YES | `NULL` |  |
+| `LastSampleHash` | `char(64)` | YES | `NULL` |  |
+| `ActiveDriverID` | `int(11)` | YES | `NULL` | STORED GENERATED |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -308,6 +371,7 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `idx_assignment_driver` | INDEX | `DriverID`, `EndedAt` |
 | `PRIMARY` | PRIMARY | `AssignmentID` |
 | `uq_active_assignment` | UNIQUE | `ActiveBookingID` |
+| `uq_driver_execution` | UNIQUE | `ActiveDriverID` |
 
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
@@ -449,6 +513,31 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 |---|---|---|---|
 | `loyalty_ibfk_1` | `UserID` | `user.UserID` | CASCADE / RESTRICT |
 
+## `mobile_devices`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `DeviceID` | `char(32)` | NO | `NULL` |  |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `SessionID` | `char(64)` | NO | `NULL` |  |
+| `TokenHash` | `char(64)` | NO | `NULL` |  |
+| `TokenCipher` | `text` | YES | `[redacted]` |  |
+| `Platform` | `enum('android','ios')` | NO | `NULL` |  |
+| `UpdatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `RevokedAt` | `datetime(6)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_device_user` | INDEX | `UserID`, `RevokedAt` |
+| `PRIMARY` | PRIMARY | `DeviceID` |
+| `uq_device_token` | UNIQUE | `TokenHash` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_device_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
+
 ## `notifications`
 
 Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
@@ -477,6 +566,41 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
 | `notifications_ibfk_1` | `user_id` | `user.UserID` | CASCADE / RESTRICT |
+
+## `notification_deliveries`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `DeliveryID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `NotificationID` | `int(11)` | NO | `NULL` |  |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `DeviceID` | `char(32)` | YES | `NULL` |  |
+| `Channel` | `enum('push','email')` | NO | `NULL` |  |
+| `DedupKey` | `char(64)` | NO | `NULL` |  |
+| `State` | `enum('queued','sending','sent','skipped','dead')` | NO | `'queued'` |  |
+| `Attempts` | `smallint(5) unsigned` | NO | `0` |  |
+| `AvailableAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `LeaseUntil` | `datetime(6)` | YES | `NULL` |  |
+| `Claim` | `char(32)` | YES | `NULL` |  |
+| `LastError` | `varchar(40)` | YES | `NULL` |  |
+| `SentAt` | `datetime(6)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_delivery_device` | INDEX | `DeviceID` |
+| `fk_delivery_notification` | INDEX | `NotificationID` |
+| `fk_delivery_user` | INDEX | `UserID` |
+| `idx_delivery_due` | INDEX | `State`, `AvailableAt` |
+| `PRIMARY` | PRIMARY | `DeliveryID` |
+| `uq_delivery_intent` | UNIQUE | `DedupKey` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_delivery_device` | `DeviceID` | `mobile_devices.DeviceID` | RESTRICT / RESTRICT |
+| `fk_delivery_notification` | `NotificationID` | `notifications.id` | RESTRICT / RESTRICT |
+| `fk_delivery_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `notification_outbox`
 
@@ -508,6 +632,25 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 |---|---|---|---|
 | `fk_outbox_notification` | `NotificationID` | `notifications.id` | RESTRICT / RESTRICT |
 | `fk_outbox_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
+
+## `notification_preferences`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `Language` | `enum('ar','en')` | NO | `'ar'` |  |
+| `PushEnabled` | `tinyint(1)` | NO | `1` |  |
+| `EmailEnabled` | `tinyint(1)` | NO | `1` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `PRIMARY` | PRIMARY | `UserID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_preferences_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `notification_reads`
 
@@ -888,6 +1031,9 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `Attempts` | `smallint(5) unsigned` | NO | `0` |  |
 | `AvailableAt` | `datetime` | NO | `current_timestamp()` |  |
 | `SentAt` | `datetime` | YES | `NULL` |  |
+| `LeaseUntil` | `datetime(6)` | YES | `NULL` |  |
+| `Claim` | `char(32)` | YES | `NULL` |  |
+| `LastError` | `varchar(40)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
@@ -1117,15 +1263,24 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `Latitude` | `decimal(10,8)` | NO | `NULL` |  |
 | `Longitude` | `decimal(11,8)` | NO | `NULL` |  |
 | `RecordedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `AssignmentID` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `SequenceNumber` | `bigint(20) unsigned` | YES | `NULL` |  |
+| `CapturedAt` | `datetime(6)` | YES | `NULL` |  |
+| `AccuracyMeters` | `decimal(8,2)` | YES | `NULL` |  |
+| `CaptureMode` | `enum('foreground','background')` | YES | `NULL` |  |
+| `SampleHash` | `char(64)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
 | `fk_tracking_driver` | INDEX | `DriverID` |
 | `idx_tracking_booking` | INDEX | `BookingID`, `RecordedAt`, `TrackingID` |
+| `idx_tracking_retention` | INDEX | `RecordedAt`, `TrackingID` |
 | `PRIMARY` | PRIMARY | `TrackingID` |
+| `uq_tracking_sequence` | UNIQUE | `AssignmentID`, `SequenceNumber` |
 
 | FK | Child column | Parent | Delete / update |
 |---|---|---|---|
+| `fk_tracking_assignment` | `AssignmentID` | `driver_assignments.AssignmentID` | RESTRICT / RESTRICT |
 | `fk_tracking_booking` | `BookingID` | `booking.BookingID` | RESTRICT / RESTRICT |
 | `fk_tracking_driver` | `DriverID` | `user.UserID` | RESTRICT / RESTRICT |
 

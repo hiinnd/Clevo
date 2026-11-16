@@ -20,6 +20,7 @@
         "test:api-contract": "php tests/api-contract.php",
         "test:booking": "php tests/booking.php",
         "test:payments": "php tests/payments.php",
-        "docs:api": "php scripts/generate-api-docs.php"
+        "docs:api": "php scripts/generate-api-docs.php",
+        "test:notifications": "php tests/notifications.php"
     }
 }

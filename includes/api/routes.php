@@ -14,6 +14,11 @@ function clevo_api_routes():array
     $add('GET','stations/{id}/availability','catalog.availability','public');
     $add('GET','stations/{id}/reviews','catalog.reviews','public');
     $add('GET','subscription-plans','catalog.plans','public');
+    $add('POST','me/notification-devices','customer.device_register','any','NotificationDevice');
+    $add('POST','me/notification-devices/revoke','customer.device_revoke','any','NotificationDeviceRevoke');
+    $add('GET','me/notification-preferences','customer.preferences_get');
+    $add('PUT','me/notification-preferences','customer.preferences_set','any','NotificationPreferences');
+    $add('GET','admin/notification-deliveries','admin.notification_delivery','admin');
     $add('GET','me','customer.profile','any',null,false,200,'modified');
     $add('PATCH','me','customer.profile_update','any','Profile',true);
     $add('POST','me/avatar','customer.avatar','any','Avatar',true);

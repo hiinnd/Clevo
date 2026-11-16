@@ -25,6 +25,7 @@ function clevo_flush_notifications(mysqli $db, int $limit = 50): int
                 if (!$row) return false;
                 clevo_stmt($db,'INSERT INTO notifications (user_id,target_role,title,title_en,body,body_en,type,target_url) VALUES (?,?,?,?,?,?,?,?)','isssssss',[$row['UserID'],$row['TargetRole'],$row['Title'],$row['TitleEn'],$row['Body'],$row['BodyEn'],$row['Type'],$row['TargetUrl']]);
                 $id=(int)$db->insert_id;
+                clevo_notification_schedule($db,$id);
                 clevo_stmt($db,'UPDATE notification_outbox SET DeliveredAt=UTC_TIMESTAMP(6),NotificationID=? WHERE OutboxID=? AND DeliveredAt IS NULL','ii',[$id,(int)$row['OutboxID']]);
                 return true;
             });

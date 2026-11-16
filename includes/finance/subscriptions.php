@@ -58,5 +58,7 @@ function clevo_finance_activate_plan(mysqli $db,array $order):int
     if(!$proof)throw new ClevoSecurityException('payment_confirmation_required',409);
     $starts=new DateTimeImmutable('now',new DateTimeZone('UTC'));$expires=clevo_finance_subscription_end($starts,(int)$terms['duration'],$terms['duration_type']);
     clevo_stmt($db,"INSERT INTO user_plans (user_id,plan_id,start_date,end_date,status,remaining_washes,PurchasePrice,PurchasedWashes,PlanNameSnapshot,FundingOrderID,TermsSnapshot,StartsAtUtc,ExpiresAtUtc) VALUES (?,?,?,?,'active',?,?,?,?,?,?,?,?)",'iissisisssss',[(int)$order['UserID'],(int)$order['PlanID'],$starts->format('Y-m-d'),$expires->modify('-1 second')->format('Y-m-d'),$washes,clevo_db_decimal(intdiv((int)$order['AmountMinor'],10)),$washes,$terms['name_en'],$order['OrderID'],json_encode($terms,JSON_THROW_ON_ERROR),$starts->format('Y-m-d H:i:s.u'),$expires->format('Y-m-d H:i:s.u')]);
-    return (int)$db->insert_id;
+    $id=(int)$db->insert_id;
+    clevoCreateNotification($db,(int)$order['UserID'],'تم تفعيل الاشتراك التجريبي','تم تأكيد تمويل باقتك التجريبية.','success','customer-plans.php','Sandbox subscription activated','Your verified sandbox subscription is active.');
+    return $id;
 }

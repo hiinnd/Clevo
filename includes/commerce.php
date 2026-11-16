@@ -4,6 +4,7 @@ require_once __DIR__.'/booking-helpers.php';
 require_once __DIR__.'/booking-workflow.php';
 require_once __DIR__.'/finance.php';
 require_once __DIR__.'/logistics.php';
+require_once __DIR__.'/notifications.php';
 
 function clevo_create_booking(mysqli $conn,int $user,int $station,array $input,string $key): array
 {
@@ -53,7 +54,7 @@ function clevo_create_booking(mysqli $conn,int $user,int $station,array $input,s
         if($plan)clevo_finance_plan_reserve($conn,$plan,$booking);
         clevo_booking_event($conn,$booking,null,'Pending',$user,'customer','booking_requested');
         if ($plan) clevo_stmt($conn,"INSERT INTO payments (BookingID,UserID,Method,Status,Amount) VALUES (?,?,'plan','recorded',0)",'ii',[$booking,$user]);
-        clevoCreateNotification($conn,(int)$s['UserID'],'طلب جديد',"وصلك طلب جديد #$order بتاريخ $date الساعة $time.",'info','incoming-orders.php','New order',"Order #$order on $date at $time.");
+        clevoCreateNotification($conn,(int)$s['UserID'],'طلب جديد',"وصلك طلب جديد #$order بتاريخ $date الساعة $time.",'info',"incoming-orders.php?id=$booking",'New order',"Order #$order on $date at $time.");
         clevo_db_audit($conn,$user,'booking.created','booking',$booking);
         return ['status'=>'success','booking_id'=>$booking,'order_number'=>$order,'payment_method'=>$method];
     });

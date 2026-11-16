@@ -11,6 +11,11 @@ Generated from the runtime route registry and preserved authentication controlle
 | GET | `/stations/{id}/availability` | added | public | none | not required | `catalog.availability` |
 | GET | `/stations/{id}/reviews` | added | public | none | not required | `catalog.reviews` |
 | GET | `/subscription-plans` | added | public | none | not required | `catalog.plans` |
+| POST | `/me/notification-devices` | added | any | NotificationDevice | not required | `customer.device_register` |
+| POST | `/me/notification-devices/revoke` | added | any | NotificationDeviceRevoke | not required | `customer.device_revoke` |
+| GET | `/me/notification-preferences` | added | any | none | not required | `customer.preferences_get` |
+| PUT | `/me/notification-preferences` | added | any | NotificationPreferences | not required | `customer.preferences_set` |
+| GET | `/admin/notification-deliveries` | added | admin | none | not required | `admin.notification_delivery` |
 | GET | `/me` | modified | any | none | not required | `customer.profile` |
 | PATCH | `/me` | added | any | Profile | required | `customer.profile_update` |
 | POST | `/me/avatar` | added | any | Avatar | required | `customer.avatar` |

@@ -58,3 +58,34 @@ GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_notification_work
 GRANT SELECT ON `clevo`.`request_idempotency` TO 'clevo_notification_worker'@'worker-host';
 GRANT SELECT, UPDATE ON `clevo`.`notification_outbox` TO 'clevo_notification_worker'@'worker-host';
 GRANT INSERT ON `clevo`.`notifications` TO 'clevo_notification_worker'@'worker-host';
+
+GRANT SELECT, INSERT ON `clevo`.`delivery_events` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`delivery_confirmations` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`notification_preferences` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`mobile_devices` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`notification_deliveries` TO 'clevo_runtime'@'application-host';
+
+-- Outbox worker now schedules per-user jobs atomically with inbox insert.
+GRANT SELECT ON `clevo`.`notifications` TO 'clevo_notification_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`mobile_devices` TO 'clevo_notification_worker'@'worker-host';
+GRANT INSERT ON `clevo`.`notification_deliveries` TO 'clevo_notification_worker'@'worker-host';
+-- Dedicated outbound delivery worker. No booking/financial mutation or DDL.
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`request_idempotency` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`user` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`auth_sessions` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`notification_preferences` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`mobile_devices` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`notification_deliveries` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT, INSERT ON `clevo`.`notifications` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`notification_outbox` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`booking` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`stations` TO 'clevo_delivery_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`booking_services` TO 'clevo_delivery_worker'@'worker-host';
+-- GPS retention only; explicit user-requested location minimization.
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_tracking_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`request_idempotency` TO 'clevo_tracking_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`booking` TO 'clevo_tracking_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`driver_assignments` TO 'clevo_tracking_worker'@'worker-host';
+GRANT SELECT, DELETE ON `clevo`.`tracking_records` TO 'clevo_tracking_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`delivery_confirmations` TO 'clevo_tracking_worker'@'worker-host';

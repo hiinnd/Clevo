@@ -407,6 +407,7 @@ function clevo_verify_email(mysqli $conn, string $token): void
         if (clevo_role($account['Role']) === 'customer' && $status === 'pending') $status = 'active';
         clevo_stmt($conn, 'UPDATE `user` SET EmailVerifiedAt = UTC_TIMESTAMP(), VerificationToken = NULL, AccountStatus = ? WHERE UserID = ?', 'si', [$status, (int) $account['UserID']]);
         clevo_stmt($conn, 'UPDATE auth_challenges SET ConsumedAt = UTC_TIMESTAMP() WHERE ChallengeID = ?', 's', [$parts[1]]);
+        clevo_queue_notification($conn,(int)$account['UserID'],null,'تم تأكيد البريد','تم تأكيد بريد حساب CLEVO.','success',null,'Email verified','Your CLEVO email has been verified.');
         $conn->commit();
     } catch (Throwable $e) { $conn->rollback(); throw $e; }
 }
@@ -440,6 +441,7 @@ function clevo_register_account(mysqli $conn, array $input, ?string $document = 
         throw $e;
     } catch (Throwable $e) { $conn->rollback(); throw $e; }
     $account = clevo_account($conn, $id);
+    clevoCreateNotification($conn,$id,'مرحباً بك في CLEVO','تحقق من بريدك لتفعيل حسابك.','info',null,'Welcome to CLEVO','Check your email to verify your account.');
     clevo_issue_verification($conn, $account);
     return $account;
 }

@@ -397,8 +397,8 @@ foreach (['register', 'forgot', 'verify', 'refresh'] as $scope) {
 }
 [$workerCode] = command([PHP_BINARY, __DIR__ . '/../scripts/security-mail-worker.php']);
 check($workerCode === 0, 'Mail worker runs under explicitly configured null transport');
-check((int) $conn->query("SELECT COUNT(*) AS c FROM security_mail_queue WHERE SentAt IS NULL OR PayloadCipher <> ''")->fetch_assoc()['c'] === 0,
-    'Mail worker clears encrypted payloads after null-transport processing');
+check((int) $conn->query("SELECT COUNT(*) AS c FROM security_mail_queue WHERE SentAt IS NULL AND PayloadCipher <> ''")->fetch_assoc()['c'] > 0,
+    'Disabled external SMTP preserves encrypted messages without claiming delivery');
 
 // Tests leave the isolated DB for evidence; no production database is imported or modified.
 finish_tests('Security integration suite');

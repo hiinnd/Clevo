@@ -51,6 +51,7 @@ function clevo_market_refund_decision(mysqli $db,int $admin,int $id,array $input
 }
 function clevo_api_admin(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
+    if($action==='notification_delivery')clevo_api_result(['delivery_counts'=>$db->query('SELECT Channel,State,LastError,COUNT(*) count,MAX(Attempts) max_attempts FROM notification_deliveries GROUP BY Channel,State,LastError')->fetch_all(MYSQLI_ASSOC)]);
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);
     if($action==='security')clevo_api_result(['authentication'=>'enabled','role'=>'admin']);
     if($action==='verification')clevo_api_verification($db,$id);

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
+define('CLEVO_NOTIFICATION_WORKER',true);
 require_once __DIR__.'/../includes/config.php';
 try{
     if(!in_array('--apply',$argv,true)){echo "Tracking cleanup is read-only unless --apply is supplied. Run bounded cleanup each minute using a dedicated worker identity.\n";exit;}

@@ -50,6 +50,7 @@ function clevo_delivery_advance(mysqli $db,int $actor,int $booking,string $targe
         }
         $status=clevo_delivery_booking_status($target);
         clevo_stmt($db,'UPDATE booking SET DeliveryStage=? WHERE BookingID=?','si',[$target,$booking]);
+        if(in_array($target,['heading_pickup','returning_vehicle'],true))clevo_stmt($db,'UPDATE booking SET DriverLocationEpochUtc=UTC_TIMESTAMP(6),Driver_Lat=NULL,Driver_Lon=NULL WHERE BookingID=?','i',[$booking]);
         if($status!==$b['Status'])clevo_booking_transition($db,$actor,$booking,$status,'logistics_progress');
         if(in_array($target,['arrived_station','service_completed'],true))clevo_stmt($db,'UPDATE booking SET Driver_Lat=NULL,Driver_Lon=NULL WHERE BookingID=?','i',[$booking]);
         clevo_delivery_event($db,$b,$assignment,$from,$target,$actor,$role,'stage_confirmed');
@@ -73,7 +74,8 @@ function clevo_delivery_legacy_transition(mysqli $db,int $driver,int $booking,st
 function clevo_delivery_adopt(mysqli $db,int $owner,int $booking):array
 {
     return clevo_db_atomic($db,function()use($db,$owner,$booking):array{
-        $b=clevo_booking_lock($db,$booking);clevo_market_station($db,$owner,(int)$b['StationID']);
+        $b=clevo_booking_lock($db,$booking);$a=clevo_booking_actor($db,$owner);
+        if(clevo_role($a['Role'])!=='owner'||(int)$b['_station']['UserID']!==$owner||$b['_station']['ArchivedAt']!==null||$b['_station']['admin_status']!=='approved')throw new ClevoSecurityException('not_found',404);
         if($b['Service_Location']!=='delivery'||!in_array($b['Status'],['Accepted','In Progress','Arrived','Pickup','Washing','Returning'],true))throw new ClevoSecurityException('invalid_assignment_state',409);
         if((int)$b['DeliveryWorkflowVersion']===1)return ['adopted'=>true];
         clevo_delivery_driver($db,$b,(int)$b['DriverID']);
@@ -180,7 +182,7 @@ function clevo_delivery_tracking_snapshot(mysqli $db,int $viewer,int $booking,?i
     $location=null;$state=$active?'waiting':'inactive';
     if($active){
         $r=clevo_stmt($db,'SELECT Latitude,Longitude,AccuracyMeters,CapturedAt,RecordedAt,SequenceNumber FROM tracking_records WHERE AssignmentID=? AND SequenceNumber=?','ii',[(int)$assignment['AssignmentID'],(int)$assignment['LastSequence']])->get_result()->fetch_assoc();
-        if($r&&$r['CapturedAt']!==null){$age=max(0,time()-strtotime($r['CapturedAt'].' UTC'));$state=$age>30?'stale':'fresh';
+        if($r&&$r['CapturedAt']!==null&&($b['DriverLocationEpochUtc']===null||$r['RecordedAt']>=$b['DriverLocationEpochUtc'])){$age=max(0,time()-strtotime($r['CapturedAt'].' UTC'));$state=$age>30?'stale':'fresh';
             if($age<=120&&$r['AccuracyMeters']!==null&&(float)$r['AccuracyMeters']<=100)$location=['latitude'=>(float)$r['Latitude'],'longitude'=>(float)$r['Longitude'],'accuracy_m'=>(float)$r['AccuracyMeters'],'captured_at'=>str_replace(' ','T',$r['CapturedAt']).'Z','received_at'=>str_replace(' ','T',$r['RecordedAt']).'Z','age_seconds'=>$age,'sequence'=>(int)$r['SequenceNumber']];
             elseif($age<=120)$state='inaccurate';
         }

@@ -26,7 +26,7 @@ try {
         $databaseStarted = $true
     }
     $databaseReady = $false
-    $readyDeadline = [DateTime]::UtcNow.AddSeconds(45)
+    $readyDeadline = [DateTime]::UtcNow.AddSeconds(180)
     do {
         if ($databaseStarted -and $databaseProcess.HasExited) { throw 'Isolated database did not start.' }
         & php (Join-Path $PSScriptRoot 'database-ready.php') $DatabasePort
@@ -75,6 +75,10 @@ try {
         if ($integrationExit -eq 0) { & php tests/booking.php; $bookingExit = $LASTEXITCODE }
         $financialExit = 0
         if ($integrationExit -eq 0) { & php tests/payments.php; $financialExit = $LASTEXITCODE }
+        $logisticsExit = 0
+        if ($integrationExit -eq 0) { & php tests/logistics.php; $logisticsExit = $LASTEXITCODE }
+        $notificationExit = 0
+        if ($integrationExit -eq 0) { & php tests/notifications.php; $notificationExit = $LASTEXITCODE }
         & php tests/database.php
         $databaseExit = $LASTEXITCODE
         $apacheExit = 0
@@ -84,7 +88,7 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/API/booking/payment/database tests failed. See assertion labels above.' }
+        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/API/booking/payment/database tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

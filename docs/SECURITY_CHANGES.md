@@ -1,5 +1,7 @@
 # CLEVO authentication/security changes
 
+Subsequent integration phases (2026-11-16): [NOTIFICATIONS.md](NOTIFICATIONS.md), [TRACKING_ARCHITECTURE.md](TRACKING_ARCHITECTURE.md), and [NOTIFICATION_TEST_RESULTS.md](NOTIFICATION_TEST_RESULTS.md) describe migrations 007/008, current delivery/tracking policy and test evidence. The API now has 159 operations across 138 paths. Earlier phase counts and worker/null-transport behavior below are historical where superseded.
+
 Phase date: 2026-11-15. This phase implements authentication and authorization hardening on the existing PHP/MySQL application. No backend framework replacement, mobile app, production deployment, provider-account rotation or real payment integration was performed. The [audit](AUDIT_REPORT.md) remains a historical record of the pre-change baseline.
 
 API contract: [AUTHENTICATION_API.md](AUTHENTICATION_API.md). Executed validation and limitations: [SECURITY_TEST_RESULTS.md](SECURITY_TEST_RESULTS.md).

@@ -16,7 +16,7 @@ try {
     if ((int)$conn->query("SELECT GET_LOCK(CONCAT(DATABASE(), '.security-migration'), 10) n")->fetch_assoc()['n']!==1) throw new RuntimeException('Migration lock unavailable.');
     // All writers must be stopped externally. MySQL DDL commits implicitly.
     $conn->query("CREATE TABLE IF NOT EXISTS database_migration_steps (Version VARCHAR(100) NOT NULL, StepNumber INT NOT NULL, Checksum CHAR(64) NOT NULL, State ENUM('started','applied') NOT NULL, PRIMARY KEY(Version,StepNumber)) ENGINE=InnoDB");
-    foreach (['002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking'] as $version) {
+    foreach (['002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications'] as $version) {
         $source=file_get_contents(__DIR__.'/../migrations/'.$version.'.sql'); $hash=hash('sha256',$source);
         $done=clevo_stmt($conn,'SELECT Checksum FROM security_schema_migrations WHERE Version=?','s',[$version])->get_result()->fetch_assoc();
         if ($done) { if (!hash_equals($done['Checksum'],$hash)) throw new RuntimeException('Applied migration changed.'); echo "$version already applied.\n"; continue; }

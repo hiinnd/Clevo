@@ -15,6 +15,9 @@ function clevo_api_contracts():array
     $policy=clevo_api_schema(['tier'=>['type'=>'string','enum'=>['silver','gold','diamond']],'service_ids'=>['type'=>'array','items'=>$id,'minItems'=>1,'maxItems'=>100,'uniqueItems'=>true],'modes'=>['type'=>'array','items'=>['type'=>'string','enum'=>['station','home','delivery']],'minItems'=>1,'maxItems'=>3,'uniqueItems'=>true],'allow_multiple'=>$b,'max_booking_amount'=>['type'=>'string','pattern'=>'^(0|[1-9][0-9]{0,7})(\.[0-9]{1,3})?$']],['tier','service_ids','modes','allow_multiple','max_booking_amount']);
     $plan['sandbox_policy']=$policy;
     return [
+        'NotificationDevice'=>clevo_api_schema(['token'=>$s(4096,20)+['writeOnly'=>true,'pattern'=>'^[A-Za-z0-9_:.-]+$'],'platform'=>['type'=>'string','enum'=>['android','ios']]],['token','platform']),
+        'NotificationDeviceRevoke'=>clevo_api_schema(['device_id'=>$s(32)+['pattern'=>'^[a-f0-9]{32}$']],['device_id']),
+        'NotificationPreferences'=>clevo_api_schema(['language'=>['type'=>'string','enum'=>['ar','en']],'push_enabled'=>$b,'email_enabled'=>$b],['language','push_enabled','email_enabled']),
         'HandoffKind'=>clevo_api_schema(['kind'=>['type'=>'string','enum'=>['pickup','delivery']]],['kind']),
         'HandoffConfirmation'=>clevo_api_schema(['kind'=>['type'=>'string','enum'=>['pickup','delivery']],'code'=>$s(6)+['pattern'=>'^[0-9]{6}$','writeOnly'=>true]],['kind','code']),
         'DeliveryStage'=>clevo_api_schema(['stage'=>['type'=>'string','enum'=>['accepted','heading_pickup','arrived_pickup','vehicle_collected','arrived_station','service_completed','returning_vehicle','delivered']]],['stage']),

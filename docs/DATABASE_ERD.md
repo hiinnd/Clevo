@@ -36,6 +36,12 @@ erDiagram
         varchar Version PK
         int StepNumber PK
     }
+    delivery_confirmations {
+        bigint ConfirmationID PK
+    }
+    delivery_events {
+        bigint EventID PK
+    }
     driver_assignments {
         bigint AssignmentID PK
     }
@@ -54,11 +60,20 @@ erDiagram
     loyalty {
         int LoyaltyID PK
     }
+    mobile_devices {
+        char DeviceID PK
+    }
     notifications {
         int id PK
     }
+    notification_deliveries {
+        bigint DeliveryID PK
+    }
     notification_outbox {
         bigint OutboxID PK
+    }
+    notification_preferences {
+        int UserID PK
     }
     notification_reads {
         int NotificationID PK
@@ -163,6 +178,10 @@ erDiagram
     services |o--o{ booking_services : "ServiceID"
     user |o--o{ booking_status_history : "ActorID"
     booking ||--o{ booking_status_history : "BookingID"
+    driver_assignments ||--o{ delivery_confirmations : "AssignmentID"
+    user |o--o{ delivery_events : "ActorID"
+    driver_assignments ||--o{ delivery_events : "AssignmentID"
+    booking ||--o{ delivery_events : "BookingID"
     user ||--o{ driver_assignments : "AssignedBy"
     booking ||--o{ driver_assignments : "BookingID"
     user ||--o{ driver_assignments : "DriverID"
@@ -177,9 +196,14 @@ erDiagram
     user ||--o{ financial_receipts : "UserID"
     user ||--o{ financial_settlements : "OwnerID"
     user ||--o{ loyalty : "UserID"
+    user ||--o{ mobile_devices : "UserID"
     user |o--o{ notifications : "user_id"
+    mobile_devices |o--o{ notification_deliveries : "DeviceID"
+    notifications ||--o{ notification_deliveries : "NotificationID"
+    user ||--o{ notification_deliveries : "UserID"
     notifications |o--o{ notification_outbox : "NotificationID"
     user |o--o{ notification_outbox : "UserID"
+    user ||--o| notification_preferences : "UserID"
     notifications ||--o{ notification_reads : "NotificationID"
     user ||--o{ notification_reads : "UserID"
     user ||--o| owner_bank_accounts : "owner_id"
@@ -212,6 +236,7 @@ erDiagram
     support_tickets ||--o{ support_messages : "TicketID"
     booking |o--o{ support_tickets : "BookingID"
     user |o--o{ support_tickets : "user_id"
+    driver_assignments |o--o{ tracking_records : "AssignmentID"
     booking ||--o{ tracking_records : "BookingID"
     user ||--o{ tracking_records : "DriverID"
     stations |o--o{ user : "StationID"

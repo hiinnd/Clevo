@@ -1171,6 +1171,97 @@
                 ]
             }
         },
+        "/admin/notification-deliveries": {
+            "get": {
+                "operationId": "get_admin_notification_deliveries",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "admin: notification delivery",
+                "description": "Allowed roles: admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": [
+                                                        "object",
+                                                        "array"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            }
+        },
         "/admin/payment-reconciliation": {
             "get": {
                 "operationId": "get_admin_payment_reconciliation",
@@ -6795,10 +6886,26 @@
                                                     "const": "success"
                                                 },
                                                 "data": {
-                                                    "type": [
-                                                        "object",
-                                                        "array"
-                                                    ]
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "confirmation_code": {
+                                                            "type": "string",
+                                                            "pattern": "^[0-9]{6}$"
+                                                        },
+                                                        "kind": {
+                                                            "type": "string"
+                                                        },
+                                                        "expires_at": {
+                                                            "type": "string",
+                                                            "maxLength": 40
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "confirmation_code",
+                                                        "kind",
+                                                        "expires_at"
+                                                    ],
+                                                    "additionalProperties": true
                                                 }
                                             }
                                         }
@@ -6873,6 +6980,9 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/HandoffKind"
+                            },
+                            "example": {
+                                "kind": "pickup"
                             }
                         }
                     }
@@ -7805,10 +7915,16 @@
                                                     "const": "success"
                                                 },
                                                 "data": {
-                                                    "type": [
-                                                        "object",
-                                                        "array"
-                                                    ]
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "tracking": {
+                                                            "$ref": "#/components/schemas/TrackingDTO"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "tracking"
+                                                    ],
+                                                    "additionalProperties": true
                                                 }
                                             }
                                         }
@@ -8551,6 +8667,10 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/HandoffConfirmation"
+                            },
+                            "example": {
+                                "kind": "pickup",
+                                "code": "123456"
                             }
                         }
                     }
@@ -8675,6 +8795,9 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/DeliveryStage"
+                            },
+                            "example": {
+                                "stage": "heading_pickup"
                             }
                         }
                     }
@@ -8926,6 +9049,14 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/LocationSample"
+                            },
+                            "example": {
+                                "latitude": 31.95,
+                                "longitude": 35.91,
+                                "accuracy_m": 10,
+                                "captured_at": "2026-11-16T12:00:00Z",
+                                "assignment_id": 1,
+                                "sequence": 1
                             }
                         }
                     }
@@ -9109,10 +9240,16 @@
                                                     "const": "success"
                                                 },
                                                 "data": {
-                                                    "type": [
-                                                        "object",
-                                                        "array"
-                                                    ]
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "tracking": {
+                                                            "$ref": "#/components/schemas/TrackingDTO"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "tracking"
+                                                    ],
+                                                    "additionalProperties": true
                                                 }
                                             }
                                         }
@@ -11139,6 +11276,423 @@
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Avatar"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/notification-devices": {
+            "post": {
+                "operationId": "post_me_notification_devices",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: device register",
+                "description": "Allowed roles: any. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "device_id": {
+                                                            "type": "string",
+                                                            "pattern": "^[a-f0-9]{32}$"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "device_id"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotificationDevice"
+                            },
+                            "example": {
+                                "token": "example-token-placeholder-for-device-registration",
+                                "platform": "android"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/notification-devices/revoke": {
+            "post": {
+                "operationId": "post_me_notification_devices_revoke",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: device revoke",
+                "description": "Allowed roles: any. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "revoked": {
+                                                            "const": true
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "revoked"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotificationDeviceRevoke"
+                            },
+                            "example": {
+                                "device_id": "00000000000000000000000000000000"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/notification-preferences": {
+            "get": {
+                "operationId": "get_me_notification_preferences",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: preferences get",
+                "description": "Allowed roles: any. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": [
+                                                        "object",
+                                                        "array"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "put_me_notification_preferences",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: preferences set",
+                "description": "Allowed roles: any. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": [
+                                                        "object",
+                                                        "array"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotificationPreferences"
+                            },
+                            "example": {
+                                "language": "ar",
+                                "push_enabled": true,
+                                "email_enabled": true
                             }
                         }
                     }
@@ -19903,6 +20457,69 @@
             }
         },
         "schemas": {
+            "NotificationDevice": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "minLength": 20,
+                        "maxLength": 4096,
+                        "writeOnly": true,
+                        "pattern": "^[A-Za-z0-9_:.-]+$"
+                    },
+                    "platform": {
+                        "type": "string",
+                        "enum": [
+                            "android",
+                            "ios"
+                        ]
+                    }
+                },
+                "required": [
+                    "token",
+                    "platform"
+                ],
+                "additionalProperties": false
+            },
+            "NotificationDeviceRevoke": {
+                "type": "object",
+                "properties": {
+                    "device_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32,
+                        "pattern": "^[a-f0-9]{32}$"
+                    }
+                },
+                "required": [
+                    "device_id"
+                ],
+                "additionalProperties": false
+            },
+            "NotificationPreferences": {
+                "type": "object",
+                "properties": {
+                    "language": {
+                        "type": "string",
+                        "enum": [
+                            "ar",
+                            "en"
+                        ]
+                    },
+                    "push_enabled": {
+                        "type": "boolean"
+                    },
+                    "email_enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "language",
+                    "push_enabled",
+                    "email_enabled"
+                ],
+                "additionalProperties": false
+            },
             "HandoffKind": {
                 "type": "object",
                 "properties": {
@@ -23243,6 +23860,89 @@
                     "ActorRole",
                     "Reason",
                     "ChangedAt"
+                ],
+                "additionalProperties": true
+            },
+            "TrackingDTO": {
+                "type": "object",
+                "properties": {
+                    "booking_id": {
+                        "type": "integer"
+                    },
+                    "booking_status": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "delivery_stage": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "assignment_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "last_sequence": {
+                        "type": "integer"
+                    },
+                    "sharing_allowed": {
+                        "type": "boolean"
+                    },
+                    "location_state": {
+                        "type": "string",
+                        "enum": [
+                            "fresh",
+                            "stale",
+                            "waiting",
+                            "inactive",
+                            "inaccurate"
+                        ]
+                    },
+                    "location": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "latitude": {
+                                "type": "number"
+                            },
+                            "longitude": {
+                                "type": "number"
+                            },
+                            "accuracy_m": {
+                                "type": "number"
+                            },
+                            "captured_at": {
+                                "type": "string",
+                                "maxLength": 40
+                            },
+                            "received_at": {
+                                "type": "string",
+                                "maxLength": 40
+                            },
+                            "age_seconds": {
+                                "type": "integer"
+                            },
+                            "sequence": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "background_tracking_allowed": {
+                        "const": false
+                    }
+                },
+                "required": [
+                    "booking_id",
+                    "booking_status",
+                    "sharing_allowed",
+                    "location_state",
+                    "location",
+                    "background_tracking_allowed"
                 ],
                 "additionalProperties": true
             },

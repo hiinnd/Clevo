@@ -35,6 +35,14 @@ function clevo_market_support_reply(mysqli $db,int $user,int $id,string $message
 }
 function clevo_api_customer(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
+    if($action==='device_register')clevo_api_result(clevo_notification_device($db,$ctx,$input));
+    if($action==='device_revoke'){
+        clevo_stmt($db,'UPDATE mobile_devices SET RevokedAt=UTC_TIMESTAMP(6),TokenCipher=NULL WHERE DeviceID=? AND UserID=?','si',[$input['device_id'],(int)$ctx['account']['UserID']]);clevo_api_result(['revoked'=>true]);
+    }
+    if($action==='preferences_get')clevo_api_result(['preferences'=>clevo_notification_preferences($db,(int)$ctx['account']['UserID'])]);
+    if($action==='preferences_set'){
+        clevo_stmt($db,'INSERT INTO notification_preferences (UserID,Language,PushEnabled,EmailEnabled) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE Language=VALUES(Language),PushEnabled=VALUES(PushEnabled),EmailEnabled=VALUES(EmailEnabled)','isii',[(int)$ctx['account']['UserID'],$input['language'],(int)$input['push_enabled'],(int)$input['email_enabled']]);clevo_api_result(['saved'=>true]);
+    }
     $a=$ctx['account'];$user=(int)$a['UserID'];$role=clevo_role($a['Role']);$id=(int)($args['id']??0);
     if($action==='profile')clevo_api_result(['user'=>clevo_api_profile($db,$user)]);
     if($action==='verification')clevo_api_verification($db,$user);
@@ -63,7 +71,7 @@ function clevo_api_customer(mysqli $db,string $action,array $ctx,array $args,arr
     }
     if($action==='notifications'){
         $after=clevo_api_integer('after_id',0,0);
-        $rows=clevo_api_list($db,'n.id,n.title,n.title_en,n.body,n.body_en,n.type,n.created_at,IF(n.user_id IS NULL,nr.ReadAt IS NOT NULL,n.is_read) is_read','FROM notifications n LEFT JOIN notification_reads nr ON nr.NotificationID=n.id AND nr.UserID='.(int)$user,'(n.user_id=? OR (n.user_id IS NULL AND LOWER(n.target_role)=?)) AND n.id>?','isi',[$user,$role,$after],['id'=>'n.id','created_at'=>'n.created_at'],'id','n.id');clevo_api_result(['notifications'=>$rows]);
+        $rows=clevo_api_list($db,'n.id,n.title,n.title_en,n.body,n.body_en,n.type,n.target_url,n.created_at,IF(n.user_id IS NULL,nr.ReadAt IS NOT NULL,n.is_read) is_read','FROM notifications n LEFT JOIN notification_reads nr ON nr.NotificationID=n.id AND nr.UserID='.(int)$user,'(n.user_id=? OR (n.user_id IS NULL AND LOWER(n.target_role)=?)) AND n.id>?','isi',[$user,$role,$after],['id'=>'n.id','created_at'=>'n.created_at'],'id','n.id');$rows=array_map(function($row)use($role){$row['route']=clevo_notification_link($row['target_url']??'',$role);unset($row['target_url']);return $row;},$rows);clevo_api_result(['notifications'=>$rows]);
     }
     if($action==='reviews')clevo_api_result(['reviews'=>clevo_api_list($db,'r.ReviewID,r.BookingID,r.Rating,r.Comment,r.Owner_Reply','FROM reviews r JOIN booking b ON b.BookingID=r.BookingID','b.UserID=?','i',[$user],['id'=>'r.ReviewID','rating'=>'r.Rating'],'id','r.ReviewID')]);
     if($action==='review'){

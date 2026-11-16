@@ -81,6 +81,6 @@ function clevo_payment_apply_refund(mysqli $db,array $order,array $event):array
         $b=clevo_booking_lock($db,(int)$order['BookingID']);
         if(in_array($b['Status'],['Pending','Accepted'],true)&&empty($b['DriverAcceptedAt']))clevo_booking_transition($db,null,(int)$order['BookingID'],'Cancelled','provider_refund_confirmed');
     }
-    clevoCreateNotification($db,(int)$order['UserID'],'تم تأكيد الاسترجاع','تم تأكيد نتيجة الاسترجاع التجريبية من مزود الدفع.','info','booking-history.php','Sandbox refund confirmed','The provider confirmed the sandbox refund.');
+    clevoCreateNotification($db,(int)$order['UserID'],'تم تأكيد الاسترجاع','تم تأكيد نتيجة الاسترجاع التجريبية من مزود الدفع.','info','booking-history.php?id='.(int)($order['BookingID']??0),'Sandbox refund confirmed','The provider confirmed the sandbox refund.');
     return ['state'=>'refunded','duplicate'=>false];
 }

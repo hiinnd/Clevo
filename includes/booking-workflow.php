@@ -227,7 +227,7 @@ function clevo_booking_status_notifications(mysqli $db,array $b,string $target,s
     $ar=['Accepted'=>'تم قبول الطلب','Rejected'=>'تم رفض الطلب','Cancelled'=>'تم إلغاء الحجز','Cancelled_Timeout'=>'انتهت مهلة الطلب','In Progress'=>'السائق في الطريق','Arrived'=>'وصل السائق','Pickup'=>'تم استلام السيارة','Washing'=>'جاري الغسيل','Returning'=>'جاري إرجاع السيارة','Completed'=>'اكتمل الطلب'];
     $title=$ar[$target]??'تحديث الطلب';$en='Order '.$target;
     clevoCreateNotification($db,(int)$b['UserID'],$title,"الطلب #$order: $title",'info',"order-details.php?id=$id",$en,"Order #$order: $target.");
-    if (in_array($role,['customer','system','admin'],true)) clevoCreateNotification($db,(int)$b['_station']['UserID'],$title,"الطلب #$order: $title",'info','incoming-orders.php',$en,"Order #$order: $target.");
-    if (!empty($b['DriverID']) && $role!=='driver') clevoCreateNotification($db,(int)$b['DriverID'],$title,"الطلب #$order: $title",'info','driver-dashboard.php',$en,"Order #$order: $target.");
+    if (in_array($role,['customer','system','admin'],true)) clevoCreateNotification($db,(int)$b['_station']['UserID'],$title,"الطلب #$order: $title",'info',"incoming-orders.php?id=$id",$en,"Order #$order: $target.");
+    if (!empty($b['DriverID']) && $role!=='driver') clevoCreateNotification($db,(int)$b['DriverID'],$title,"الطلب #$order: $title",'info',"driver-dashboard.php?id=$id",$en,"Order #$order: $target.");
     if ($role==='owner' && in_array($target,['Accepted','Rejected'],true)) clevoCreateRoleNotification($db,'Admin',$title,"الطلب #$id: $title",$target==='Rejected'?'warning':'info','financial-reports.php',$target==='Rejected'?'Order rejected by station owner':'Order accepted by station owner',$target==='Rejected'?"Station owner rejected order #$id.":"Order #$order accepted.");
 }

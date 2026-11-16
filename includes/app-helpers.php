@@ -326,12 +326,7 @@ function clevoCreateNotification(mysqli $conn, int $userID, string $title, strin
     $titleEn = trim((string) $titleEn) !== '' ? $titleEn : clevoNotificationFallbackEnglish($title, true);
     $bodyEn = trim((string) $bodyEn) !== '' ? $bodyEn : clevoNotificationFallbackEnglish($body, false);
 
-    $depths=&clevo_db_depths();
-    if (($depths[$conn]??0)>0) return clevo_queue_notification($conn,$userID,null,$title,$body,$type,$targetUrl,$titleEn,$bodyEn);
-    $stmt = $conn->prepare("INSERT INTO notifications (user_id, title, title_en, body, body_en, type, target_url) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    if (!$stmt) return false;
-    $stmt->bind_param("issssss", $userID, $title, $titleEn, $body, $bodyEn, $type, $targetUrl);
-    return $stmt->execute();
+    return clevo_db_atomic($conn,fn()=>clevo_queue_notification($conn,$userID,null,$title,$body,$type,$targetUrl,$titleEn,$bodyEn));
 }
 
 function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $title, string $body, string $type = 'info', ?string $targetUrl = null, ?string $titleEn = null, ?string $bodyEn = null): bool
@@ -350,12 +345,7 @@ function clevoCreateRoleNotification(mysqli $conn, string $targetRole, string $t
     $titleEn = trim((string) $titleEn) !== '' ? $titleEn : clevoNotificationFallbackEnglish($title, true);
     $bodyEn = trim((string) $bodyEn) !== '' ? $bodyEn : clevoNotificationFallbackEnglish($body, false);
 
-    $depths=&clevo_db_depths();
-    if (($depths[$conn]??0)>0) return clevo_queue_notification($conn,null,$targetRole,$title,$body,$type,$targetUrl,$titleEn,$bodyEn);
-    $stmt = $conn->prepare("INSERT INTO notifications (user_id, target_role, title, title_en, body, body_en, type, target_url) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)");
-    if (!$stmt) return false;
-    $stmt->bind_param("sssssss", $targetRole, $title, $titleEn, $body, $bodyEn, $type, $targetUrl);
-    return $stmt->execute();
+    return clevo_db_atomic($conn,fn()=>clevo_queue_notification($conn,null,$targetRole,$title,$body,$type,$targetUrl,$titleEn,$bodyEn));
 }
 
 function clevoSaveUploadedProfileImage(array $file, string $prefix, int $userID, int $maxSize = 5242880): ?string
