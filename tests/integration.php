@@ -36,7 +36,7 @@ if (!preg_match('/^clevo_rt_[a-f0-9]{12}$/D', $runtimeUser) || !preg_match('/^[a
 $setup->query("CREATE USER '$runtimeUser'@'127.0.0.1' IDENTIFIED BY '$runtimePassword'");
 foreach ($conn->query('SHOW TABLES')->fetch_all(MYSQLI_NUM) as [$table]) {
     if (in_array($table,['security_migration_steps','database_migration_steps'],true)) continue;
-    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':(in_array($table,['wallet_transactions','booking_status_history','financial_journals','financial_entries','financial_receipts','payment_evidence','financial_settlements'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
+    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':(in_array($table,['wallet_transactions','booking_status_history','financial_journals','financial_entries','financial_receipts','payment_evidence','financial_settlements','delivery_events','tracking_records'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
     $setup->query("GRANT $permissions ON `$database`.`$table` TO '$runtimeUser'@'127.0.0.1'");
 }
 $setup->query("GRANT DELETE ON `$database`.blacklist TO '$runtimeUser'@'127.0.0.1'");
@@ -252,7 +252,7 @@ check($row['DriverAccessCode'] === null && password_verify($code, $row['DriverAc
 [$status, $json] = http('POST', '/api/v1/auth/driver-exchanges', ['login' => 'driver5@example.test', 'code' => $code]); $driverCodePair = $json['data'] ?? [];
 check($status === 200, 'Driver code exchange works');
 clevo_stmt($conn, "INSERT INTO booking (UserID, StationID, ServiceID, DriverID, Service_Location, Status, Total_Price, Payment_Method) VALUES (?, ?, ?, ?, 'delivery', 'Accepted', 10, 'wallet')", 'iiii', [$customer, $station, $service, $driver]);
-$extraDriverJob = (int) $conn->insert_id;
+$extraDriverJob = (int) $conn->insert_id;clevo_stmt($conn,"UPDATE booking SET Booking_Date=CURDATE()+INTERVAL 10 DAY,Booking_Time='12:00:00' WHERE BookingID=?",'i',[$extraDriverJob]);
 [$status] = http('GET', '/api/v1/driver/tasks/' . $extraDriverJob, null, $driverCodePair['access_token']);
 check($status === 404, 'Task-code session cannot read a different job assigned to the same driver');
 [$status] = http('POST', '/api/v1/auth/driver-exchanges', ['login' => 'driver5@example.test', 'code' => $code]); check($status === 401, 'Driver code replay rejected');
@@ -359,10 +359,10 @@ $code = clevo_issue_driver_code($conn, $owner, $booking);
 clevo_stmt($conn, 'UPDATE booking SET DriverAccessCodeExpiresAt = UTC_TIMESTAMP() - INTERVAL 1 SECOND WHERE BookingID = ?', 'i', [$booking]);
 check(clevo_driver_code($conn, 'driver5@example.test', $code) === null, 'Expired driver access code denied');
 require_once __DIR__ . '/../includes/app-helpers.php';
-rejects(fn() => clevo_driver_transition($conn, $driver, $booking2, 'Pickup'), 'Driver domain transition denies other assignment', 'invalid_transition');
+rejects(fn() => clevo_driver_transition($conn, $driver, $booking2, 'Pickup'), 'Driver domain transition denies other assignment', 'not_found');
+clevo_delivery_adopt($conn,$owner,$booking);
 rejects(fn() => clevo_driver_transition($conn, $driver, $booking, 'Completed'), 'Driver cannot skip lifecycle to completion', 'invalid_transition');
-clevo_stmt($conn, "UPDATE booking SET Status='Returning' WHERE BookingID = ?", 'i', [$booking]);
-clevo_driver_transition($conn, $driver, $booking, 'Completed');
+test_delivery_finish($conn,$owner,$customer,$driver,$booking);
 rejects(fn() => clevo_driver_transition($conn, $driver, $booking, 'Completed'), 'Completed task cannot complete twice', 'invalid_transition');
 check((float) clevoGetLoyaltyPoints($conn, $customer) === 10.0, 'Completion awards loyalty once');
 rejects(fn() => clevo_driver_transition($conn, $driver, $booking, 'Pickup'), 'Terminal task cannot revive', 'invalid_transition');

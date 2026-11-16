@@ -12,12 +12,20 @@ if (!$driver_id || !$driver_booking_id || $driver_role !== 'driver') {
 
 clevoEnsureTrackingColumns($conn);
 
+if(($_GET['tracking']??'')==='1'&&$_SERVER['REQUEST_METHOD']==='GET')clevo_json_response('success',['tracking'=>clevo_delivery_tracking($conn,$driver_id,$driver_booking_id,$driver_booking_id)]);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    if($action==='delivery_stage'){
+        $result=clevo_delivery_advance($conn,$driver_id,$driver_booking_id,(string)($_POST['stage']??''));clevo_json_response('success',$result);
+    }
+    if($action==='confirm_handoff'){
+        $result=clevo_delivery_confirm($conn,$driver_id,$driver_booking_id,(string)($_POST['kind']??''),(string)($_POST['code']??''),(string)($_POST['idempotency_key']??''));clevo_json_response('success',$result);
+    }
     if ($action === 'update_location') {
         $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT); $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
         if ($lat === false || $lng === false || abs($lat) > 90 || abs($lng) > 180) throw new ClevoSecurityException('invalid_location', 422);
-        if (!clevo_record_driver_location($conn,$driver_id,$driver_booking_id,(float)$lat,(float)$lng)) throw new ClevoSecurityException('not_found',404);
+        if (!clevo_record_driver_location($conn,$driver_id,$driver_booking_id,(float)$lat,(float)$lng,['accuracy_m'=>isset($_POST['accuracy_m'])?(float)$_POST['accuracy_m']:null,'captured_at'=>$_POST['captured_at']??gmdate('Y-m-d\TH:i:s\Z'),'assignment_id'=>(int)($_POST['assignment_id']??0),'sequence'=>(int)($_POST['sequence']??0)])) throw new ClevoSecurityException('not_found',404);
         clevo_json_response('success');
     }
     if (in_array($action, ['update_status','update_booking_status'], true)) {
@@ -75,6 +83,8 @@ $task = $task_stmt->get_result()->fetch_assoc();
         </div>
 
         <?php if($task): ?>
+            <?php include __DIR__.'/../includes/delivery-controls.php'; ?>
+            <div hidden>
             <?php foreach (['Arrived' => ['وصلت للموقع', 'status_arrived'], 'Pickup' => ['تم استلام السيارة', 'status_pickup'], 'Washing' => ['بدء الغسيل', 'status_washing'], 'Returning' => ['جاري الإرجاع', 'status_returning']] as $status => [$label, $translationKey]): ?>
                 <button class="status-btn <?= $task['Status'] === $status ? 'active' : '' ?>" data-status="<?= $status ?>" onclick="updateStatus(this)">
                     <div class="icon-box shadow-sm"><i class="fas fa-location-dot text-primary"></i></div>
@@ -82,6 +92,7 @@ $task = $task_stmt->get_result()->fetch_assoc();
                 </button>
             <?php endforeach; ?>
             <button class="btn btn-success w-100 rounded-pill py-3 mt-4 shadow fw-bold" onclick="updateStatus({dataset:{status:'Completed'}})" data-i18n="finish_task">إنهاء وتسليم المهمة</button>
+            </div>
         <?php else: ?>
             <div class="text-center opacity-50 py-5" data-i18n="no_active_task">لا توجد مهمة نشطة</div>
         <?php endif; ?>
@@ -144,5 +155,6 @@ $task = $task_stmt->get_result()->fetch_assoc();
             });
         };
     </script>
+<script src="../assets/driver-tracking.js"></script>
 </body>
 </html>

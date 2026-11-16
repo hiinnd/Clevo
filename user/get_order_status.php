@@ -1,63 +1,8 @@
 <?php
-include_once(__DIR__ . "/../includes/config.php");
-include_once(__DIR__ . "/../includes/app-helpers.php");
-
-header('Content-Type: application/json; charset=utf-8');
-
-if (!isset($_SESSION['userID'])) {
-    clevo_json_response('error', [], 'unauthorized', 401);
-}
-
-clevoEnsureTrackingColumns($conn);
-
-$bookingID = (int) ($_GET['id'] ?? 0);
-$userID = (int) $_SESSION['userID'];
-if (clevo_current_role() === 'driver' && (int) ($_SESSION['driver_booking_id'] ?? 0) !== $bookingID) throw new ClevoSecurityException('not_found', 404);
-$role = strtolower($_SESSION['role'] ?? $_SESSION['Role'] ?? '');
-
-$stmt = $conn->prepare("SELECT b.Status, b.Latitude, b.Longitude, b.Driver_Lat, b.Driver_Lon,
-        b.Service_Location, s.Name AS StationName, s.Location AS StationLocation, s.Lat AS StationLat, s.Lon AS StationLon
-    FROM booking b
-    JOIN stations s ON b.StationID = s.StationID
-    WHERE b.BookingID = ?
-      AND (b.UserID = ? OR s.UserID = ? OR b.DriverID = ?)
-    LIMIT 1");
-$stmt->bind_param("iiii", $bookingID, $userID, $userID, $userID);
-$stmt->execute();
-$order = $stmt->get_result()->fetch_assoc();
-
-if (!$order) {
-    clevo_json_response('error', [], 'not_found', 404);
-}
-
-$customerLat = $order['Latitude'] ?? null;
-$customerLng = $order['Longitude'] ?? null;
-$stationLat = $order['StationLat'] ?? null;
-$stationLng = $order['StationLon'] ?? null;
-$fallbackLat = $customerLat ?? $stationLat ?? 31.985;
-$fallbackLng = $customerLng ?? $stationLng ?? 35.898;
-$lat = $order['Driver_Lat'] ?? $fallbackLat;
-$lng = $order['Driver_Lon'] ?? $fallbackLng;
-
-clevo_json_response('success', [
-    'lat' => (float) $lat,
-    'lng' => (float) $lng,
-    'driver' => [
-        'lat' => (float) $lat,
-        'lng' => (float) $lng,
-    ],
-    'customer' => [
-        'lat' => $customerLat !== null ? (float) $customerLat : null,
-        'lng' => $customerLng !== null ? (float) $customerLng : null,
-    ],
-    'station' => [
-        'name' => (string) ($order['StationName'] ?? ''),
-        'location' => (string) ($order['StationLocation'] ?? ''),
-        'lat' => $stationLat !== null ? (float) $stationLat : null,
-        'lng' => $stationLng !== null ? (float) $stationLng : null,
-    ],
-    'serviceLocation' => $order['Service_Location'],
-    'orderStatus' => $order['Status'],
-    'hasArrived' => in_array($order['Status'], ['Arrived', 'Pickup', 'Washing', 'Returning', 'Completed'], true),
-], 'ok');
-?>
+require_once __DIR__.'/../includes/config.php';
+$user=clevo_current_user_id();if(!$user)throw new ClevoSecurityException('unauthorized',401);
+$id=(int)($_GET['id']??0);$tracking=clevo_delivery_tracking($conn,$user,$id,(int)($_SESSION['driver_booking_id']??0));
+$row=clevo_stmt($conn,'SELECT b.Latitude,b.Longitude,b.Status,b.Service_Location,s.Name,s.Location,s.Lat,s.Lon FROM booking b JOIN stations s ON s.StationID=b.StationID WHERE b.BookingID=?','i',[$id])->get_result()->fetch_assoc();
+$visible=clevo_current_role()!=='driver'||in_array($row['Status'],clevo_booking_active_states(),true);
+$location=$tracking['location'];
+clevo_json_response('success',['lat'=>$location['latitude']??null,'lng'=>$location['longitude']??null,'driver'=>$location?['lat'=>$location['latitude'],'lng'=>$location['longitude']]:null,'tracking'=>$tracking,'customer'=>['lat'=>$visible&&$row['Latitude']!==null?(float)$row['Latitude']:null,'lng'=>$visible&&$row['Longitude']!==null?(float)$row['Longitude']:null],'station'=>['name'=>$row['Name'],'location'=>$row['Location'],'lat'=>$row['Lat']!==null?(float)$row['Lat']:null,'lng'=>$row['Lon']!==null?(float)$row['Lon']:null],'serviceLocation'=>$row['Service_Location'],'orderStatus'=>$row['Status'],'hasArrived'=>in_array($tracking['delivery_stage'],['arrived_pickup','vehicle_collected','arrived_station','service_completed','returning_vehicle','delivered'],true)],'ok');

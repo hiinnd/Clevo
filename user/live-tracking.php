@@ -7,6 +7,10 @@ clevoEnsureTrackingColumns($conn);
 
 $bookingID = (int) ($_GET['id'] ?? 0);
 $viewerID = clevo_current_user_id();
+$deliveryView=clevo_delivery_tracking($conn,$viewerID,$bookingID,(int)($_SESSION['driver_booking_id']??0));
+if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='issue_confirmation'){
+    clevo_json_response('success',clevo_delivery_issue_confirmation($conn,$viewerID,$bookingID,(string)($_POST['kind']??''),(string)($_POST['idempotency_key']??'')));
+}
 if (clevo_current_role() === 'driver' && (int) ($_SESSION['driver_booking_id'] ?? 0) !== $bookingID) throw new ClevoSecurityException('not_found', 404);
 if ($viewerID <= 0) {
     header("Location: ../general/login.php");
@@ -121,9 +125,12 @@ if (
     </div>
 
     <div id="map"></div>
+    <?php if(clevo_current_role()==='customer'&&in_array($deliveryView['delivery_stage'],['arrived_pickup','returning_vehicle'],true)): ?>
+    <button type="button" class="btn btn-primary rounded-pill mx-3" id="handoffCodeButton">رمز تأكيد الاستلام / التسليم — Handoff code</button><output id="handoffCode" class="text-center" aria-live="polite"></output>
+    <?php endif; ?>
 
     <div class="tracking-panel text-center">
-        <?php if (!empty($order['DriverID']) && (!empty($order['driver_name']) || !empty($order['driver_phone']))): ?>
+        <?php if (in_array($order['Status'],clevo_booking_active_states(),true) && !empty($order['DriverID']) && (!empty($order['driver_name']) || !empty($order['driver_phone']))): ?>
             <div class="driver-contact-card">
                 <div class="driver-contact-meta">
                     <div class="driver-contact-label" data-i18n="driver_contact">التواصل مع الدرايفر</div>
@@ -213,14 +220,14 @@ if (
             bounds.push([stationPoint.lat, stationPoint.lng]);
         }
 
-        const driverMarker = L.marker([fallbackPoint.lat, fallbackPoint.lng], { icon: driverIcon }).addTo(map);
+        let driverMarker = null;
         let routeLine = L.polyline([], { color: '#2563eb', weight: 6, opacity: 0.86, lineCap: 'round', lineJoin: 'round' }).addTo(map);
         let lastRouteKey = '';
         let lastRoutePoints = [];
         if (bounds.length > 1) map.fitBounds(bounds, { padding: [42, 42] });
 
         function isPoint(point) {
-            return point && Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng));
+            return point && typeof point.lat === 'number' && typeof point.lng === 'number' && Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat)<=90 && Math.abs(point.lng)<=180;
         }
 
         function targetForStatus(status) {
@@ -256,57 +263,54 @@ if (
         }
 
         async function buildRoadRoute(driverPoint, target) {
-            const key = routeKey(driverPoint, target);
-            if (key === lastRouteKey && lastRoutePoints.length) return lastRoutePoints;
-            const url = `https://router.project-osrm.org/route/v1/driving/${driverPoint.lng},${driverPoint.lat};${target.lng},${target.lat}?overview=full&geometries=geojson`;
-            try {
-                const res = await fetch(url, { cache: 'no-store' });
-                const json = await res.json();
-                const coords = json.routes?.[0]?.geometry?.coordinates || [];
-                lastRoutePoints = coords.map(([lng, lat]) => ({ lat, lng }));
-            } catch (error) {
-                lastRoutePoints = [];
-            }
-            if (!lastRoutePoints.length) lastRoutePoints = [driverPoint, target];
-            lastRouteKey = key;
-            return lastRoutePoints;
+            // An indicative straight line only. No private coordinates sent to a public routing demo.
+            return [driverPoint,target];
         }
 
-        async function updateRoute(driverPoint, status) {
-            const target = targetForStatus(status);
-            document.getElementById('status-alert').innerText = statusText(status);
-            if (!isPoint(driverPoint) || !isPoint(target)) {
-                routeLine.setLatLngs([]);
-                driverMarker.setLatLng([driverPoint.lat, driverPoint.lng]);
-                return;
-            }
-            const roadPoints = await buildRoadRoute(driverPoint, target);
-            const snappedDriver = nearestRoutePoint(driverPoint, roadPoints);
-            driverMarker.setLatLng([snappedDriver.lat, snappedDriver.lng]);
-            routeLine.setLatLngs(roadPoints.map(point => [point.lat, point.lng]));
-            map.fitBounds(routeLine.getBounds(), { padding: [52, 52], maxZoom: 16 });
+        function updateRoute(driverPoint,status){
+            if(!isPoint(driverPoint)){clearDriver();return;}
+            if(!driverMarker)driverMarker=L.marker([driverPoint.lat,driverPoint.lng],{icon:driverIcon}).addTo(map);
+            driverMarker.setLatLng([driverPoint.lat,driverPoint.lng]);
+            document.getElementById('status-alert').innerText=statusText(status);
+            routeLine.setLatLngs([]); // Actual GPS only; no simulated route or ETA.
         }
 
+        let trackingTimer=null, trackingBusy=false;
+        const clearDriver=()=>{if(driverMarker){map.removeLayer(driverMarker);driverMarker=null;}routeLine.setLatLngs([]);};
         function updateTracking() {
+            if(document.hidden||trackingBusy)return;
+            trackingBusy=true;
             fetch(`get_order_status.php?id=${bookingID}`, { cache: 'no-store' })
-                .then(res => res.json())
+                .then(res => {if(!res.ok)throw Error('unavailable');return res.json();})
                 .then(data => {
-                    if (data.status !== 'success') return;
-                    const payload = data.data || {};
-                    if (payload.orderStatus === 'Completed') {
-                        window.location.href = 'home.php';
-                        return;
-                    }
-                    const driverPoint = { lat: Number(payload.driver.lat), lng: Number(payload.driver.lng) };
+                    if (data.status !== 'success')throw Error('unavailable');
+                    const payload=data.data, tracking=payload.tracking;
                     updateUI(payload.orderStatus);
-                    updateRoute(driverPoint, payload.orderStatus);
-                    if (payload.hasArrived && !sessionStorage.getItem(`notified_arrival_${bookingID}`)) {
-                        showArrivalNotification();
-                        sessionStorage.setItem(`notified_arrival_${bookingID}`, 'true');
+                    if(tracking.location && tracking.location_state==='fresh'){
+                        const point={lat:tracking.location.latitude,lng:tracking.location.longitude};
+                        updateRoute(point,payload.orderStatus);
+                    }else{
+                        clearDriver();document.getElementById('status-alert').innerText=lang==='ar'?'موقع السائق غير متاح أو قديم':'Driver location unavailable or stale';
                     }
-                })
-                .catch(() => {});
+                    if(!tracking.sharing_allowed)clearDriver();
+                    if(['Completed','Cancelled','Cancelled_Timeout','Rejected'].includes(payload.orderStatus)){clearInterval(trackingTimer);clearDriver();document.getElementById('handoffCode')?.replaceChildren();}
+                    if (payload.hasArrived && !sessionStorage.getItem(`notified_arrival_${bookingID}`)) {showArrivalNotification();sessionStorage.setItem(`notified_arrival_${bookingID}`,'true');}
+                }).catch(()=>{clearDriver();document.getElementById('status-alert').innerText=lang==='ar'?'انقطع الاتصال بالتتبع':'Tracking connection lost';})
+                .finally(()=>{trackingBusy=false;});
         }
+        const handoffButton=document.getElementById('handoffCodeButton');
+        handoffButton?.addEventListener('click',async()=>{
+            handoffButton.disabled=true;
+            const key=crypto.getRandomValues(new Uint32Array(6)).join('');
+            try{
+                const response=await fetch(location.href,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'issue_confirmation',csrf_token:<?= clevo_js(generate_csrf_token()) ?>,idempotency_key:key,kind:<?= clevo_js($deliveryView['delivery_stage']==='arrived_pickup'?'pickup':'delivery') ?>})});
+                const result=await response.json();if(!response.ok||result.status!=='success')throw Error();
+                document.getElementById('handoffCode').textContent=result.data.confirmation_code;
+                setTimeout(()=>document.getElementById('handoffCode')?.replaceChildren(),600000);
+            }catch{document.getElementById('handoffCode').textContent=lang==='ar'?'تعذر إصدار الرمز':'Code unavailable';handoffButton.disabled=false;}
+        });
+        window.addEventListener('pagehide',()=>{clearInterval(trackingTimer);clearDriver();document.getElementById('handoffCode')?.replaceChildren();});
+        document.addEventListener('visibilitychange',()=>{if(document.hidden){clearDriver();document.getElementById('handoffCode')?.replaceChildren();}else updateTracking();});
 
         function showArrivalNotification() {
             const toast = document.getElementById('arrivalToast');
@@ -342,7 +346,7 @@ if (
         });
         document.title = `${t('tracking_title')} | Clevo`;
         updateTracking();
-        setInterval(updateTracking, 10000);
+        trackingTimer=setInterval(updateTracking, 10000);
     </script>
 </body>
 </html>

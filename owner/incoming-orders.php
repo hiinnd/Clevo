@@ -28,6 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         exit;
     }
 
+    if(in_array($action,['service_completed','logistics_adopt'],true)){
+        $id=(int)($_POST['order_id']??0);
+        $result=$action==='service_completed'?clevo_delivery_advance($conn,$owner_id,$id,'service_completed'):clevo_delivery_adopt($conn,$owner_id,$id);clevo_json_response('success',$result);
+    }
     if ($action==='accept_order') {
         clevo_accept_owner_booking($conn,$owner_id,(int)($_POST['order_id']??0));
         clevo_json_response('success',[],'accepted');
@@ -207,7 +211,7 @@ $csrf_token = generate_csrf_token();
                                     <p class="mb-0 small text-primary fw-bold mt-1"><span data-i18n="amount_label">المبلغ:</span> <?= e(number_format((float) $order['Total_Price'], 2)) ?> JOD</p>
                                 </div>
                                 <div class="col-md-4 mt-3 mt-md-0">
-                                    <?php if($order['Status'] == 'Pending'): ?>
+                                    <?php if($order['Service_Location']==='delivery'&&!empty($order['DriverID'])&&(int)$order['DeliveryWorkflowVersion']!==1): ?><button class="btn btn-primary" onclick="deliveryOwnerAction(<?= (int)$order['BookingID'] ?>,'logistics_adopt')">اعتماد المهمة / Adopt job</button><?php elseif($order['DeliveryStage']==='arrived_station'): ?><button class="btn btn-success" onclick="deliveryOwnerAction(<?= (int)$order['BookingID'] ?>,'service_completed')">تأكيد إكمال الخدمة / Confirm service completed</button><?php elseif($order['Status'] == 'Pending'): ?>
                                     <div class="d-flex gap-2">
                                         <?php if($order['Service_Location'] == 'delivery'): ?>
                                             <button class="btn btn-success btn-action shadow-sm" onclick="openAssignModal(<?= (int) $order['BookingID'] ?>, <?= e(json_encode((string) $order['Order_Number'])) ?>, this)" data-i18n="btn_assign_driver">قبول وتعيين</button>
@@ -371,6 +375,7 @@ $csrf_token = generate_csrf_token();
             });
         }
 
+        function deliveryOwnerAction(id,action){postAction(new URLSearchParams({action,order_id:id})).then(data=>{if(data.status==='success')location.reload();});}
         function reissueDriverCode(orderId) { postAction(new URLSearchParams({action:'reissue_driver_code',order_id:orderId})).then(data => { if(data.status === 'success') showStatus('success', 'Driver code (15 minutes, one use)', data.data.driver_code); }); }
         function finalAssign(orderId, orderNum, driverId) {
             const params = new URLSearchParams();

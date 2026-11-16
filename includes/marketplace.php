@@ -104,14 +104,15 @@ function clevo_market_assign(mysqli $db,int $owner,int $booking,int $driver):voi
         if($b['Status']==='Pending'&&strtotime($b['created_at'].' UTC')<time()-600)throw new ClevoSecurityException('booking_expired',409);
         $d=clevo_stmt($db,"SELECT UserID FROM user WHERE UserID=? AND StationID=? AND LOWER(Role)='driver' AND AccountStatus='active' FOR UPDATE",'ii',[$driver,(int)$b['StationID']])->get_result()->fetch_assoc();
         if(!$d)throw new ClevoSecurityException('driver_not_available',409);
-        if((int)$b['DriverID']===$driver&&$b['Status']==='Accepted')return;
+        if((int)$b['DriverID']===$driver&&$b['Status']==='Accepted'&&(int)$b['DeliveryWorkflowVersion']===1)return;
         [$from,$to]=clevo_booking_interval($b,$s);
         clevo_booking_assert_capacity($db,$s,$b['Service_Location'],new DateTimeImmutable('@'.$from),new DateTimeImmutable('@'.$to),$booking,$driver);
         if($b['Status']==='Pending')clevo_booking_transition($db,$owner,$booking,'Accepted','driver_assignment_accepted');
         clevo_stmt($db,'UPDATE driver_assignments SET EndedAt=UTC_TIMESTAMP(6) WHERE BookingID=? AND EndedAt IS NULL','i',[$booking]);
         clevo_stmt($db,'UPDATE auth_sessions SET RevokedAt=UTC_TIMESTAMP() WHERE DriverBookingID=?','i',[$booking]);
-        clevo_stmt($db,"UPDATE booking SET DriverID=?,DriverAccessCode=NULL,DriverAccessCodeHash=NULL,DriverAccessCodeExpiresAt=NULL,DriverAccessCodeUsedAt=NULL WHERE BookingID=?",'ii',[$driver,$booking]);
+        clevo_stmt($db,"UPDATE booking SET DriverID=?,DeliveryWorkflowVersion=1,DeliveryStage='assigned',Driver_Lat=NULL,Driver_Lon=NULL,DriverAccessCode=NULL,DriverAccessCodeHash=NULL,DriverAccessCodeExpiresAt=NULL,DriverAccessCodeUsedAt=NULL WHERE BookingID=?",'ii',[$driver,$booking]);
         clevo_stmt($db,'INSERT INTO driver_assignments (BookingID,DriverID,StationID,AssignedBy) VALUES (?,?,?,?)','iiii',[$booking,$driver,(int)$b['StationID'],$owner]);
+        clevo_delivery_event($db,$b,['AssignmentID'=>$db->insert_id],null,'assigned',$owner,'owner','owner_assigned');
         clevoCreateNotification($db,$driver,'مهمة جديدة','تم تعيين مهمة توصيل جديدة.','info','driver-dashboard.php','New job','A new delivery job has been assigned.');
         clevoCreateNotification($db,(int)$b['UserID'],'تم قبول الطلب','تم قبول الطلب وتعيين السائق.','success',"order-details.php?id=$booking",'Order accepted','Your order was accepted and assigned.');
         clevo_db_audit($db,$owner,'driver.assigned','booking',$booking);

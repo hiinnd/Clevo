@@ -129,7 +129,7 @@ clevo_market_availability($db,$owner,$station,['capacity'=>2]);$deliveryB=clevo_
 clevo_market_assign($db,$owner,$job,$driver);rejects(fn()=>clevo_market_assign($db,$owner,$job2,$driver),'Driver cannot be assigned overlapping pickup/return jobs','driver_schedule_conflict');clevo_market_assign($db,$owner,$job2,$otherDriver);
 rejects(fn()=>clevo_driver_transition($db,$driver,$job,'Completed'),'Driver cannot skip pickup/wash/return stages','invalid_transition');
 clevo_stmt($db,'INSERT INTO wallet (UserID,Balance) VALUES (?,100),(?,0)','ii',[$customer,$owner]);clevo_pay_booking($db,$customer,$job,'wallet',false,bw_key());
-foreach(['In Progress','Arrived','Pickup','Washing','Returning','Completed'] as $target)clevo_driver_transition($db,$driver,$job,$target);
+test_delivery_finish($db,$owner,$customer,$driver,$job);
 rejects(fn()=>clevo_driver_transition($db,$driver,$job,'Pickup'),'Completed job cannot be restarted','invalid_transition');
 rejects(fn()=>clevoRefundBookingPayment($db,$job),'Completed service requires reviewed manual refund handling','manual_refund_required');
 $events=bw_expect(200,bw_http('GET',"/api/v1/bookings/$job/events",null,$tokens['customer']),'Customer can read the real status-event history');
@@ -250,7 +250,7 @@ $driverService=clevo_market_service($db,$owner,$driverStation,0,['name_ar'=>'Ø§Ø
 $soon=(new DateTimeImmutable('now',new DateTimeZone('Asia/Amman')))->modify('+10 minutes');$soonBody=['service_ids'=>[$driverService],'service_location'=>'delivery','latitude'=>31.95,'longitude'=>35.91,'booking_date'=>$soon->format('Y-m-d'),'booking_time'=>$soon->format('H:i:s')];
 $monotone=clevo_create_booking($db,$customer,$driverStation,$soonBody,bw_key());$monotoneID=(int)$monotone['booking_id'];clevo_market_assign($db,$owner,$monotoneID,$isolatedDriver);clevo_pay_booking($db,$customer,$monotoneID,'wallet',false,bw_key());clevo_driver_transition($db,$isolatedDriver,$monotoneID,'In Progress');clevo_driver_transition($db,$isolatedDriver,$monotoneID,'Arrived');
 rejects(fn()=>clevo_driver_transition($db,$isolatedDriver,$monotoneID,'In Progress'),'Arrived driver cannot move backwards to on-the-way','invalid_transition');
-foreach(['Pickup','Washing','Returning','Completed'] as $status)clevo_driver_transition($db,$isolatedDriver,$monotoneID,$status);
+test_delivery_finish($db,$owner,$customer,$isolatedDriver,$monotoneID);
 clevo_accept_owner_booking($db,$owner,(int)$home['booking_id']);clevo_pay_booking($db,$other,(int)$home['booking_id'],'wallet',false,bw_key());clevo_complete_owner_booking($db,$owner,(int)$home['booking_id']);
 check(clevo_stmt($db,'SELECT Status FROM booking WHERE BookingID=?','i',[(int)$home['booking_id']])->get_result()->fetch_assoc()['Status']==='Completed','At-home crew service completes through the same funded owner workflow');
 

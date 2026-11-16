@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/security/uploads.php';
 require_once __DIR__ . '/../includes/security/driver.php';
 require_once __DIR__ . '/../includes/security/schema.php';
 require_once __DIR__ . '/../includes/commerce.php';
+require_once __DIR__.'/logistics-fixture.php';
 date_default_timezone_set('UTC');
 ini_set('zend.exception_ignore_args', '1');
 clevo_load_environment();

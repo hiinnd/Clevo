@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/booking-helpers.php';
 require_once __DIR__.'/booking-workflow.php';
 require_once __DIR__.'/finance.php';
+require_once __DIR__.'/logistics.php';
 
 function clevo_create_booking(mysqli $conn,int $user,int $station,array $input,string $key): array
 {
@@ -214,16 +215,10 @@ function clevo_payment_window(array $booking):void
     if(in_array($booking['Service_Location'],['home','delivery'],true)&&strtotime(($booking['Accepted_At']??$booking['created_at']).' UTC')<time()-600)throw new ClevoSecurityException('payment_expired',409);
 }
 
-function clevo_record_driver_location(mysqli $conn,int $driver,int $booking,float $lat,float $lon): bool
+function clevo_record_driver_location(mysqli $conn,int $driver,int $booking,float $lat,float $lon,array $metadata=[]): bool
 {
-    if (!is_finite($lat)||!is_finite($lon)||abs($lat)>90||abs($lon)>180) throw new ClevoSecurityException('invalid_coordinates',422);
-    return clevo_db_atomic($conn,function()use($conn,$driver,$booking,$lat,$lon):bool {
-        $b=clevo_stmt($conn,"SELECT b.BookingID FROM booking b JOIN user d ON d.UserID=b.DriverID AND d.StationID=b.StationID WHERE b.BookingID=? AND b.DriverID=? AND b.Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning') FOR UPDATE",'ii',[$booking,$driver])->get_result()->fetch_assoc();
-        if (!$b) return false;
-        clevo_stmt($conn,'UPDATE booking SET Driver_Lat=?,Driver_Lon=? WHERE BookingID=?','ddi',[$lat,$lon,$booking]);
-        clevo_stmt($conn,'INSERT INTO tracking_records (BookingID,DriverID,Latitude,Longitude) VALUES (?,?,?,?)','iidd',[$booking,$driver,$lat,$lon]);
-        return true;
-    });
+    try{clevo_delivery_location($conn,$driver,$booking,['latitude'=>$lat,'longitude'=>$lon]+$metadata,true);return true;}
+    catch(ClevoSecurityException $e){if($e->httpStatus===404)return false;throw $e;}
 }
 
 function clevo_archive_catalog(mysqli $conn,int $actor,string $kind,int $id): void

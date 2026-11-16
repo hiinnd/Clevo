@@ -218,9 +218,11 @@ $contact=api_expect(200,api_call('GET',"bookings/$delivery",null,$c),'Customer m
 foreach(['driver/jobs','driver/tasks',"driver/jobs/$delivery"]as $path)api_expect(200,api_call('GET',$path,null,$d),'Driver assigned read '.$path);
 $acceptKey=api_key();api_expect(200,api_call('POST',"driver/jobs/$delivery/accept",[],$d,$acceptKey),'Driver accepts paid assigned job');api_expect(200,api_call('POST',"driver/jobs/$delivery/accept",[],$d,$acceptKey),'Driver acceptance retry');
 api_expect(404,api_call('POST',"driver/jobs/$delivery/location",['latitude'=>31.9,'longitude'=>35.9],$tokens['driver2'],api_key()),'Other driver GPS write denied');
+api_expect(200,api_call('PATCH',"driver/jobs/$delivery/delivery-stage",['stage'=>'heading_pickup'],$d,api_key()),'Driver starts authorized travel');
 api_expect(200,api_call('POST',"driver/jobs/$delivery/location",['latitude'=>31.9,'longitude'=>35.9],$d,api_key()),'Assigned GPS update');
 api_expect(409,api_call('PATCH',"driver/jobs/$delivery/status",['status'=>'Completed'],$d,api_key()),'Driver cannot skip lifecycle');
-foreach(['Pickup','Washing','Returning','Completed']as $state)api_expect(200,api_call('PATCH',"driver/jobs/$delivery/status",['status'=>$state],$d,api_key()),'Driver lifecycle '.$state);
+test_delivery_finish($conn,$owner,$customer,$driver,$delivery);
+api_expect(200,api_call('GET',"bookings/$delivery/tracking",null,$c),'Completed tracking has no active location');
 api_expect(401,api_call('GET',"driver/jobs/$delivery",null,$taskToken),'Completion revokes task-code session');
 $history=api_expect(200,api_call('GET','driver/jobs/history',null,$d),'Driver job history');check(count($history['tasks']??[])>=1&&!isset($history['tasks'][0]['Address_Details']),'History omits historical customer address');
 api_expect(200,api_call('GET','driver/tasks/history',null,$d),'Legacy task alias history');

@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 function clevo_api_owner(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
+    if(in_array($action,['service_completed','logistics_adopt'],true)){
+        $user=(int)$ctx['account']['UserID'];$id=(int)$args['id'];
+        clevo_api_result(clevo_api_mutate($db,$ctx,'owner.'.$action,['booking'=>$id],fn()=>$action==='service_completed'?clevo_delivery_advance($db,$user,$id,'service_completed'):clevo_delivery_adopt($db,$user,$id)));
+    }
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);
     if($action==='stations')clevo_api_result(['stations'=>clevo_api_list($db,'StationID,Name,Location,Lat,Lon,Status,admin_status,OpeningTime,ClosingTime,Has_At_Station,Has_Home_Service,Has_Delivery,BookingCapacity,HomeCapacity,DefaultServiceMinutes,DeliveryBufferMinutes,StationFee,HomeFee,DeliveryFee','FROM stations','UserID=? AND ArchivedAt IS NULL','i',[$user],['id'=>'StationID','name'=>'Name'],'id','StationID')]);
     if($action==='bookings')clevo_api_result(['bookings'=>clevo_api_booking_list($db,$ctx,'all')]);

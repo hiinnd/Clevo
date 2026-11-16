@@ -32,6 +32,15 @@ Generated from the runtime route registry and preserved authentication controlle
 | GET | `/bookings/{id}` | modified | any | none | not required | `bookings.detail` |
 | GET | `/bookings/{id}/status` | added | any | none | not required | `bookings.status` |
 | GET | `/bookings/{id}/events` | added | customer,owner,admin | none | not required | `bookings.events` |
+| GET | `/bookings/{id}/tracking` | added | customer,owner | none | not required | `bookings.tracking` |
+| GET | `/bookings/{id}/delivery-events` | added | customer,owner | none | not required | `bookings.delivery_events` |
+| POST | `/bookings/{id}/confirmation-code` | added | customer | HandoffKind | required | `bookings.confirmation` |
+| GET | `/driver/jobs/{id}/tracking` | added | driver | none | not required | `driver.tracking` |
+| POST | `/driver/jobs/{id}/locations` | added | driver | LocationSample | not required | `driver.locations` |
+| PATCH | `/driver/jobs/{id}/delivery-stage` | added | driver | DeliveryStage | required | `driver.stage` |
+| POST | `/driver/jobs/{id}/confirm-handoff` | added | driver | HandoffConfirmation | required | `driver.confirmation` |
+| POST | `/owner/bookings/{id}/service-completed` | added | owner | Empty | required | `owner.service_completed` |
+| POST | `/owner/bookings/{id}/logistics-adoption` | added | owner | Empty | required | `owner.logistics_adopt` |
 | GET | `/bookings/{id}/price-breakdown` | added | customer,owner,admin | none | not required | `bookings.price` |
 | POST | `/bookings/{id}/cancel` | added | customer | Empty | required | `bookings.cancel` |
 | POST | `/bookings/{id}/reschedule` | added | customer | Reschedule | required | `bookings.reschedule` |

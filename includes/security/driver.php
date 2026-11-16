@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function clevo_driver_transition(mysqli $conn, int $driver, int $job, string $target): void
 {
-    clevo_booking_transition($conn,$driver,$job,$target,'driver_progress');
+    clevo_db_atomic($conn,fn()=>clevo_delivery_legacy_transition($conn,$driver,$job,$target));
 }
 
 function clevo_issue_driver_code(mysqli $conn, int $owner, int $job): string

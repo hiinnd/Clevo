@@ -60,12 +60,20 @@ function driverPaymentLabel(?string $method): string
     ][$method ?? ''] ?? ($method ?: '-');
 }
 
+if(($_GET['tracking']??'')==='1'&&$_SERVER['REQUEST_METHOD']==='GET')clevo_json_response('success',['tracking'=>clevo_delivery_tracking($conn,$driver_id,$driver_booking_id,$driver_booking_id)]);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    if($action==='delivery_stage'){
+        $result=clevo_delivery_advance($conn,$driver_id,$driver_booking_id,(string)($_POST['stage']??''));clevo_json_response('success',$result);
+    }
+    if($action==='confirm_handoff'){
+        $result=clevo_delivery_confirm($conn,$driver_id,$driver_booking_id,(string)($_POST['kind']??''),(string)($_POST['code']??''),(string)($_POST['idempotency_key']??''));clevo_json_response('success',$result);
+    }
     if ($action === 'update_location') {
         $lat = filter_var($_POST['lat'] ?? null, FILTER_VALIDATE_FLOAT); $lng = filter_var($_POST['lng'] ?? null, FILTER_VALIDATE_FLOAT);
         if ($lat === false || $lng === false || abs($lat) > 90 || abs($lng) > 180) throw new ClevoSecurityException('invalid_location', 422);
-        if (!clevo_record_driver_location($conn,$driver_id,$driver_booking_id,(float)$lat,(float)$lng)) throw new ClevoSecurityException('not_found',404);
+        if (!clevo_record_driver_location($conn,$driver_id,$driver_booking_id,(float)$lat,(float)$lng,['accuracy_m'=>isset($_POST['accuracy_m'])?(float)$_POST['accuracy_m']:null,'captured_at'=>$_POST['captured_at']??gmdate('Y-m-d\TH:i:s\Z'),'assignment_id'=>(int)($_POST['assignment_id']??0),'sequence'=>(int)($_POST['sequence']??0)])) throw new ClevoSecurityException('not_found',404);
         clevo_json_response('success');
     }
     if (in_array($action, ['update_status','update_booking_status'], true)) {
@@ -86,6 +94,7 @@ $task_stmt = $conn->prepare("SELECT b.*, u.UserName AS CustomerName, u.CarName, 
 $task_stmt->bind_param("ii", $driver_booking_id, $driver_id);
 $task_stmt->execute();
 $task = $task_stmt->get_result()->fetch_assoc();
+$deliveryTracking=$task?clevo_delivery_tracking($conn,$driver_id,$driver_booking_id,$driver_booking_id):null;
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -155,19 +164,20 @@ $task = $task_stmt->get_result()->fetch_assoc();
                 </div>
 
                 <?php $nextStates=clevo_booking_driver_targets((string)$task['Status']); if (in_array('Arrived',$nextStates,true)): ?>
-                    <button type="button" class="btn btn-arrived" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Arrived')">
+                    <button type="button" hidden class="btn btn-arrived" onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Arrived')">
                         <i class="fas fa-map-pin ms-2"></i><span data-i18n="btn_arrived">وصلت لموقع الزبون</span>
                     </button>
                 <?php endif; ?>
 
-                <div class="row g-2 mb-3 status-grid">
+                <?php include __DIR__.'/../includes/delivery-controls.php'; ?>
+                <div class="row g-2 mb-3 status-grid" hidden>
                     <div class="col-6"><button type="button" class="btn btn-outline-primary w-100 rounded-pill fw-bold" <?= in_array('In Progress',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'In Progress')" data-i18n="status_on_way">في الطريق</button></div>
                     <div class="col-6"><button type="button" class="btn btn-outline-warning w-100 rounded-pill fw-bold" <?= in_array('Pickup',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Pickup')" data-i18n="status_pickup">استلام السيارة</button></div>
                     <div class="col-6"><button type="button" class="btn btn-outline-info w-100 rounded-pill fw-bold" <?= in_array('Washing',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Washing')" data-i18n="status_washing">بدء الغسيل</button></div>
                     <div class="col-6"><button type="button" class="btn btn-outline-success w-100 rounded-pill fw-bold" <?= in_array('Returning',$nextStates,true)?'':'disabled' ?> onclick="updateTaskStatus('<?= (int) $task['BookingID'] ?>', 'Returning')" data-i18n="status_returning">إرجاع السيارة</button></div>
                 </div>
 
-                <button type="button" class="btn btn-finish" <?= in_array('Completed',$nextStates,true)?'':'disabled' ?> onclick="confirmFinishTask('<?= (int) $task['BookingID'] ?>')"><i class="fas fa-check-circle ms-2"></i><span data-i18n="btn_finish_task">إنهاء المهمة</span></button>
+                <button type="button" hidden class="btn btn-finish" <?= in_array('Completed',$nextStates,true)?'':'disabled' ?> onclick="confirmFinishTask('<?= (int) $task['BookingID'] ?>')"><i class="fas fa-check-circle ms-2"></i><span data-i18n="btn_finish_task">إنهاء المهمة</span></button>
             </div>
         <?php else: ?>
             <div class="task-card text-center py-5">
@@ -283,21 +293,7 @@ $task = $task_stmt->get_result()->fetch_assoc();
                 });
         }
 
-        function sendDriverLocation() {
-            if (!navigator.geolocation) return;
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const params = new URLSearchParams();
-                params.append('action', 'update_location');
-                params.append('csrf_token', csrfToken);
-                params.append('lat', pos.coords.latitude);
-                params.append('lng', pos.coords.longitude);
-                fetch(window.location.href, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params.toString()
-                }).catch(() => {});
-            }, () => {}, { enableHighAccuracy: true, maximumAge: 8000, timeout: 10000 });
-        }
+        function sendDriverLocation() {} // Authorized collector is driver-tracking.js.
 
         function showDriverStatus(type, title, body) {
             document.getElementById('driverStatusIcon').innerHTML = type === 'success'
@@ -367,5 +363,6 @@ $task = $task_stmt->get_result()->fetch_assoc();
             setInterval(sendDriverLocation, 10000);
         };
     </script>
+<script src="../assets/driver-tracking.js"></script>
 </body>
 </html>

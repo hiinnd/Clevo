@@ -171,6 +171,7 @@ $delivery=clevo_create_booking($conn,1,1,$deliveryBody,bin2hex(random_bytes(16))
 $conn->query("UPDATE booking SET DriverID=3,Status='Accepted' WHERE BookingID=$delivery");
 clevo_stmt($conn,'INSERT INTO driver_assignments (BookingID,DriverID,StationID,AssignedBy) VALUES (?,3,1,2)','i',[$delivery]);
 rejects(fn()=>clevo_stmt($conn,'INSERT INTO driver_assignments (BookingID,DriverID,StationID,AssignedBy) VALUES (?,3,1,2)','i',[$delivery]),'Only one active assignment is allowed per booking');
+clevo_pay_booking($conn,1,$delivery,'wallet',false,bin2hex(random_bytes(16)));clevo_delivery_adopt($conn,2,$delivery);clevo_driver_transition($conn,3,$delivery,'In Progress');
 check(clevo_record_driver_location($conn,3,$delivery,31.95,35.91),'Authorized driver location updates cache and history');
 check(clevo_record_driver_location($conn,3,$delivery,31.95,35.91),'Stationary GPS samples remain valid');
 check((int)$conn->query("SELECT COUNT(*) n FROM tracking_records WHERE BookingID=$delivery")->fetch_assoc()['n']===2,'Both GPS samples are preserved');

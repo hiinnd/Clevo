@@ -34,6 +34,9 @@ function clevo_api_bookings(mysqli $db,string $action,array $ctx,array $args,arr
     if($action==='create')clevo_api_result(clevo_create_booking($db,$user,$input['station_id'],$input,clevo_api_key()));
     if(in_array($action,['list','history'],true))clevo_api_result(['bookings'=>clevo_api_booking_list($db,$ctx,$action==='history'?'history':'all')]);
     $b=clevo_api_booking($db,$ctx,$id);
+    if($action==='tracking')clevo_api_result(['tracking'=>clevo_delivery_tracking($db,$user,$id)]);
+    if($action==='confirmation')clevo_api_result(clevo_delivery_issue_confirmation($db,$user,$id,$input['kind'],clevo_api_key()));
+    if($action==='delivery_events')clevo_api_result(['events'=>clevo_api_list($db,'EventID,AssignmentID,FromStage,ToStage,ActorRole,Reason,ChangedAt','FROM delivery_events','BookingID=?','i',[$id],['id'=>'EventID','created_at'=>'ChangedAt'],'id','EventID')]);
     if($action==='events'){
         $columns='EventID,FromStatus,ToStatus,ActorRole,Reason,ChangedAt'.($role==='admin'?',ActorID':'');
         clevo_api_result(['events'=>clevo_api_list($db,$columns,'FROM booking_status_history','BookingID=?','i',[$id],['id'=>'EventID','created_at'=>'ChangedAt'],'id','EventID')]);
@@ -45,7 +48,10 @@ function clevo_api_bookings(mysqli $db,string $action,array $ctx,array $args,arr
         if($role!=='driver')$dto['services']=clevo_stmt($db,'SELECT ServiceID,ServiceName,Price,DurationMinutes FROM booking_services WHERE BookingID=? ORDER BY BookingServiceID','i',[$id])->get_result()->fetch_all(MYSQLI_ASSOC);
         clevo_api_result(['booking'=>$dto]);
     }
-    if($action==='status')clevo_api_result(['booking'=>['BookingID'=>$id,'Status'=>$b['Status'],'Driver_Lat'=>$b['Driver_Lat'],'Driver_Lon'=>$b['Driver_Lon'],'DriverAcceptedAt'=>$b['DriverAcceptedAt']??null]]);
+    if($action==='status'){
+        $tracking=$role==='admin'?null:clevo_delivery_tracking($db,$user,$id,(int)($ctx['session']['DriverBookingID']??0));
+        clevo_api_result(['booking'=>['BookingID'=>$id,'Status'=>$b['Status'],'DeliveryStage'=>$b['DeliveryStage'],'Driver_Lat'=>$tracking['location']['latitude']??null,'Driver_Lon'=>$tracking['location']['longitude']??null,'DriverAcceptedAt'=>$b['DriverAcceptedAt']??null],'tracking'=>$tracking]);
+    }
     if($action==='price'){
         $receipt=$b['ReceiptStatus']!==null?['Amount'=>$b['ReceiptAmount'],'Currency'=>$b['ReceiptCurrency'],'Status'=>$b['ReceiptStatus']]:null;
         $net=clevo_db_decimal(clevo_db_money(clevoBookingPayableAmount($b)));$planMethod=$b['Payment_Method']==='plan';

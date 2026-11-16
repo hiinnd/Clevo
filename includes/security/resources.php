@@ -2,7 +2,7 @@
 declare(strict_types=1);
 function clevo_booking_dto(array $row, string $role): array
 {
-    $keys = ['BookingID', 'Order_Number', 'StationID', 'Status', 'Service_Location', 'Booking_Date', 'Booking_Time','ScheduledAtUtc','ScheduledEndAtUtc','BookingTimeZone','DurationMinutes'];
+    $keys = ['BookingID', 'Order_Number', 'StationID', 'Status', 'Service_Location', 'Booking_Date', 'Booking_Time','ScheduledAtUtc','ScheduledEndAtUtc','BookingTimeZone','DurationMinutes','DeliveryStage','DeliveryWorkflowVersion'];
     if ($role !== 'driver') $keys = array_merge($keys, ['Total_Price', 'Payable_Amount', 'Payment_Method', 'Points_Discount','ServicesSubtotal','AdditionalFee']);
     if (in_array($role, ['driver', 'owner', 'customer'], true)) $keys = array_merge($keys, ['Latitude', 'Longitude', 'Address_Details']);
     if ($role==='admin') $keys=array_merge($keys,['UserID','DriverID','OwnerIDSnapshot','Admin_Commission','UserPlanID','ScheduledAtUtc','BookingTimeZone']);

@@ -15,6 +15,10 @@ function clevo_api_contracts():array
     $policy=clevo_api_schema(['tier'=>['type'=>'string','enum'=>['silver','gold','diamond']],'service_ids'=>['type'=>'array','items'=>$id,'minItems'=>1,'maxItems'=>100,'uniqueItems'=>true],'modes'=>['type'=>'array','items'=>['type'=>'string','enum'=>['station','home','delivery']],'minItems'=>1,'maxItems'=>3,'uniqueItems'=>true],'allow_multiple'=>$b,'max_booking_amount'=>['type'=>'string','pattern'=>'^(0|[1-9][0-9]{0,7})(\.[0-9]{1,3})?$']],['tier','service_ids','modes','allow_multiple','max_booking_amount']);
     $plan['sandbox_policy']=$policy;
     return [
+        'HandoffKind'=>clevo_api_schema(['kind'=>['type'=>'string','enum'=>['pickup','delivery']]],['kind']),
+        'HandoffConfirmation'=>clevo_api_schema(['kind'=>['type'=>'string','enum'=>['pickup','delivery']],'code'=>$s(6)+['pattern'=>'^[0-9]{6}$','writeOnly'=>true]],['kind','code']),
+        'DeliveryStage'=>clevo_api_schema(['stage'=>['type'=>'string','enum'=>['accepted','heading_pickup','arrived_pickup','vehicle_collected','arrived_station','service_completed','returning_vehicle','delivered']]],['stage']),
+        'LocationSample'=>clevo_api_schema(['latitude'=>$lat,'longitude'=>$lon,'accuracy_m'=>['type'=>'number','minimum'=>0,'maximum'=>5000],'captured_at'=>$s(32)+['pattern'=>'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,6})?Z$'],'assignment_id'=>$id,'sequence'=>$id,'capture_mode'=>['type'=>'string','enum'=>['foreground','background']]],['latitude','longitude','accuracy_m','captured_at','assignment_id','sequence']),
         'OnlineCheckout'=>clevo_api_schema(['purpose'=>['type'=>'string','enum'=>['booking','subscription']],'booking_id'=>$id,'plan_id'=>$id],['purpose']),
         'OnlineRefund'=>clevo_api_schema(['reason'=>$s(500)],['reason']),
         'SettlementRequest'=>clevo_api_schema(['owner_id'=>$id,'amount'=>['type'=>'string','pattern'=>'^(0|[1-9][0-9]{0,7})(\.[0-9]{1,3})?$']],['owner_id','amount']),
@@ -37,7 +41,7 @@ function clevo_api_contracts():array
         'DriverPatch'=>clevo_api_schema(['name'=>$s(100),'phone'=>$phone,'active'=>$b])+['minProperties'=>1],
         'Assignment'=>clevo_api_schema(['driver_id'=>$id],['driver_id']),
         'DriverStatus'=>clevo_api_schema(['status'=>['type'=>'string','enum'=>['In Progress','Arrived','Pickup','Washing','Returning','Completed']]],['status']),
-        'Location'=>clevo_api_schema(['latitude'=>$lat,'longitude'=>$lon],['latitude','longitude']),
+        'Location'=>clevo_api_schema(['latitude'=>$lat,'longitude'=>$lon,'accuracy_m'=>['type'=>'number','minimum'=>0,'maximum'=>5000],'captured_at'=>$s(32),'assignment_id'=>$id,'sequence'=>$id,'capture_mode'=>['type'=>'string','enum'=>['foreground','background']]],['latitude','longitude']),
         'Refund'=>clevo_api_schema(['booking_id'=>$id,'reason'=>$s(2000)],['booking_id','reason']),
         'Decision'=>clevo_api_schema(['status'=>['type'=>'string','enum'=>['approved','rejected']],'note'=>$s(2000)],['status','note']),
         'Purchase'=>clevo_api_schema(['plan_id'=>$id,'method'=>['type'=>'string','enum'=>['wallet','visa']]],['plan_id','method']),

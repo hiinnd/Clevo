@@ -169,6 +169,7 @@ function clevo_booking_transition(mysqli $db,?int $actor,int $id,string $target,
         if ($role==='owner' && ((int)$s['UserID']!==$actor || $s['admin_status']!=='approved' || $s['ArchivedAt']!==null)) throw new ClevoSecurityException('not_found',404);
         if ($role==='customer' && (int)$b['UserID']!==$actor) throw new ClevoSecurityException('not_found',404);
         if ($role==='driver' && ((int)$b['DriverID']!==$actor || (int)$a['StationID']!==(int)$b['StationID'] || $b['Service_Location']!=='delivery' || $s['admin_status']!=='approved' || $s['ArchivedAt']!==null)) throw new ClevoSecurityException('invalid_transition',409);
+        if($role==='driver'&&($reason!=='logistics_progress'||(int)$b['DeliveryWorkflowVersion']!==1||clevo_delivery_booking_status($b['DeliveryStage']??'')!==$target))throw new ClevoSecurityException('invalid_transition',409);
         $valid=match($role) {
             'owner'=>($from==='Pending' && in_array($target,['Accepted','Rejected'],true)) || (in_array($from,['Accepted','In Progress'],true) && $target==='Completed' && in_array($b['Service_Location'],['station','home'],true)),
             'customer'=>$from==='Pending' && $target==='Cancelled',
@@ -202,6 +203,7 @@ function clevo_booking_transition(mysqli $db,?int $actor,int $id,string $target,
         if ($target==='Accepted') clevo_stmt($db,'UPDATE booking SET Accepted_At=UTC_TIMESTAMP(),notification_sent=0 WHERE BookingID=?','i',[$id]);
         if ($role==='driver') clevo_stmt($db,'UPDATE booking SET DriverAcceptedAt=COALESCE(DriverAcceptedAt,UTC_TIMESTAMP(6)) WHERE BookingID=?','i',[$id]);
         if (!in_array($target,clevo_booking_active_states(),true)) {
+            clevo_delivery_stop($db,$b,$actor,$role,$target);
             clevo_stmt($db,'UPDATE booking SET notification_sent=1,DriverAccessCode=NULL,DriverAccessCodeHash=NULL,DriverAccessCodeExpiresAt=NULL WHERE BookingID=?','i',[$id]);
             clevo_stmt($db,'UPDATE driver_assignments SET EndedAt=UTC_TIMESTAMP(6) WHERE BookingID=? AND EndedAt IS NULL','i',[$id]);
             clevo_stmt($db,'UPDATE auth_sessions SET RevokedAt=UTC_TIMESTAMP() WHERE DriverBookingID=?','i',[$id]);

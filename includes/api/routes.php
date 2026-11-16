@@ -35,6 +35,15 @@ function clevo_api_routes():array
     $add('GET','bookings/{id}','bookings.detail','any',null,false,200,'modified');
     $add('GET','bookings/{id}/status','bookings.status');
     $add('GET','bookings/{id}/events','bookings.events','customer,owner,admin');
+    $add('GET','bookings/{id}/tracking','bookings.tracking','customer,owner');
+    $add('GET','bookings/{id}/delivery-events','bookings.delivery_events','customer,owner');
+    $add('POST','bookings/{id}/confirmation-code','bookings.confirmation','customer','HandoffKind',true);
+    $add('GET','driver/jobs/{id}/tracking','driver.tracking','driver');
+    $add('POST','driver/jobs/{id}/locations','driver.locations','driver','LocationSample');
+    $add('PATCH','driver/jobs/{id}/delivery-stage','driver.stage','driver','DeliveryStage',true);
+    $add('POST','driver/jobs/{id}/confirm-handoff','driver.confirmation','driver','HandoffConfirmation',true);
+    $add('POST','owner/bookings/{id}/service-completed','owner.service_completed','owner','Empty',true);
+    $add('POST','owner/bookings/{id}/logistics-adoption','owner.logistics_adopt','owner','Empty',true);
     $add('GET','bookings/{id}/price-breakdown','bookings.price','customer,owner,admin');
     $add('POST','bookings/{id}/cancel','bookings.cancel','customer','Empty',true);
     $add('POST','bookings/{id}/reschedule','bookings.reschedule','customer','Reschedule',true);
