@@ -309,10 +309,14 @@ foreach (['/owner/incoming-orders.php', '/owner/owner-reviews.php', '/owner/mana
 }
 [$status, , $html] = http('GET', '/admin/notifications.php', null, null, $adminJar);
 check($status === 200 && inline_js_valid($html), 'Admin notification page/inline scripts valid');
-$publicJar = __DIR__ . '/../.security-test/public-' . $database . '.cookies'; $publicCsrf = csrf($publicJar);
+$publicJar = __DIR__ . '/../.security-test/public-' . $database . '.cookies';
+[$registrationGetStatus, , $registrationForm] = http('GET', '/general/register.php', null, null, $publicJar);
+preg_match('/name="csrf_token" value="([a-f0-9]+)"/', $registrationForm, $registrationToken);
+$publicCsrf = $registrationToken[1] ?? '';
+check($registrationGetStatus === 200 && $publicCsrf !== '', 'Legacy registration test submits its actual form CSRF challenge');
 $countBefore = (int) $conn->query('SELECT COUNT(*) AS c FROM user')->fetch_assoc()['c'];
-[$status] = http('POST', '/general/register.php', ['register_action' => 1, 'role' => 'Admin', 'full_name' => 'Public attempt', 'email' => 'attempt@example.test', 'phone_suffix' => '99999999', 'password' => $password, 'confirm_password' => $password, 'csrf_token' => $publicCsrf], null, $publicJar, [], true);
-check($status === 200 && (int) $conn->query('SELECT COUNT(*) AS c FROM user')->fetch_assoc()['c'] === $countBefore, 'Legacy registration cannot self-provision an administrator');
+[$status, $registrationError] = http('POST', '/general/register.php', ['register_action' => 1, 'role' => 'Admin', 'full_name' => 'Public attempt', 'email' => 'attempt@example.test', 'phone_suffix' => '99999999', 'password' => $password, 'confirm_password' => $password, 'csrf_token' => $publicCsrf], null, $publicJar, [], true);
+check($status === 200 && (int) $conn->query('SELECT COUNT(*) AS c FROM user')->fetch_assoc()['c'] === $countBefore, 'Legacy registration cannot self-provision an administrator (HTTP '.$status.'; '.($registrationError['message'] ?? 'form response').')');
 [$status, , $html, $responseHeaders] = http('GET', '/general/login.php', null, null, __DIR__ . '/../.security-test/cookie-flags-' . $database . '.cookies');
 check(str_contains(strtolower($responseHeaders), 'httponly') && str_contains(strtolower($responseHeaders), 'samesite=lax'), 'Web session cookies are HttpOnly and SameSite Lax');
 check(str_contains(strtolower($responseHeaders), 'cache-control: no-store'), 'Authentication responses prohibit caching');

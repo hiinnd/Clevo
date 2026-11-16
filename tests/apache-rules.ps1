@@ -57,6 +57,7 @@ try {
     if($server.HasExited){throw 'Isolated Apache did not start.'}
     $cases=@(
         @('/.env.example','GET',403),@('/.git/HEAD','GET',403),@('/.GIT/HEAD','GET',403),@('/clevo.sql','GET',403),
+        @('/mobile/clevo/pubspec.yaml','GET',403),@('/.mobile-tools/fast/flutter/bin/flutter.bat','GET',403),
         @('/scripts/security-mail-worker.php','GET',403),@('/migrations/001_auth_security.sql','GET',403),
         @('/database/seeds/development.sql','GET',403),
         @('/includes/security/environment.php','GET',403),@('/uploads/verification/any.pdf','GET',403),

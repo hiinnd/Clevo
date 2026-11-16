@@ -1,5 +1,6 @@
-param([string]$MysqlBin = 'C:\xampp\mysql\bin', [int]$DatabasePort = 13379, [int]$HttpPort = 18089, [switch]$SkipApache)
+param([string]$MysqlBin = 'C:\xampp\mysql\bin', [int]$DatabasePort = 13379, [int]$HttpPort = 18089, [switch]$SkipApache, [string]$Flutter = '', [switch]$MobileOnly)
 $ErrorActionPreference = 'Stop'
+if ($MobileOnly -and !$Flutter) { throw 'MobileOnly requires an explicit Flutter executable.' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $projectRoot '.security-test'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
@@ -61,34 +62,49 @@ try {
     $env:CLEVO_ENV_FILE = $environmentPath
     Push-Location $projectRoot
     try {
-        & php tests/security.php
-        $unitExit = $LASTEXITCODE
-        & php tests/scan-secrets.php
-        $scanExit = $LASTEXITCODE
-        & php tests/api-contract.php
-        $contractExit = $LASTEXITCODE
+        $unitExit = 0; $scanExit = 0; $contractExit = 0
+        if (!$MobileOnly) {
+            & php tests/security.php
+            $unitExit = $LASTEXITCODE
+            & php tests/scan-secrets.php
+            $scanExit = $LASTEXITCODE
+            & php tests/api-contract.php
+            $contractExit = $LASTEXITCODE
+        } else { Write-Output 'Mobile-only rerun: disposable schema/auth setup and live Dart integration; other PHP suites are not repeated.' }
         & php tests/integration.php
         $integrationExit = $LASTEXITCODE
         $apiExit = 0
-        if ($integrationExit -eq 0) { & php tests/api.php; $apiExit = $LASTEXITCODE }
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/api.php; $apiExit = $LASTEXITCODE }
         $bookingExit = 0
-        if ($integrationExit -eq 0) { & php tests/booking.php; $bookingExit = $LASTEXITCODE }
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/booking.php; $bookingExit = $LASTEXITCODE }
         $financialExit = 0
-        if ($integrationExit -eq 0) { & php tests/payments.php; $financialExit = $LASTEXITCODE }
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/payments.php; $financialExit = $LASTEXITCODE }
         $logisticsExit = 0
-        if ($integrationExit -eq 0) { & php tests/logistics.php; $logisticsExit = $LASTEXITCODE }
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/logistics.php; $logisticsExit = $LASTEXITCODE }
         $notificationExit = 0
-        if ($integrationExit -eq 0) { & php tests/notifications.php; $notificationExit = $LASTEXITCODE }
-        & php tests/database.php
-        $databaseExit = $LASTEXITCODE
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/notifications.php; $notificationExit = $LASTEXITCODE }
+        $databaseExit = 0
+        if (!$MobileOnly) { & php tests/database.php; $databaseExit = $LASTEXITCODE }
+        $mobileExit = 0
+        if ($Flutter -and $integrationExit -eq 0) {
+            & php tests/mobile-fixtures.php
+            $mobileExit = $LASTEXITCODE
+            if ($mobileExit -eq 0) {
+                $previousMobileFixture = $env:CLEVO_MOBILE_FIXTURE_FILE
+                $env:CLEVO_MOBILE_FIXTURE_FILE = Join-Path $privateRoot 'mobile-fixtures.json'
+                Push-Location (Join-Path $projectRoot 'mobile/clevo')
+                try { & $Flutter test --no-pub --reporter expanded test/live_api_test.dart; $mobileExit = $LASTEXITCODE }
+                finally { Pop-Location; $env:CLEVO_MOBILE_FIXTURE_FILE = $previousMobileFixture }
+            }
+        }
         $apacheExit = 0
         $apacheRoot = Join-Path (Split-Path -Parent (Split-Path -Parent $MysqlBin)) 'apache'
         $phpRoot = Split-Path -Parent (Get-Command php).Source
-        if (!$SkipApache -and $integrationExit -eq 0 -and (Test-Path -LiteralPath (Join-Path $apacheRoot 'bin/httpd.exe')) -and (Test-Path -LiteralPath (Join-Path $phpRoot 'php8apache2_4.dll'))) {
+        if (!$MobileOnly -and !$SkipApache -and $integrationExit -eq 0 -and (Test-Path -LiteralPath (Join-Path $apacheRoot 'bin/httpd.exe')) -and (Test-Path -LiteralPath (Join-Path $phpRoot 'php8apache2_4.dll'))) {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0) { throw 'Security/API/booking/payment/database tests failed. See assertion labels above.' }
+        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/mobile tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

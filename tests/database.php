@@ -209,7 +209,7 @@ check($conn->query("SELECT Status FROM booking WHERE BookingID=$expiredBooking")
 // Metadata/source compatibility: prepare static DML without executing writes.
 $prepared=0;$prepareFailures=[];
 $iterator=new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(new RecursiveDirectoryIterator(dirname(__DIR__),FilesystemIterator::SKIP_DOTS),
-    static fn($file)=>!$file->isDir()||!in_array($file->getFilename(),['.git','vendor','.security-test','tests','migrations','scripts'],true)));
+    static fn($file)=>!$file->isDir()||!in_array($file->getFilename(),['.git','vendor','.security-test','.mobile-tools','.dart_tool','build','Pods','.gradle','.idea','tests','migrations','scripts'],true)));
 foreach($iterator as $file){$path=str_replace('\\','/',$file->getPathname());if($file->getExtension()!=='php'||preg_match('~/(vendor|tests|migrations|scripts|\.git|\.security-test)/~',$path))continue;
     foreach(token_get_all(file_get_contents($path)) as $token){if(!is_array($token)||$token[0]!==T_CONSTANT_ENCAPSED_STRING)continue;$literal=$token[1];$sql=substr($literal,1,-1);$sql=$literal[0]==="'"?str_replace(["\\'","\\\\"],["'","\\"],$sql):stripcslashes($sql);if(!preg_match('/^\s*(SELECT|INSERT INTO|UPDATE|DELETE FROM)\b/i',$sql)||str_contains($sql,'$')||str_contains($sql,'?\'')||str_contains($sql,'<'))continue;
         // SQL fragments are not complete commands; only statements used directly by prepare/query are checked here.

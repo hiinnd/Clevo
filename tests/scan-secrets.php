@@ -3,7 +3,7 @@ declare(strict_types=1);
 // Prints rule/location only; never print the matched text, credentials or removed Git lines.
 $root = dirname(__DIR__); $findings = []; $checked = 0;
 $iterator = new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
-    static fn($file) => !$file->isDir() || !in_array($file->getFilename(), ['.git','vendor','.security-test','tests','docs'],true)));
+    static fn($file) => !$file->isDir() || !in_array($file->getFilename(), ['.git','vendor','.security-test','.mobile-tools','.dart_tool','build','Pods','.gradle','.idea','tests','docs'],true)));
 foreach ($iterator as $file) {
     $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
     if (preg_match('~^(?:\.git|vendor|\.security-test|tests|docs)/~', $relative) || !in_array($file->getExtension(), ['php', 'js', 'sql'], true)) continue;

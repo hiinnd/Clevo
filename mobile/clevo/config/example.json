@@ -1,0 +1,6 @@
+{
+  "CLEVO_API_URL": "https://your-clevo-domain.example/api/v1/",
+  "CLEVO_LOCAL_HTTP": false,
+  "CLEVO_FIREBASE": false,
+  "CLEVO_MAPS": false
+}

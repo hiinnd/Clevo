@@ -9,3 +9,4 @@
 /.security-test/
 /var/
 /tests/openapi/node_modules/
+/.mobile-tools/
