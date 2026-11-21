@@ -15,6 +15,8 @@ function clevo_api_contracts():array
     $policy=clevo_api_schema(['tier'=>['type'=>'string','enum'=>['silver','gold','diamond']],'service_ids'=>['type'=>'array','items'=>$id,'minItems'=>1,'maxItems'=>100,'uniqueItems'=>true],'modes'=>['type'=>'array','items'=>['type'=>'string','enum'=>['station','home','delivery']],'minItems'=>1,'maxItems'=>3,'uniqueItems'=>true],'allow_multiple'=>$b,'max_booking_amount'=>['type'=>'string','pattern'=>'^(0|[1-9][0-9]{0,7})(\.[0-9]{1,3})?$']],['tier','service_ids','modes','allow_multiple','max_booking_amount']);
     $plan['sandbox_policy']=$policy;
     return [
+        'AccountDeletion'=>clevo_api_schema(['password'=>$s(72)+['writeOnly'=>true],'confirm'=>['const'=>true,'type'=>'boolean']],['password','confirm']),
+        'AccountErasureReview'=>clevo_api_schema(['password'=>$s(72)+['writeOnly'=>true],'review_reference'=>$s(100,4)+['pattern'=>'^[A-Za-z0-9._/-]+$'],'retention_reviewed'=>['type'=>'boolean','const'=>true],'external_cleanup_reviewed'=>['type'=>'boolean','const'=>true]],['password','review_reference','retention_reviewed','external_cleanup_reviewed']),
         'NotificationDevice'=>clevo_api_schema(['token'=>$s(4096,20)+['writeOnly'=>true,'pattern'=>'^[A-Za-z0-9_:.-]+$'],'platform'=>['type'=>'string','enum'=>['android','ios']]],['token','platform']),
         'NotificationDeviceRevoke'=>clevo_api_schema(['device_id'=>$s(32)+['pattern'=>'^[a-f0-9]{32}$']],['device_id']),
         'NotificationPreferences'=>clevo_api_schema(['language'=>['type'=>'string','enum'=>['ar','en']],'push_enabled'=>$b,'email_enabled'=>$b],['language','push_enabled','email_enabled']),

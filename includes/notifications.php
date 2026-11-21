@@ -85,11 +85,11 @@ final class ClevoFcmSender
 function clevo_fcm_sender():ClevoFcmSender
 {
     static $sender;
-    if(!clevo_production()||clevo_env('NOTIFICATION_EXTERNAL_SEND','0')!=='1'||clevo_env('FCM_ENABLED','0')!=='1')throw new RuntimeException('external_delivery_disabled');
+    if(!clevo_secure_environment()||clevo_env('NOTIFICATION_EXTERNAL_SEND','0')!=='1'||clevo_env('FCM_ENABLED','0')!=='1'||clevo_env('ERASURE_WORKER_FENCE','0')==='1')throw new RuntimeException('external_delivery_disabled');
     if($sender instanceof ClevoFcmSender)return $sender;
     $file=realpath(clevo_env('FCM_SERVICE_ACCOUNT_FILE','')??'');$root=realpath(dirname(__DIR__));
     if(!$file||!is_file($file)||clevo_path_within($file,$root))throw new RuntimeException('fcm_configuration');
-    $account=json_decode(file_get_contents($file),true,16,JSON_THROW_ON_ERROR);if(($account['type']??'')!=='service_account')throw new RuntimeException('fcm_configuration');return $sender=new ClevoFcmSender($account);
+    $account=json_decode(file_get_contents($file),true,16,JSON_THROW_ON_ERROR);if(($account['type']??'')!=='service_account'||!hash_equals(clevo_env('FCM_EXPECTED_PROJECT_ID','')??'',(string)($account['project_id']??''))||empty($account['project_id']))throw new RuntimeException('fcm_configuration');return $sender=new ClevoFcmSender($account);
 }
 function clevo_notification_worker(mysqli $db,?Closure $push=null,?Closure $mail=null,int $limit=50):array
 {

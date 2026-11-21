@@ -3,7 +3,8 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 define('CLEVO_NOTIFICATION_WORKER',true);
 require_once __DIR__ . '/../includes/config.php';
-if(!clevo_production()||clevo_env('NOTIFICATION_EXTERNAL_SEND','0')!=='1'||clevo_env('MAIL_TRANSPORT')!=='smtp'){echo "External SMTP disabled; queued messages retained.\n";exit;}
+if(clevo_env('ERASURE_WORKER_FENCE','0')==='1'){echo "Privacy erasure fence active; outbound worker stopped.\n";exit;}
+if(!clevo_secure_environment()||clevo_env('NOTIFICATION_EXTERNAL_SEND','0')!=='1'||clevo_env('MAIL_TRANSPORT')!=='smtp'){echo "External SMTP disabled; queued messages retained.\n";exit;}
 for($n=0;$n<50;$n++){
     $claim=bin2hex(random_bytes(16));
     $row=clevo_db_atomic($conn,function()use($conn,$claim){

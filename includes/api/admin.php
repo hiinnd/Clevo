@@ -8,6 +8,14 @@ function clevo_api_admin(mysqli $db,string $action,array $ctx,array $args,array 
 {
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);
     clevo_admin_actor($db,$user);
+    if($action==='deletion_requests'){
+        clevo_privacy_schema($db);
+        clevo_api_result(['requests'=>clevo_api_list($db,'RequestID,UserID,State,RequestedAt,UpdatedAt,CompletedAt,PolicyVersion,ReviewedBy,ReviewReference','FROM account_deletion_requests','1=1','',[],['id'=>'RequestID','requested_at'=>'RequestedAt'],'id','RequestID')]);
+    }
+    if($action==='deletion_fulfill'){
+        clevo_rate_limit($db,'privacy:admin-reauth',(string)$user,5,900);
+        clevo_api_result(clevo_api_mutate($db,$ctx,'privacy.fulfill',['request_id'=>$id]+$input,fn()=>clevo_privacy_fulfill($db,$user,$id,$input)));
+    }
     if($action==='notification_delivery')clevo_api_result(['delivery_counts'=>$db->query('SELECT Channel,State,LastError,COUNT(*) count,MAX(Attempts) max_attempts FROM notification_deliveries GROUP BY Channel,State,LastError')->fetch_all(MYSQLI_ASSOC)]);
     if($action==='statistics')clevo_api_result(['statistics'=>clevo_admin_dashboard_stats($db)]);
     if(in_array($action,['services','drivers','audit'],true)){

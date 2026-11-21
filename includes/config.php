@@ -14,6 +14,7 @@ require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/commerce.php';
 require_once __DIR__ . '/marketplace.php';
 require_once __DIR__ . '/admin-services.php';
+require_once __DIR__ . '/privacy.php';
 
 set_exception_handler(static function (Throwable $error): void {
     if (PHP_SAPI === 'cli') {
@@ -32,12 +33,13 @@ ini_set('display_errors', '0');
 ini_set('zend.exception_ignore_args', '1');
 date_default_timezone_set('UTC');
 clevo_validate_environment();
+if(PHP_SAPI!=='cli'&&clevo_env('MAINTENANCE_MODE','0')==='1')throw new ClevoSecurityException('maintenance',503);
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: SAMEORIGIN');
 header('Cache-Control: no-store');
 if (clevo_https()) header('Strict-Transport-Security: max-age=31536000');
-if (PHP_SAPI !== 'cli' && clevo_production() && !clevo_https()) throw new ClevoSecurityException('https_required', 400);
+if (PHP_SAPI !== 'cli' && clevo_secure_environment() && !clevo_https()) throw new ClevoSecurityException('https_required', 400);
 if (defined('CLEVO_API') && CLEVO_API) clevo_cors();
 clevo_start_session();
 $conn = clevo_connect_database();

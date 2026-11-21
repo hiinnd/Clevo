@@ -9,6 +9,12 @@ function clevo_api_routes():array
         $routes[]=['method'=>$method,'path'=>$path,'handler'=>$handler,'roles'=>$role,'schema'=>$schema,'idempotent'=>$key,'status'=>$status,'change'=>$previous];
     };
     foreach(['stations','stations/search'] as $path)$add('GET',$path,'catalog.stations','public');
+    $add('GET','legal','customer.legal','public');
+    $add('GET','me/account-deletion-request','customer.deletion_status');
+    $add('POST','me/account-deletion-request','customer.deletion_request','any','AccountDeletion',true,202);
+    $add('POST','me/account-deletion-request/cancel','customer.deletion_cancel','any','AccountDeletion',true);
+    $add('GET','admin/account-deletion-requests','admin.deletion_requests','admin');
+    $add('POST','admin/account-deletion-requests/{id}/fulfill','admin.deletion_fulfill','admin','AccountErasureReview',true);
     $add('GET','stations/{id}','catalog.station','public');
     $add('GET','stations/{id}/services','catalog.services','public');
     $add('GET','stations/{id}/availability','catalog.availability','public');

@@ -216,7 +216,7 @@ function clevo_web_login(mysqli $conn, array $account, ?int $job = null): void
         'authenticated_at' => time(), 'last_seen' => time(), 'csrf_token' => bin2hex(random_bytes(32))];
     if ($job) $_SESSION['driver_booking_id'] = $job;
     // Retire the old long-lived JWT cookie. Web pages continue using secure PHP sessions.
-    setcookie('access_token', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => clevo_production() || clevo_https(), 'httponly' => true, 'samesite' => 'Lax']);
+    setcookie('access_token', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => clevo_secure_environment() || clevo_https(), 'httponly' => true, 'samesite' => 'Lax']);
     clevo_stmt($conn, 'UPDATE `user` SET Last_Login = UTC_TIMESTAMP() WHERE UserID = ?', 'i', [(int) $account['UserID']]);
 }
 

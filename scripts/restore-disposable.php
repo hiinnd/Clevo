@@ -2,9 +2,9 @@
 declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 require_once __DIR__.'/../includes/security/environment.php';
-$optionFile=null;
+$optionFile=null;$exitCode=0;
 try {
-    clevo_load_environment(); clevo_validate_environment();
+    clevo_load_environment(); clevo_validate_database_environment();
     if(clevo_env('APP_ENV')!=='testing' || clevo_env('DB_HOST')!=='127.0.0.1' || !preg_match('/^clevo_restore_test_[a-f0-9]{12}$/D',clevo_env('DB_DATABASE','')??'')) throw new RuntimeException('Disposable test target required.');
     $conn=clevo_connect_database();
     if((int)$conn->query('SELECT COUNT(*) n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()')->fetch_assoc()['n']!==0) throw new RuntimeException('Target must be empty.');
@@ -26,5 +26,6 @@ try {
     stream_get_contents($pipes[1]); fclose($pipes[1]); stream_get_contents($pipes[2]); fclose($pipes[2]); $code=proc_close($process); fclose($input);
     if($code!==0)throw new RuntimeException('Restore client failed.');
     echo "Protected backup restored into empty disposable database. Validate schema, counts and balances before trusting recovery.\n";
-}catch(Throwable $e){fwrite(STDERR,'Restore refused/failed ('.get_class($e)."). No production restore attempted.\n");exit(1);}
+}catch(Throwable $e){fwrite(STDERR,'Restore refused/failed ('.get_class($e)."). No production restore attempted.\n");$exitCode=1;}
 finally{if($optionFile!==null&&is_file($optionFile))unlink($optionFile);}
+exit($exitCode);

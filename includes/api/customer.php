@@ -23,6 +23,13 @@ function clevo_market_support_create(mysqli $db,array $ctx,array $input):int
 }
 function clevo_api_customer(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
+    if($action==='legal')clevo_api_result(['legal'=>clevo_legal_metadata()]);
+    if(in_array($action,['deletion_status','deletion_request','deletion_cancel'],true)){
+        $actor=(int)$ctx['account']['UserID'];
+        if($action==='deletion_status')clevo_api_result(['request'=>clevo_privacy_read($db,$actor)]);
+        clevo_rate_limit($db,'privacy:reauth',(string)$actor,5,900);
+        clevo_api_result(clevo_api_mutate($db,$ctx,'privacy.'.$action,$input,fn()=>['request'=>clevo_privacy_request($db,$actor,$input['password'],$action==='deletion_cancel')]),$action==='deletion_request'?202:200);
+    }
     if($action==='device_register')clevo_api_result(clevo_notification_device($db,$ctx,$input));
     if($action==='device_revoke'){
         clevo_stmt($db,'UPDATE mobile_devices SET RevokedAt=UTC_TIMESTAMP(6),TokenCipher=NULL WHERE DeviceID=? AND UserID=?','si',[$input['device_id'],(int)$ctx['account']['UserID']]);clevo_api_result(['revoked'=>true]);
