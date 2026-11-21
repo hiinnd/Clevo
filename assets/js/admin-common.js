@@ -20,6 +20,9 @@
         document.querySelectorAll('[data-admin-ar][data-admin-en]').forEach(el => {
             el.textContent = el.dataset[language === 'en' ? 'adminEn' : 'adminAr'];
         });
+        document.querySelectorAll('[data-admin-aria-ar][data-admin-aria-en]').forEach(el => {
+            el.setAttribute('aria-label', el.dataset[language === 'en' ? 'adminAriaEn' : 'adminAriaAr']);
+        });
         document.querySelectorAll('#secureExportForm input[name="lang"]').forEach(el => { el.value = language; });
     };
     document.addEventListener('DOMContentLoaded', apply);

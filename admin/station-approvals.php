@@ -65,7 +65,7 @@ if (isset($_POST['action'],$_POST['station_id'])) {
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="approvals_title">موافقات المحطات | Clevo</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-rtl">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -270,7 +270,7 @@ if (isset($_POST['action'],$_POST['station_id'])) {
             <main class="admin-main-content">
                 <div class="orders-header">
                     <div class="container d-flex justify-content-between align-items-center">
-                        <a href="admin-dashboard.php" class="circle-btn-back shadow-sm">
+                        <a href="admin-dashboard.php" class="circle-btn-back shadow-sm" aria-label="العودة للرئيسية" data-admin-aria-ar="العودة للرئيسية" data-admin-aria-en="Back to dashboard">
                             <i class="fas fa-arrow-right" id="backIcon"></i>
                         </a>
                         <h6 class="mb-0 fw-bold" data-i18n="approvals_header">طلبات انضمام المحطات</h6>

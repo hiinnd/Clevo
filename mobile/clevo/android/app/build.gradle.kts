@@ -89,3 +89,16 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    constraints {
+        // Flutter's integration_test Android plugin brings older runtime libraries.
+        // Keep its tooling without retaining known vulnerable transitive versions.
+        implementation("junit:junit:4.13.2") {
+            because("Fix CVE-2020-15250 in the transitive integration-test runtime")
+        }
+        implementation("com.google.guava:guava:33.7.2-android") {
+            because("Fix Guava temporary-file advisories and GHSA-xxph-c9ww-hj94")
+        }
+    }
+}

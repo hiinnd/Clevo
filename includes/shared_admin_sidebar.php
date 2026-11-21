@@ -27,6 +27,27 @@ $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
 <style>
+/* Retain the existing palette while meeting text contrast on the dark sidebar. */
+.admin-sidebar .nav-link.active, .admin-sidebar .nav-link:hover {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+}
+.admin-sidebar .text-danger { color: #ff7b86 !important; }
+.admin-pic-container:focus-visible { outline: 3px solid #93c5fd; outline-offset: 4px; }
+[data-theme="light"] .admin-main-content .btn-outline-primary {
+    --bs-btn-color: #0b5ed7;
+    --bs-btn-border-color: #0b5ed7;
+}
+[data-theme="dark"] .admin-main-content .btn-outline-primary {
+    --bs-btn-color: #93c5fd;
+    --bs-btn-border-color: #93c5fd;
+}
+[data-theme="dark"] .admin-main-content .btn-outline-danger {
+    --bs-btn-color: #ff9ba2;
+    --bs-btn-border-color: #ff9ba2;
+}
+[data-theme="light"] .admin-main-content .text-primary { color: #0b5ed7 !important; }
+[data-theme="dark"] .admin-main-content .text-primary { color: #93c5fd !important; }
 .custom-cancel-btn {
     background-color: rgba(255, 255, 255, 0.08) !important;
     color: var(--text-main, #ffffff) !important;
@@ -240,8 +261,8 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="text-center mb-4">
         <form id="adminPicForm" method="POST" enctype="multipart/form-data" action="<?php echo e(clevoPublicAssetUrl('admin/upload-profile-picture.php')); ?>">
             <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
-            <label for="admin_pic_upload" class="admin-pic-container">
-                <img src="<?php echo e($admin_pic_url); ?>" class="admin-avatar shadow" id="sidebarAvatar">
+            <label for="admin_pic_upload" class="admin-pic-container" role="button" tabindex="0" aria-label="تغيير صورة الملف الشخصي" data-admin-aria-ar="تغيير صورة الملف الشخصي" data-admin-aria-en="Change profile photo" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('admin_pic_upload').click();}">
+                <img src="<?php echo e($admin_pic_url); ?>" class="admin-avatar shadow" id="sidebarAvatar" alt="">
                 <div class="upload-overlay"><i class="fas fa-camera"></i></div>
                 <input type="file" name="admin_pic_upload" id="admin_pic_upload" hidden accept="image/jpeg,image/png,image/gif,image/webp" onchange="document.getElementById('adminPicForm').submit();">
             </label>

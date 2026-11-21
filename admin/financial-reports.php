@@ -68,7 +68,7 @@ $withdrawal_res = $conn->query("
 <html lang="ar" dir="rtl" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="fin_reports_title">التقارير المالية | Clevo</title>
 
     <link class="bootstrap-link" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
@@ -82,7 +82,7 @@ $withdrawal_res = $conn->query("
         :root {
             --accent-blue: #3b82f6; --bg-body: #f0f2f5; --bg-sidebar: #0f172a; --bg-header: #ffffff;
             --bg-card: #ffffff; --text-main: #000000; --text-muted: #1a1a1a;
-            --badge-bg: #e7f1ff; --border-card: #dee2e6; --primary-blue: #3b82f6;
+            --badge-bg: #e7f1ff; --border-card: #dee2e6; --primary-blue: #1d4ed8; --report-commission: #b45309;
             --border-color: #dee2e6; --box-bg: #ffffff; --table-row-bg: #ffffff;
         }
         [data-theme="dark"] {
@@ -90,7 +90,7 @@ $withdrawal_res = $conn->query("
             --bg-card: #1e293b; --text-main: #ffffff !important; --text-muted: #cbd5e1;
             --badge-bg: #334155; --border-card: #334155; --border-color: #334155;
             --accent-blue: #60a5fa; --primary-blue: #60a5fa; --box-bg: #1e293b;
-            --table-row-bg: #1e293b;
+            --table-row-bg: #1e293b; --report-commission: #fb923c;
         }
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg-body); color: var(--text-main); transition: 0.3s ease; margin: 0; overflow-x: hidden; }
         .main-row { display: flex; flex-wrap: nowrap; min-height: 100vh; }
@@ -118,8 +118,10 @@ $withdrawal_res = $conn->query("
 
         .progress-custom { height: 8px; border-radius: 10px; background-color: var(--border-color); }
 
-        .btn-export-excel { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: 700; font-size: 0.85rem; transition: 0.3s; }
-        .btn-export-excel:hover { background: #059669; transform: translateY(-2px); color: white; }
+        .btn-export-excel { background: #047857; color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: 700; font-size: 0.85rem; transition: 0.3s; }
+        .btn-export-excel:hover { background: #065f46; transform: translateY(-2px); color: white; }
+        [data-theme="light"] .text-primary { color: #1d4ed8 !important; }
+        .table-container .opacity-50, .chart-box .opacity-50 { opacity: 1 !important; color: var(--text-muted) !important; }
 
         .modal-content { border-radius: 25px; background-color: var(--bg-card) !important; color: var(--text-main) !important; border: 1px solid var(--border-color); }
         .modal-sm-custom { max-width: 350px; }
@@ -140,7 +142,7 @@ $withdrawal_res = $conn->query("
             <main class="admin-main-content">
                 <div class="orders-header">
                     <div class="container d-flex justify-content-between align-items-center">
-                        <a href="admin-dashboard.php" class="circle-btn-back shadow-sm">
+                        <a href="admin-dashboard.php" class="circle-btn-back shadow-sm" aria-label="العودة للرئيسية" data-admin-aria-ar="العودة للرئيسية" data-admin-aria-en="Back to dashboard">
                             <i class="fas fa-arrow-right" id="backIcon"></i>
                         </a>
                         <h6 class="mb-0 fw-bold" data-i18n="header_main_title">التقارير المالية</h6>
@@ -170,8 +172,8 @@ $withdrawal_res = $conn->query("
                             <div class="stat-card shadow-sm text-center" style="border-inline-start: 5px solid #fd7e14 !important;">
                                 <p class="small" data-i18n="financial_basis_notice">قيم السجل للفترة والدفتر المحددين. النقد إقرار المالك والتجريبي أموال اختبار. تشمل العمولة عكس الاسترجاعات. التسويات البنكية غير موثقة.</p>
                                 <small class="opacity-75 d-block" data-i18n="net_profit">صافي العمولات المثبتة</small>
-                                <h2 class="fw-bold mt-1" style="color: #fd7e14 !important;"><?php echo number_format($net_profit, 3); ?> <small class="fs-6">JOD</small></h2>
-                                <p class="small mb-0 opacity-75"><span data-i18n="your_earnings">أرباحكِ يا</span> <span class="u-name-display fw-bold text-primary"><?php echo htmlspecialchars($admin_name); ?></span></p>
+                                <h2 class="fw-bold mt-1" style="color: var(--report-commission) !important;"><?php echo number_format($net_profit, 3); ?> <small class="fs-6">JOD</small></h2>
+                                <p class="small mb-0"><span data-i18n="your_earnings">أرباحكِ يا</span> <span class="u-name-display fw-bold text-primary"><?php echo htmlspecialchars($admin_name); ?></span></p>
                             </div>
                         </div>
                         <div class="col-md-4">

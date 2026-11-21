@@ -1,6 +1,7 @@
-param([string]$MysqlBin = 'C:\xampp\mysql\bin', [int]$DatabasePort = 13379, [int]$HttpPort = 18089, [switch]$SkipApache, [string]$Flutter = '', [switch]$MobileOnly, [switch]$AdminOnly, [switch]$AdminBrowser)
+param([string]$MysqlBin = 'C:\xampp\mysql\bin', [int]$DatabasePort = 13379, [int]$HttpPort = 18089, [switch]$SkipApache, [string]$Flutter = '', [switch]$MobileOnly, [switch]$AdminOnly, [switch]$AdminBrowser, [switch]$QA)
 $ErrorActionPreference = 'Stop'
 if ($MobileOnly -and !$Flutter) { throw 'MobileOnly requires an explicit Flutter executable.' }
+if ($QA -and $MobileOnly) { throw 'QA and MobileOnly cannot be combined.' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $projectRoot '.security-test'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
@@ -85,6 +86,8 @@ try {
         if (!$MobileOnly -and !$AdminOnly -and $integrationExit -eq 0) { & php tests/notifications.php; $notificationExit = $LASTEXITCODE }
         $adminExit = 0; $adminFinancialExit = 0
         if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/admin.php; $adminExit = $LASTEXITCODE; & php tests/admin-financial.php; $adminFinancialExit = $LASTEXITCODE }
+        $qaExit = 0; $qaLoadExit = 0
+        if ($QA -and $integrationExit -eq 0) { & php tests/qa-journeys.php; $qaExit = $LASTEXITCODE; & php tests/qa-performance.php; $qaLoadExit = $LASTEXITCODE }
         $databaseExit = 0
         if (!$MobileOnly -and !$AdminOnly) { & php tests/database.php; $databaseExit = $LASTEXITCODE }
         $adminBrowserExit = 0
@@ -94,7 +97,10 @@ try {
             if ($adminBrowserExit -eq 0) {
                 $previousBrowserFixture = $env:CLEVO_ADMIN_BROWSER_FIXTURE
                 $env:CLEVO_ADMIN_BROWSER_FIXTURE = Join-Path $privateRoot 'admin-browser.json'
-                try { & node tests/admin-browser.cjs; $adminBrowserExit = $LASTEXITCODE }
+                try {
+                    & node tests/admin-browser.cjs; $adminBrowserExit = $LASTEXITCODE
+                    if ($QA -and $adminBrowserExit -eq 0) { & node tests/qa-admin-accessibility.cjs; $adminBrowserExit = $LASTEXITCODE }
+                }
                 finally { $env:CLEVO_ADMIN_BROWSER_FIXTURE = $previousBrowserFixture }
             }
         }
@@ -117,7 +123,7 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile tests failed. See assertion labels above.' }
+        if ($qaExit -ne 0 -or $qaLoadExit -ne 0 -or $adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile/QA tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

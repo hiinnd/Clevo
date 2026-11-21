@@ -7,4 +7,7 @@ body{background:var(--bg-body);color:var(--text-main);font-family:system-ui,sans
 .nav-link{color:white;display:flex;gap:10px;padding:10px;border-radius:12px}.nav-link.active,.nav-link:hover{background:var(--accent-blue);color:white}
 .admin-avatar{width:70px;height:70px;border-radius:50%;object-fit:cover}.admin-pic-container{cursor:pointer}.upload-overlay{font-size:12px}
 td{min-width:100px;overflow-wrap:anywhere}td form label{max-width:210px}summary{cursor:pointer}label{font-size:.85rem}
+.admin-main-content>nav a:not(.btn){color:#0b5ed7}
+[data-theme=dark] .admin-main-content>nav a:not(.btn){color:#93c5fd}
+[data-theme=dark] .admin-main-content a:not(.btn):not(.nav-link){color:#93c5fd}
 @media(max-width:991px){.admin-main-content{padding-bottom:110px!important}}
