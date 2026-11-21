@@ -1,4 +1,4 @@
-param([string]$MysqlBin = 'C:\xampp\mysql\bin', [int]$DatabasePort = 13379, [int]$HttpPort = 18089, [switch]$SkipApache, [string]$Flutter = '', [switch]$MobileOnly)
+param([string]$MysqlBin = 'C:\xampp\mysql\bin', [int]$DatabasePort = 13379, [int]$HttpPort = 18089, [switch]$SkipApache, [string]$Flutter = '', [switch]$MobileOnly, [switch]$AdminOnly, [switch]$AdminBrowser)
 $ErrorActionPreference = 'Stop'
 if ($MobileOnly -and !$Flutter) { throw 'MobileOnly requires an explicit Flutter executable.' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -74,17 +74,30 @@ try {
         & php tests/integration.php
         $integrationExit = $LASTEXITCODE
         $apiExit = 0
-        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/api.php; $apiExit = $LASTEXITCODE }
+        if (!$MobileOnly -and !$AdminOnly -and $integrationExit -eq 0) { & php tests/api.php; $apiExit = $LASTEXITCODE }
         $bookingExit = 0
-        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/booking.php; $bookingExit = $LASTEXITCODE }
+        if (!$MobileOnly -and !$AdminOnly -and $integrationExit -eq 0) { & php tests/booking.php; $bookingExit = $LASTEXITCODE }
         $financialExit = 0
-        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/payments.php; $financialExit = $LASTEXITCODE }
+        if (!$MobileOnly -and !$AdminOnly -and $integrationExit -eq 0) { & php tests/payments.php; $financialExit = $LASTEXITCODE }
         $logisticsExit = 0
-        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/logistics.php; $logisticsExit = $LASTEXITCODE }
+        if (!$MobileOnly -and !$AdminOnly -and $integrationExit -eq 0) { & php tests/logistics.php; $logisticsExit = $LASTEXITCODE }
         $notificationExit = 0
-        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/notifications.php; $notificationExit = $LASTEXITCODE }
+        if (!$MobileOnly -and !$AdminOnly -and $integrationExit -eq 0) { & php tests/notifications.php; $notificationExit = $LASTEXITCODE }
+        $adminExit = 0; $adminFinancialExit = 0
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/admin.php; $adminExit = $LASTEXITCODE; & php tests/admin-financial.php; $adminFinancialExit = $LASTEXITCODE }
         $databaseExit = 0
-        if (!$MobileOnly) { & php tests/database.php; $databaseExit = $LASTEXITCODE }
+        if (!$MobileOnly -and !$AdminOnly) { & php tests/database.php; $databaseExit = $LASTEXITCODE }
+        $adminBrowserExit = 0
+        if ($AdminBrowser -and !$MobileOnly -and $integrationExit -eq 0 -and $adminExit -eq 0 -and $adminFinancialExit -eq 0) {
+            & php tests/admin-browser-fixtures.php
+            $adminBrowserExit = $LASTEXITCODE
+            if ($adminBrowserExit -eq 0) {
+                $previousBrowserFixture = $env:CLEVO_ADMIN_BROWSER_FIXTURE
+                $env:CLEVO_ADMIN_BROWSER_FIXTURE = Join-Path $privateRoot 'admin-browser.json'
+                try { & node tests/admin-browser.cjs; $adminBrowserExit = $LASTEXITCODE }
+                finally { $env:CLEVO_ADMIN_BROWSER_FIXTURE = $previousBrowserFixture }
+            }
+        }
         $mobileExit = 0
         if ($Flutter -and $integrationExit -eq 0) {
             & php tests/mobile-fixtures.php
@@ -100,11 +113,11 @@ try {
         $apacheExit = 0
         $apacheRoot = Join-Path (Split-Path -Parent (Split-Path -Parent $MysqlBin)) 'apache'
         $phpRoot = Split-Path -Parent (Get-Command php).Source
-        if (!$MobileOnly -and !$SkipApache -and $integrationExit -eq 0 -and (Test-Path -LiteralPath (Join-Path $apacheRoot 'bin/httpd.exe')) -and (Test-Path -LiteralPath (Join-Path $phpRoot 'php8apache2_4.dll'))) {
+        if (!$MobileOnly -and !$AdminOnly -and !$SkipApache -and $integrationExit -eq 0 -and (Test-Path -LiteralPath (Join-Path $apacheRoot 'bin/httpd.exe')) -and (Test-Path -LiteralPath (Join-Path $phpRoot 'php8apache2_4.dll'))) {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/mobile tests failed. See assertion labels above.' }
+        if ($adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

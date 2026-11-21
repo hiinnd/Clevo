@@ -1,0 +1,24 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/admin-helpers.php';
+$password='Browser!'.ad_key();
+$admin=ad_actor('Admin',$password);$owner=ad_actor('owner',$password);$customer=ad_actor('customer',$password);
+$displayName='إدارة CLEVO " Browser';
+clevo_stmt($db,'UPDATE user SET UserName=? WHERE UserID=?','si',[$displayName,$admin]);
+$station=ad_station($owner);
+$service=clevo_market_service($db,$owner,$station,0,['name_ar'=>'غسيل المتصفح','name_en'=>'Browser wash','price'=>'1.25','duration'=>30,'is_station'=>true]);
+$cash=ad_booking($customer,$station,$service);clevo_accept_owner_booking($db,$owner,$cash);clevo_pay_booking($db,$customer,$cash,'cash',false,ad_key());clevo_complete_owner_booking($db,$owner,$cash);
+$customerToken=clevo_token_pair($db,clevo_account($db,$customer))['access_token'];
+$created=ad_http('POST','/api/v1/support-requests',['subject'=>'Browser dispute','message'=>'Synthetic browser workflow','category'=>'dispute','booking_id'=>$cash],null,$customerToken);
+$ticket=(int)($created[1]['data']['ticket_id']??0);
+if($created[0]!==201||$ticket<1)throw new RuntimeException('Browser support fixture could not be created through the API.');
+$quotedText='Browser O\'Brien <img src=x onerror="globalThis.__adminXss=1">';
+$plan=clevo_admin_command($db,$admin,'plan_create',0,['name_ar'=>'باقة المتصفح','name_en'=>$quotedText,'price'=>'2.00','duration'=>1,'duration_type'=>'month','wash_count'=>1]);
+clevo_stmt($db,'UPDATE user SET UserName=? WHERE UserID=?','si',[$quotedText,$customer]);
+clevo_admin_command($db,$admin,'user_status',$customer,['status'=>'rejected']);
+clevoCreateNotification($db,$admin,'تنبيه المتصفح',$quotedText,'info','admin-dashboard.php','Browser notice',$quotedText);
+[$jar]=ad_login($admin,$password);
+$zone=new DateTimeZone(clevo_env('BOOKING_TIMEZONE','Asia/Amman'));$today=(new DateTimeImmutable('now',$zone))->format('Y-m-d');
+$fixture=['base_url'=>$base,'cookie_jar'=>$jar,'ticket_id'=>$ticket,'station_id'=>$station,'service_id'=>$service,'display_name'=>$displayName,'plan_id'=>$plan['plan_id'],'quoted_text'=>$quotedText,'date'=>$today,'expected_report'=>clevo_admin_financial_report($db,$today,$today,'cash')['totals']];
+file_put_contents(__DIR__.'/../.security-test/private/admin-browser.json',json_encode($fixture,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE));
+echo "Prepared isolated admin browser fixtures; no credentials were printed.\n";

@@ -119,6 +119,7 @@ function clevo_api_routes():array
     $add('GET','support-requests/{id}/messages','customer.support_messages');
     $add('POST','support-requests/{id}/messages','customer.support_reply','any','Reply',true,201);
     $add('GET','admin/security-status','admin.security','admin',null,false,200,'unchanged');
+    $add('GET','admin/dashboard-statistics','admin.statistics','admin');
     $add('GET','admin/users','admin.users','admin');
     $add('GET','admin/users/{id}','admin.user','admin');
     $add('GET','admin/users/{id}/verification-document','admin.verification','admin');
@@ -131,6 +132,14 @@ function clevo_api_routes():array
     $add('GET','admin/bookings/{id}','admin.booking','admin');
     $add('POST','admin/bookings/{id}/cancel','admin.booking_cancel','admin','BookingCancellation',true);
     $add('GET','admin/financial-reports','admin.financial','admin');
+    $add('GET','admin/services','admin.services','admin');
+    $add('POST','admin/stations/{id}/services','admin.service_create','admin','ServiceCreate',true,201);
+    $add('PATCH','admin/services/{id}','admin.service_update','admin','ServicePatch',true);
+    $add('DELETE','admin/services/{id}','admin.service_archive','admin','Empty',true);
+    $add('GET','admin/drivers','admin.drivers','admin');
+    $add('POST','admin/drivers','admin.driver_create','admin','DriverCreate',true,201);
+    $add('PATCH','admin/drivers/{id}','admin.driver_update','admin','DriverPatch',true);
+    $add('GET','admin/audit-logs','admin.audit','admin');
     $add('GET','admin/subscription-plans','admin.plans','admin');
     $add('POST','admin/subscription-plans','admin.plan_create','admin','PlanCreate',true,201);
     $add('PATCH','admin/subscription-plans/{id}','admin.plan_update','admin','PlanPatch',true);

@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $conn->query("UPDATE `user` SET ProfilePic = '$newName' WHERE UserID = $admin_id");
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
         header("Location: manage-users.php?upload=success");
         exit();
     }
@@ -35,46 +35,11 @@ $res_users = $conn->query("SELECT * FROM `user` WHERE Role IN ('customer', 'User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_status_id'])) {
     clevo_require_csrf_token();
     $u_id = (int) $_POST['toggle_status_id'];
-    $conn->begin_transaction();
-    try {
-        $user_stmt = $conn->prepare("SELECT AccountStatus, DeviceID FROM `user` WHERE UserID = ? AND LOWER(Role) IN ('customer', 'user') FOR UPDATE");
-        $user_stmt->bind_param("i", $u_id);
-        $user_stmt->execute();
-        $target_user = $user_stmt->get_result()->fetch_assoc();
-        if (!$target_user) {
-            throw new RuntimeException('User not found');
-        }
+    $target_user=clevo_admin_row(clevo_account($conn,$u_id));
+    if(!in_array(clevo_role($target_user['Role']),['customer'],true))throw new ClevoSecurityException('forbidden',403);
+    clevo_admin_web_command($conn,(int)$admin_id,'user_status',$u_id,['status'=>$target_user['AccountStatus']==='active'?'rejected':'active']);
+    header('Location: manage-users.php');exit;
 
-        $new_status = $target_user['AccountStatus'] === 'active' ? 'rejected' : 'active';
-        $stmt = $conn->prepare("UPDATE `user` SET AccountStatus = ? WHERE UserID = ?");
-        $stmt->bind_param("si", $new_status, $u_id);
-        $stmt->execute();
-
-        if ($new_status === 'rejected') {
-            clevo_revoke_user($conn, $u_id);
-            $device_id = trim((string) ($target_user['DeviceID'] ?? ''));
-            $check_blacklist = $conn->prepare("SELECT id FROM blacklist WHERE user_id = ? LIMIT 1");
-            $check_blacklist->bind_param("i", $u_id);
-            $check_blacklist->execute();
-            if (!$check_blacklist->get_result()->fetch_assoc()) {
-                $reason = 'Blocked by admin';
-                $add_blacklist = $conn->prepare("INSERT INTO blacklist (user_id, DeviceID, reason) VALUES (?, ?, ?)");
-                $add_blacklist->bind_param("iss", $u_id, $device_id, $reason);
-                $add_blacklist->execute();
-            }
-        } else {
-            $remove_blacklist = $conn->prepare("DELETE FROM blacklist WHERE user_id = ?");
-            $remove_blacklist->bind_param("i", $u_id);
-            $remove_blacklist->execute();
-        }
-
-        $conn->commit();
-        header("Location: manage-users.php?msg=updated");
-        exit();
-    } catch (Throwable $e) {
-        $conn->rollback();
-        error_log('CLEVO operation failed.');
-    }
 }
 ?>
 
@@ -270,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_status_id'])) 
 
             const backIcon = document.getElementById('backIcon');
             if(backIcon) backIcon.className = isRtl ? 'fas fa-arrow-right' : 'fas fa-arrow-left';
-            document.querySelectorAll('.u-name-display').forEach(el => el.innerText = "<?php echo $admin_name; ?>");
+            document.querySelectorAll('.u-name-display').forEach(el => el.innerText = <?= clevo_js($admin_name) ?>);
         }
 
         window.onload = applySettings;

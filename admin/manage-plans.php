@@ -21,9 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
-        $stmt->bind_param("si", $newName, $admin_id);
-        if ($stmt->execute()) {
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
+        if (true) {
             header("Location: manage-plans.php?upload=success");
             exit();
         }
@@ -39,57 +38,17 @@ $show_msg_modal = false;
 $msg_type = "";
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_plan'])) {
-    clevo_require_csrf_token();
-    $name_ar = trim($_POST['name_ar']);
-    $name_en = trim($_POST['name_en']);
-    $price = floatval($_POST['price']);
-    $duration = intval($_POST['duration']);
-    $duration_type = $_POST['duration_type'];
-    $wash_count = max(1, intval($_POST['wash_count'] ?? 1));
-    $desc_ar = trim($_POST['desc_ar']);
-    $desc_en = trim($_POST['desc_en']);
-    $included_services_ar = trim($_POST['included_services_ar'] ?? '');
-    $included_services_en = trim($_POST['included_services_en'] ?? '');
-    
-    $is_active = isset($_POST['is_active']) ? 1 : 0;
-    
-    if (!empty($name_ar)) {
-        $stmt = $conn->prepare("INSERT INTO plans (name_ar, name_en, price, duration, duration_type, wash_count, description_ar, description_en, included_services_ar, included_services_en, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("ssdisissssi", $name_ar, $name_en, $price, $duration, $duration_type, $wash_count, $desc_ar, $desc_en, $included_services_ar, $included_services_en, $is_active);
-        if($stmt->execute()) { $show_msg_modal = true; $msg_type = "added"; }
-    }
+if ($_SERVER['REQUEST_METHOD']==='POST' && (isset($_POST['add_plan'])||isset($_POST['update_plan']))) {
+    $input=['name_ar'=>trim($_POST['name_ar']??''),'name_en'=>trim($_POST['name_en']??''),'price'=>$_POST['price']??'',
+        'duration'=>(int)($_POST['duration']??0),'duration_type'=>$_POST['duration_type']??'','wash_count'=>(int)($_POST['wash_count']??0),
+        'description_ar'=>trim($_POST['desc_ar']??''),'description_en'=>trim($_POST['desc_en']??''),
+        'included_services_ar'=>trim($_POST['included_services_ar']??''),'included_services_en'=>trim($_POST['included_services_en']??''),'is_active'=>isset($_POST['is_active'])];
+    $creating=isset($_POST['add_plan']);
+    $show_msg_modal=true;$msg_type=clevo_admin_web_command($conn,(int)$admin_id,$creating?'plan_create':'plan_update',$creating?0:(int)($_POST['plan_id']??0),$input)?($creating?'added':'updated'):'error';
 }
-
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_plan'])) {
-    clevo_require_csrf_token();
-    $plan_id = intval($_POST['plan_id']);
-    $name_ar = trim($_POST['name_ar']);
-    $name_en = trim($_POST['name_en']);
-    $price = floatval($_POST['price']);
-    $duration = intval($_POST['duration']);
-    $duration_type = $_POST['duration_type'];
-    $wash_count = max(1, intval($_POST['wash_count'] ?? 1));
-    $desc_ar = trim($_POST['desc_ar']);
-    $desc_en = trim($_POST['desc_en']);
-    $included_services_ar = trim($_POST['included_services_ar'] ?? '');
-    $included_services_en = trim($_POST['included_services_en'] ?? '');
-    
-    $is_active = isset($_POST['is_active']) ? 1 : 0;
-    
-    $stmt = $conn->prepare("UPDATE plans SET name_ar=?, name_en=?, price=?, duration=?, duration_type=?, wash_count=?, description_ar=?, description_en=?, included_services_ar=?, included_services_en=?, is_active=? WHERE id=?");
-    $stmt->bind_param("ssdisissssii", $name_ar, $name_en, $price, $duration, $duration_type, $wash_count, $desc_ar, $desc_en, $included_services_ar, $included_services_en, $is_active, $plan_id);
-    if($stmt->execute()) { $show_msg_modal = true; $msg_type = "updated"; }
+if(isset($_POST['confirm_delete_id'])){
+    $show_msg_modal=true;$msg_type=clevo_admin_web_command($conn,(int)$admin_id,'plan_delete',(int)$_POST['confirm_delete_id'],[])?'deleted':'error';
 }
-
-
-if (isset($_POST['confirm_delete_id'])) {
-    clevo_require_csrf_token();
-    $delete_id = intval($_POST['confirm_delete_id']);
-    clevo_archive_catalog($conn,(int)$admin_id,'plan',$delete_id); $show_msg_modal = true; $msg_type = 'deleted';
-}
-
 
 $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
 ?>
@@ -189,7 +148,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
                                     <p class="small border-top pt-3 flex-grow-1 plan-desc-display" data-ar="<?php echo htmlspecialchars($plan['description_ar']); ?>" data-en="<?php echo htmlspecialchars($plan['description_en']); ?>"></p>
                                     <div class="small opacity-75 plan-includes-display" data-ar="<?php echo htmlspecialchars($plan['included_services_ar'] ?? ''); ?>" data-en="<?php echo htmlspecialchars($plan['included_services_en'] ?? ''); ?>"></div>
                                     <div class="d-flex gap-2 mt-3 pt-3 border-top">
-                                        <button class="btn btn-outline-primary btn-sm flex-fill rounded-pill" onclick='editPlan(<?php echo json_encode($plan); ?>)'><i class="fas fa-edit"></i> <span data-i18n="btn_edit">تعديل</span></button>
+                                        <button class="btn btn-outline-primary btn-sm flex-fill rounded-pill" onclick='editPlan(<?= e(clevo_js($plan)) ?>)'><i class="fas fa-edit"></i> <span data-i18n="btn_edit">تعديل</span></button>
                                         <button class="btn btn-outline-danger btn-sm rounded-circle" style="width:35px; height:35px;" onclick="showDeleteModal(<?php echo $plan['id']; ?>)"><i class="fas fa-trash"></i></button>
                                     </div>
                                 </div>
@@ -246,6 +205,7 @@ $res_plans = $conn->query("SELECT * FROM plans ORDER BY id DESC");
                         </div>
                     </div>
                     <button type="submit" name="add_plan" id="submitBtn" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mt-4 shadow" data-i18n="btn_save">حفظ البيانات</button>
+                    <button type="button" class="btn btn-outline-secondary w-100 rounded-pill mt-2" data-bs-dismiss="modal" data-i18n="btn_cancel">إلغاء</button>
                 </form>
             </div>
         </div>

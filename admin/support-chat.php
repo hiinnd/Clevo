@@ -14,7 +14,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
 $admin_name = $_SESSION['userName'] ?? "Admin";
 $admin_id = $_SESSION['userID'] ?? 0;
 clevoEnsureSupportMessagesTable($conn);
-clevoCleanupExpiredSupportChats($conn);
+
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload'])) {
@@ -22,10 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
-        $stmt->bind_param("si", $newName, $admin_id);
-        if ($stmt->execute()) {
-            header("Location: manage-plans.php?upload=success");
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
+        if (true) {
+            header("Location: support-chat.php?ticket_id=".(int)($_GET['ticket_id']??0));
             exit();
         }
     }
@@ -44,46 +43,9 @@ if (!isset($_GET['ticket_id'])) {
 $t_id = intval($_GET['ticket_id']);
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
-    clevo_require_csrf_token();
-    $reply_msg = trim($_POST['reply_msg']);
-    if (!empty($reply_msg)) {
-        
-        $stmt = $conn->prepare("UPDATE support_tickets SET message = CONCAT(message, '\n\n--- Admin Reply ---\n', ?), status = 'Replied' WHERE id = ?");
-        $stmt->bind_param("si", $reply_msg, $t_id);
-        
-        if($stmt->execute()) {
-            clevoAddSupportMessage($conn, $t_id, 'admin', (int) $admin_id, $reply_msg);
-            $check_stmt = $conn->prepare("SELECT user_id, user_name, is_guest, guest_email, subject FROM support_tickets WHERE id = ? LIMIT 1");
-            $check_stmt->bind_param("i", $t_id);
-            $check_stmt->execute();
-            $check_ticket = $check_stmt->get_result()->fetch_assoc();
-            
-            
-            if ($check_ticket && $check_ticket['is_guest'] == 0 && !empty($check_ticket['user_id'])) {
-                $u_id = $check_ticket['user_id'];
-                $notif_title = "رد جديد من الدعم الفني";
-                $notif_body = "قام المسؤول بالرد على تذكرتك بخصوص: " . $check_ticket['subject'];
-                
-                $notif_title = "رد جديد من الدعم الفني";
-                $notif_body = "قام المسؤول بالرد على تذكرتك بخصوص: " . $check_ticket['subject'];
-                clevoCreateNotification($conn, (int)$u_id, $notif_title, $notif_body, 'info', 'support.php?ticket_id=' . $t_id);
-            }
-            if ($check_ticket && (int) $check_ticket['is_guest'] === 1 && !empty($check_ticket['guest_email'])) {
-                clevoSendGuestSupportReplyEmail(
-                    (string) $check_ticket['guest_email'],
-                    (string) $check_ticket['user_name'],
-                    (string) $check_ticket['subject'],
-                    $reply_msg
-                );
-            }
-            
-            $success_sent = true;
-        }
-    }
+if ($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['admin_reply'])) {
+    $success_sent=clevo_admin_web_command($conn,(int)$admin_id,'support_reply',$t_id,['message'=>trim($_POST['reply_msg']??'')]);
 }
-
-
 $ticket_res = $conn->query("SELECT * FROM support_tickets WHERE id = $t_id");
 $ticket = $ticket_res->fetch_assoc();
 

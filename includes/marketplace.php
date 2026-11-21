@@ -25,9 +25,10 @@ function clevo_market_profile(mysqli $db,int $user,array $input):void
         clevo_db_audit($db,$user,'profile.updated','user',$user);
     });
 }
-function clevo_market_service(mysqli $db,int $owner,int $station,int $id,array $input):int
+function clevo_market_service(mysqli $db,int $owner,int $station,int $id,array $input,?int $auditActor=null):int
 {
-    return clevo_db_atomic($db,function()use($db,$owner,$station,$id,$input):int{
+    return clevo_db_atomic($db,function()use($db,$owner,$station,$id,$input,$auditActor):int{
+        if($auditActor!==null)clevo_admin_actor($db,$auditActor);
         $stationRow=clevo_market_station($db,$owner,$station);
         $old=$id?clevo_stmt($db,'SELECT * FROM services WHERE ServiceID=? AND StationID=? AND ArchivedAt IS NULL FOR UPDATE','ii',[$id,$station])->get_result()->fetch_assoc():[];
         if($id&&!$old)throw new ClevoSecurityException('not_found',404);
@@ -44,7 +45,7 @@ function clevo_market_service(mysqli $db,int $owner,int $station,int $id,array $
         else{clevo_stmt($db,'INSERT INTO services (StationID,Name,Name_ar,Name_en,Description,Description_ar,Description_en,Price,Duration,is_station,is_home,is_pickup) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)','isssssssiiii',[$station,$en,$ar,$en,$descriptionEn,$descriptionAr,$descriptionEn,$price,$duration,$at,$home,$pickup]);$id=(int)$db->insert_id;}
         // Explicitly publishing a delivery option makes it available at the station too.
         foreach(['is_station'=>'Has_At_Station','is_home'=>'Has_Home_Service','is_pickup'=>'Has_Delivery'] as $key=>$column)if(!empty($input[$key]))clevo_stmt($db,"UPDATE stations SET $column=1 WHERE StationID=?",'i',[$station]);
-        clevo_db_audit($db,$owner,'service.saved','services',$id);return $id;
+        clevo_db_audit($db,$auditActor??$owner,'service.saved','services',$id);return $id;
     });
 }
 function clevo_market_availability(mysqli $db,int $owner,int $station,array $input):void
@@ -64,9 +65,10 @@ function clevo_market_availability(mysqli $db,int $owner,int $station,array $inp
         clevo_db_audit($db,$owner,'station.availability','stations',$station);
     });
 }
-function clevo_market_driver_save(mysqli $db,int $owner,int $station,int $id,array $input):int
+function clevo_market_driver_save(mysqli $db,int $owner,int $station,int $id,array $input,?int $auditActor=null):int
 {
-    return clevo_db_atomic($db,function()use($db,$owner,$station,$id,$input):int{
+    return clevo_db_atomic($db,function()use($db,$owner,$station,$id,$input,$auditActor):int{
+        if($auditActor!==null)clevo_admin_actor($db,$auditActor);
         clevo_market_station($db,$owner,$station);
         $old=$id?clevo_stmt($db,"SELECT * FROM user WHERE UserID=? AND StationID=? AND LOWER(Role)='driver' FOR UPDATE",'ii',[$id,$station])->get_result()->fetch_assoc():[];
         if($id&&!$old)throw new ClevoSecurityException('not_found',404);
@@ -74,6 +76,7 @@ function clevo_market_driver_save(mysqli $db,int $owner,int $station,int $id,arr
         if($name===''||mb_strlen($name)>100||!preg_match('/^07[0-9]{8}$/D',$phone))throw new ClevoSecurityException('invalid_driver',422);
         $status=array_key_exists('active',$input)?($input['active']?'active':'rejected'):($old['AccountStatus']??'active');
         if($id&&$status==='rejected'&&clevo_stmt($db,"SELECT BookingID FROM booking WHERE DriverID=? AND Status IN ('Accepted','Arrived','In Progress','Pickup','Washing','Returning') LIMIT 1",'i',[$id])->get_result()->fetch_assoc())throw new ClevoSecurityException('driver_has_active_jobs',409);
+        if($id&&$status==='active'&&$auditActor===null&&clevo_stmt($db,'SELECT id FROM blacklist WHERE user_id=? LIMIT 1','i',[$id])->get_result()->fetch_assoc())throw new ClevoSecurityException('driver_admin_restricted',409);
         if($id){clevo_stmt($db,'UPDATE user SET UserName=?,PhoneNumber=?,AccountStatus=? WHERE UserID=?','sssi',[$name,$phone,$status,$id]);if($status!==$old['AccountStatus'])clevo_revoke_user($db,$id);}
         else{
             $email=isset($input['email'])?strtolower(trim($input['email'])):null;
@@ -81,7 +84,7 @@ function clevo_market_driver_save(mysqli $db,int $owner,int $station,int $id,arr
             $hash=password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT);clevo_stmt($db,"INSERT INTO user (UserName,PhoneNumber,Email,Password,Role,AccountStatus,StationID,MustResetPassword) VALUES (?,?,?,?,'driver','active',?,1)",'ssssi',[$name,$phone,$email,$hash,$station]);$id=(int)$db->insert_id;
             if($email!==null)clevo_issue_verification($db,clevo_account($db,$id));
         }
-        clevo_db_audit($db,$owner,'driver.saved','user',$id);return $id;
+        clevo_db_audit($db,$auditActor??$owner,'driver.saved','user',$id);return $id;
     });
 }
 function clevo_market_driver_invite(mysqli $db,int $owner,int $id,string $email):void

@@ -16,7 +16,7 @@ function clevo_api_booking_list(mysqli $db,array $ctx,string $scope):array
     $status=clevo_api_enum('status',$statuses);if($status!==null){$where[]='b.Status=?';$params[]=$status;$types.='s';}
     $after=clevo_api_query('after_id');if($after!==null){$where[]='b.BookingID>?';$params[]=clevo_api_integer('after_id',0,0);$types.='i';}
     $rows=clevo_api_list($db,'b.*','FROM booking b JOIN stations s ON s.StationID=b.StationID',$where?implode(' AND ',$where):'1=1',$types,$params,['id'=>'b.BookingID','date'=>'b.Booking_Date','price'=>'b.Total_Price'],'id','b.BookingID');
-    return array_map(function($b)use($role,$scope){$dto=clevo_booking_dto($b,$role);if($role==='driver'&&$scope==='history')unset($dto['Latitude'],$dto['Longitude'],$dto['Address_Details']);return $dto;},$rows);
+    return array_map(function($b)use($db,$role,$scope){$dto=clevo_booking_dto($b,$role);if($role==='admin')$dto['PaymentEvidence']=clevo_admin_payment_state($db,(int)$b['BookingID']);if($role==='driver'&&$scope==='history')unset($dto['Latitude'],$dto['Longitude'],$dto['Address_Details']);return $dto;},$rows);
 }
 function clevo_api_booking_change(array $result):array
 {

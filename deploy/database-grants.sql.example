@@ -1,7 +1,7 @@
 -- EXAMPLE ONLY: replace database, identity and host through deployment configuration.
 -- Provision credentials using the secret manager. This file contains no passwords.
 -- Apply only to a new runtime identity; broader pre-existing grants must be reviewed/revoked separately.
-GRANT INSERT ON `clevo`.`audit_logs` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT ON `clevo`.`audit_logs` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_challenges` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_refresh_tokens` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`auth_sessions` TO 'clevo_runtime'@'application-host';

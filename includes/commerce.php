@@ -227,8 +227,8 @@ function clevo_archive_catalog(mysqli $conn,int $actor,string $kind,int $id): vo
     clevo_db_atomic($conn,function()use($conn,$actor,$kind,$id):void {
         $account=clevo_account($conn,$actor,true); $role=$account?clevo_role($account['Role']):'';
         if (!$account||!clevo_account_active($conn,$account)) throw new ClevoSecurityException('forbidden',403);
-        if ($kind==='service'&&$role==='owner') {
-            $row=clevo_stmt($conn,'SELECT v.ServiceID FROM services v JOIN stations s ON s.StationID=v.StationID WHERE v.ServiceID=? AND s.UserID=? FOR UPDATE','ii',[$id,$actor])->get_result()->fetch_assoc();
+        if ($kind==='service'&&in_array($role,['owner','admin'],true)) {
+            $row=clevo_stmt($conn,'SELECT v.ServiceID FROM services v JOIN stations s ON s.StationID=v.StationID WHERE v.ServiceID=?'.($role==='admin'?'':' AND s.UserID=?').' FOR UPDATE',$role==='admin'?'i':'ii',$role==='admin'?[$id]:[$id,$actor])->get_result()->fetch_assoc();
             if (!$row) throw new ClevoSecurityException('not_found',404);
             clevo_stmt($conn,'UPDATE services SET ArchivedAt=COALESCE(ArchivedAt,UTC_TIMESTAMP(6)),is_station=0,is_home=0,is_pickup=0 WHERE ServiceID=?','i',[$id]);
         } elseif ($kind==='station'&&$role==='admin') {

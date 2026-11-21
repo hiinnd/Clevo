@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $conn->query("UPDATE `user` SET ProfilePic = '$newName' WHERE UserID = $admin_id");
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
         header("Location: manage-stations.php?upload=success");
         exit();
     }
@@ -38,7 +38,7 @@ if (isset($_POST['confirm_delete_id'])) {
     $delete_id = intval($_POST['confirm_delete_id']);
     clevo_db_begin($conn);
     try {
-        clevo_archive_catalog($conn,(int)$admin_id,'station',$delete_id);
+        clevo_admin_command($conn,(int)$admin_id,'station_archive',$delete_id,[]);
         clevo_db_commit($conn);
         $show_msg_modal = true; 
         $msg_type = "deleted";
@@ -54,12 +54,9 @@ if (isset($_POST['confirm_delete_id'])) {
 if (isset($_POST['confirm_block_id'])) {
     clevo_require_csrf_token();
     $block_id = intval($_POST['confirm_block_id']);
-    $block = $conn->prepare("UPDATE stations SET Status = 'Closed', admin_status = 'blocked' WHERE StationID = ?");
-    $block->bind_param("i", $block_id);
-    if($block->execute()) {
-        $show_msg_modal = true; 
-        $msg_type = "blocked"; 
-    }
+    $show_msg_modal=true;
+    $msg_type=clevo_admin_web_command($conn,(int)$admin_id,'station_status',$block_id,['admin_status'=>'blocked'])?'blocked':'error';
+
 }
 
 

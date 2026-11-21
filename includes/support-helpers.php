@@ -13,20 +13,8 @@ function clevoEnsureSupportMessagesTable(mysqli $conn): void
 
 function clevoCleanupExpiredSupportChats(mysqli $conn): void
 {
+    // Compatibility entry point: tickets close only through explicit administrative review.
     clevoEnsureSupportMessagesTable($conn);
-    $conn->query("UPDATE support_tickets t
-        JOIN (
-            SELECT TicketID,
-                   MAX(CASE WHEN SenderRole = 'admin' THEN CreatedAt END) AS last_admin_at,
-                   MAX(CASE WHEN SenderRole = 'user' THEN CreatedAt END) AS last_user_at
-            FROM support_messages
-            GROUP BY TicketID
-        ) m ON m.TicketID = t.id
-        SET t.status = 'Closed'
-        WHERE t.status = 'Replied'
-          AND m.last_admin_at IS NOT NULL
-          AND (m.last_user_at IS NULL OR m.last_admin_at > m.last_user_at)
-          AND m.last_admin_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
 }
 
 function clevoAddSupportMessage(mysqli $conn, int $ticketID, string $senderRole, ?int $senderID, string $message): bool
@@ -84,4 +72,24 @@ function clevoSupportMessagesForTicket(mysqli $conn, array $ticket): array
 {
     $messages = clevoGetSupportMessages($conn, (int) ($ticket['id'] ?? 0));
     return $messages ?: clevoLegacyTicketMessages($ticket);
+}
+
+function clevo_market_ticket(mysqli $db,int $user,int $id,bool $admin=false,bool $lock=false):array
+{
+    $row=clevo_stmt($db,'SELECT * FROM support_tickets WHERE id=?'.($admin?'':' AND user_id=?').($lock?' FOR UPDATE':''),$admin?'i':'ii',$admin?[$id]:[$id,$user])->get_result()->fetch_assoc();
+    if(!$row)throw new ClevoSecurityException('not_found',404);return $row;
+}
+function clevo_market_support_reply(mysqli $db,int $user,int $id,string $message,bool $admin=false):void
+{
+    if($admin)clevo_admin_actor($db,$user);
+    if(trim($message)===''||mb_strlen($message)>4000)throw new ClevoSecurityException('invalid_message',422);
+    $ticket=clevo_market_ticket($db,$user,$id,$admin,true);
+    if($ticket['status']==='Closed')throw new ClevoSecurityException('ticket_closed',409);
+    if(!clevoAddSupportMessage($db,$id,$admin?'admin':'user',$user,$message))throw new RuntimeException('Message unavailable.');
+    // Full content remains in support_messages; do not overflow the legacy TEXT preview/cache.
+    $legacy=mb_strcut($ticket['message'].($admin?"\n\n--- Admin Reply ---\n":"\n\n--- User Reply ---\n").$message,0,60000,'UTF-8');
+    clevo_stmt($db,'UPDATE support_tickets SET status=?,message=? WHERE id=?','ssi',[$admin?'Replied':'New',$legacy,$id]);
+    if($admin&&(int)$ticket['user_id']>0)clevoCreateNotification($db,(int)$ticket['user_id'],'رد على طلب الدعم','وصل رد جديد على طلب الدعم.','info','support.php?ticket_id='.$id,'Support reply','A reply to your support request is available.');
+    if($admin&&(int)$ticket['is_guest']===1&&$ticket['guest_email'])clevoSendGuestSupportReplyEmail($ticket['guest_email'],$ticket['user_name'],$ticket['subject'],$message);
+    clevo_db_audit($db,$user,'support.replied','support_tickets',$id);
 }

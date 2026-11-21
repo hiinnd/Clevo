@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $conn->query("UPDATE `user` SET ProfilePic = '$newName' WHERE UserID = $admin_id");
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
         header("Location: notifications.php?upload=success");
         exit();
     }
@@ -140,7 +140,7 @@ $stmt_unread->bind_param('ii', $admin_id, $admin_id); $stmt_unread->execute(); $
                                 $icon_title = $title_ar . ' ' . $title_en;
                             ?>
                             <div class="notif-card shadow-sm <?php echo ($notif['is_read'] == 0) ? 'unread' : ''; ?>" 
-                                 onclick='showNotifDetail(<?php echo json_encode($title_ar); ?>, <?php echo json_encode($body_ar); ?>, <?php echo json_encode($title_en); ?>, <?php echo json_encode($body_en); ?>, <?php echo (int) $notif['id']; ?>)'>
+                                 onclick='showNotifDetail(<?= e(clevo_js($title_ar)) ?>, <?= e(clevo_js($body_ar)) ?>, <?= e(clevo_js($title_en)) ?>, <?= e(clevo_js($body_en)) ?>, <?= (int)$notif['id'] ?>)'>
                                 <div class="row align-items-center g-3 text-start">
                                     <div class="col-auto">
                                         <div class="notif-icon shadow-sm">

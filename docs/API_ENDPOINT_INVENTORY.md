@@ -121,6 +121,7 @@ Generated from the runtime route registry and preserved authentication controlle
 | GET | `/support-requests/{id}/messages` | added | any | none | not required | `customer.support_messages` |
 | POST | `/support-requests/{id}/messages` | added | any | Reply | required | `customer.support_reply` |
 | GET | `/admin/security-status` | unchanged | admin | none | not required | `admin.security` |
+| GET | `/admin/dashboard-statistics` | added | admin | none | not required | `admin.statistics` |
 | GET | `/admin/users` | added | admin | none | not required | `admin.users` |
 | GET | `/admin/users/{id}` | added | admin | none | not required | `admin.user` |
 | GET | `/admin/users/{id}/verification-document` | added | admin | none | not required | `admin.verification` |
@@ -133,6 +134,14 @@ Generated from the runtime route registry and preserved authentication controlle
 | GET | `/admin/bookings/{id}` | added | admin | none | not required | `admin.booking` |
 | POST | `/admin/bookings/{id}/cancel` | added | admin | BookingCancellation | required | `admin.booking_cancel` |
 | GET | `/admin/financial-reports` | added | admin | none | not required | `admin.financial` |
+| GET | `/admin/services` | added | admin | none | not required | `admin.services` |
+| POST | `/admin/stations/{id}/services` | added | admin | ServiceCreate | required | `admin.service_create` |
+| PATCH | `/admin/services/{id}` | added | admin | ServicePatch | required | `admin.service_update` |
+| DELETE | `/admin/services/{id}` | added | admin | Empty | required | `admin.service_archive` |
+| GET | `/admin/drivers` | added | admin | none | not required | `admin.drivers` |
+| POST | `/admin/drivers` | added | admin | DriverCreate | required | `admin.driver_create` |
+| PATCH | `/admin/drivers/{id}` | added | admin | DriverPatch | required | `admin.driver_update` |
+| GET | `/admin/audit-logs` | added | admin | none | not required | `admin.audit` |
 | GET | `/admin/subscription-plans` | added | admin | none | not required | `admin.plans` |
 | POST | `/admin/subscription-plans` | added | admin | PlanCreate | required | `admin.plan_create` |
 | PATCH | `/admin/subscription-plans/{id}` | added | admin | PlanPatch | required | `admin.plan_update` |

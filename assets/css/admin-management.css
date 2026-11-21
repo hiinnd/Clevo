@@ -1,0 +1,10 @@
+:root{--bg-body:#f0f2f5;--bg-sidebar:#0f172a;--bg-card:#fff;--text-main:#111827;--accent-blue:#3b82f6;--border-color:#dee2e6}
+[data-theme=dark]{--bg-body:#020617;--bg-sidebar:#000;--bg-card:#1e293b;--text-main:#fff;--accent-blue:#60a5fa;--border-color:#334155;color-scheme:dark}
+body{background:var(--bg-body);color:var(--text-main);font-family:system-ui,sans-serif;margin:0}
+.card,.modal-content{background:var(--bg-card);color:var(--text-main);border-color:var(--border-color);border-radius:20px}
+.table{--bs-table-bg:transparent;--bs-table-color:var(--text-main);--bs-table-border-color:var(--border-color)}
+.form-control,.form-select{background-color:var(--bg-card);color:var(--text-main);border-color:var(--border-color)}
+.nav-link{color:white;display:flex;gap:10px;padding:10px;border-radius:12px}.nav-link.active,.nav-link:hover{background:var(--accent-blue);color:white}
+.admin-avatar{width:70px;height:70px;border-radius:50%;object-fit:cover}.admin-pic-container{cursor:pointer}.upload-overlay{font-size:12px}
+td{min-width:100px;overflow-wrap:anywhere}td form label{max-width:210px}summary{cursor:pointer}label{font-size:.85rem}
+@media(max-width:991px){.admin-main-content{padding-bottom:110px!important}}

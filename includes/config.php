@@ -13,6 +13,7 @@ require_once __DIR__ . '/security/schema.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/commerce.php';
 require_once __DIR__ . '/marketplace.php';
+require_once __DIR__ . '/admin-services.php';
 
 set_exception_handler(static function (Throwable $error): void {
     if (PHP_SAPI === 'cli') {

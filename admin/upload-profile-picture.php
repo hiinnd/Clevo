@@ -26,13 +26,5 @@ if (!$newName) {
     exit();
 }
 
-$stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ? AND Role = 'Admin'");
-$stmt->bind_param("si", $newName, $admin_id);
-
-if ($stmt->execute()) {
-    header("Location: $redirect{$separator}upload=success");
-    exit();
-}
-
-header("Location: $redirect{$separator}upload=db_failed");
-exit();
+clevo_admin_profile_save($conn,$admin_id,$newName);
+header("Location: $redirect{$separator}upload=success");exit;

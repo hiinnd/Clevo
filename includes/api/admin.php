@@ -1,58 +1,22 @@
 <?php
 declare(strict_types=1);
 
-function clevo_market_plan(mysqli $db,int $actor,int $id,array $input):int
-{
-    $old=$id?clevo_api_require_row(clevo_stmt($db,'SELECT * FROM plans WHERE id=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc()):[];
-    $defaults=['description_ar'=>'','description_en'=>'','included_services_ar'=>'','included_services_en'=>'','is_active'=>true];$v=array_replace($defaults,$old,$input);
-    $price=clevo_db_decimal(clevo_db_money($v['price']));
-    if(!trim($v['name_ar'])||!trim($v['name_en']))throw new ClevoSecurityException('invalid_plan',422);
-    $params=[$v['name_ar'],$v['name_en'],$price,$v['duration'],$v['duration_type'],$v['wash_count'],$v['description_ar'],$v['description_en'],$v['included_services_ar'],$v['included_services_en'],(int)$v['is_active']];
-    if($id){$params[]=$id;clevo_stmt($db,'UPDATE plans SET name_ar=?,name_en=?,price=?,duration=?,duration_type=?,wash_count=?,description_ar=?,description_en=?,included_services_ar=?,included_services_en=?,is_active=? WHERE id=?','sssisissssii',$params);}
-    else{clevo_stmt($db,'INSERT INTO plans (name_ar,name_en,price,duration,duration_type,wash_count,description_ar,description_en,included_services_ar,included_services_en,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?)','sssisissssi',$params);$id=(int)$db->insert_id;}
-    if(isset($input['sandbox_policy'])){
-        $policy=$input['sandbox_policy'];$ids=$policy['service_ids'];
-        $slots=implode(',',array_fill(0,count($ids),'?'));
-        $count=(int)clevo_stmt($db,"SELECT COUNT(*) n FROM services WHERE ArchivedAt IS NULL AND ServiceID IN ($slots)",str_repeat('i',count($ids)),$ids)->get_result()->fetch_assoc()['n'];
-        if($count!==count($ids))throw new ClevoSecurityException('subscription_service_unavailable',422);
-        clevo_finance_plan_terms(array_replace($v,['id'=>$id,'SandboxPolicy'=>json_encode($policy,JSON_THROW_ON_ERROR)]));
-        clevo_stmt($db,'UPDATE plans SET SandboxPolicy=? WHERE id=?','si',[json_encode($policy,JSON_THROW_ON_ERROR),$id]);
-    }
-    clevo_db_audit($db,$actor,'plan.saved','plans',$id);return $id;
-}
-function clevo_market_account_status(mysqli $db,int $actor,int $id,string $status):void
-{
-    if($actor===$id)throw new ClevoSecurityException('self_status_change_forbidden',409);
-    // Serialize administrator restriction decisions so two admins cannot remove the last active one.
-    $admins=clevo_stmt($db,"SELECT UserID FROM user WHERE LOWER(Role)='admin' AND AccountStatus='active' ORDER BY UserID FOR UPDATE")->get_result()->fetch_all(MYSQLI_ASSOC);
-    $row=clevo_api_require_row(clevo_account($db,$id,true));
-    if(clevo_role($row['Role'])==='admin'&&$status!=='active'&&$row['AccountStatus']==='active'&&count($admins)<=1)throw new ClevoSecurityException('last_admin_required',409);
-    if($status==='active'&&clevo_role($row['Role'])!=='driver'&&!$row['EmailVerifiedAt'])throw new ClevoSecurityException('email_verification_required',409);
-    clevo_stmt($db,'UPDATE user SET AccountStatus=? WHERE UserID=?','si',[$status,$id]);
-    if($status!=='active'){
-        clevo_revoke_user($db,$id);
-        if(!clevo_stmt($db,'SELECT id FROM blacklist WHERE user_id=? LIMIT 1','i',[$id])->get_result()->fetch_assoc())clevo_stmt($db,"INSERT INTO blacklist (user_id,reason) VALUES (?,'Restricted by administrator')",'i',[$id]);
-    }else clevo_stmt($db,'DELETE FROM blacklist WHERE user_id=?','i',[$id]);
-    clevo_db_audit($db,$actor,'user.status_changed','user',$id);
-}
-function clevo_market_refund_decision(mysqli $db,int $admin,int $id,array $input):void
-{
-    $r=clevo_api_require_row(clevo_stmt($db,'SELECT * FROM refund_requests WHERE RefundID=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc());
-    if($r['Status']!=='pending')throw new ClevoSecurityException('refund_already_processed',409);
-    if($input['status']==='approved'){
-        $b=clevo_booking_lock($db,(int)$r['BookingID']);
-        if(!in_array($b['Status'],['Pending','Accepted','Rejected','Cancelled','Cancelled_Timeout'],true))throw new ClevoSecurityException('manual_refund_required',409);
-        if(!in_array($b['Payment_Method'],['wallet','points','plan'],true))throw new ClevoSecurityException('manual_refund_required',409);
-        if(in_array($b['Status'],['Pending','Accepted'],true))clevo_booking_transition($db,$admin,(int)$r['BookingID'],'Cancelled','approved_refund');
-        else clevoRefundBookingPayment($db,(int)$r['BookingID'],'approved_refund');
-    }
-    clevo_stmt($db,'UPDATE refund_requests SET Status=?,DecisionNote=?,ProcessedBy=?,ProcessedAt=UTC_TIMESTAMP(6) WHERE RefundID=?','ssii',[$input['status'],$input['note'],$admin,$id]);
-    clevoCreateNotification($db,(int)$r['UserID'],'تحديث طلب الاسترجاع','تم تحديث حالة طلب الاسترجاع.','info','booking-history.php','Refund request update','Your refund request was reviewed.');clevo_db_audit($db,$admin,'refund.reviewed','refund_requests',$id);
-}
+require_once __DIR__.'/../admin-services.php';
+require_once __DIR__.'/../admin-queries.php';
+
 function clevo_api_admin(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
-    if($action==='notification_delivery')clevo_api_result(['delivery_counts'=>$db->query('SELECT Channel,State,LastError,COUNT(*) count,MAX(Attempts) max_attempts FROM notification_deliveries GROUP BY Channel,State,LastError')->fetch_all(MYSQLI_ASSOC)]);
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);
+    clevo_admin_actor($db,$user);
+    if($action==='notification_delivery')clevo_api_result(['delivery_counts'=>$db->query('SELECT Channel,State,LastError,COUNT(*) count,MAX(Attempts) max_attempts FROM notification_deliveries GROUP BY Channel,State,LastError')->fetch_all(MYSQLI_ASSOC)]);
+    if($action==='statistics')clevo_api_result(['statistics'=>clevo_admin_dashboard_stats($db)]);
+    if(in_array($action,['services','drivers','audit'],true)){
+        $view=$action==='drivers'?'people':$action;
+        if($action==='drivers'){
+            clevo_api_result(['drivers'=>clevo_api_list($db,'UserID,UserName,Email,PhoneNumber,StationID,AccountStatus','FROM user',"LOWER(Role)='driver'",'',[],['id'=>'UserID'],'id','UserID')]);
+        }
+        clevo_api_result([$action=>clevo_admin_rows($db,$user,$view,clevo_api_integer('page',1,1,100000),clevo_api_query('query',''),clevo_api_query('status',''))]);
+    }
     if($action==='security')clevo_api_result(['authentication'=>'enabled','role'=>'admin']);
     if($action==='verification')clevo_api_verification($db,$id);
     if($action==='users'){
@@ -69,13 +33,13 @@ function clevo_api_admin(mysqli $db,string $action,array $ctx,array $args,array 
     }
     if($action==='station')clevo_api_result(['station'=>clevo_api_require_row(clevo_stmt($db,'SELECT StationID,UserID,Name,Location,Lat,Lon,PhoneNumber,Status,admin_status,ArchivedAt FROM stations WHERE StationID=?','i',[$id])->get_result()->fetch_assoc())]);
     if($action==='bookings')clevo_api_result(['bookings'=>clevo_api_booking_list($db,$ctx,'all')]);
-    if($action==='booking')clevo_api_result(['booking'=>clevo_booking_dto(clevo_api_booking($db,$ctx,$id),'admin')]);
+    if($action==='booking')clevo_api_result(['booking'=>clevo_booking_dto(clevo_api_booking($db,$ctx,$id),'admin')+['PaymentEvidence'=>clevo_admin_payment_state($db,$id)]]);
     if($action==='financial'){
         $start=clevo_api_query('from','1970-01-01');$end=clevo_api_query('to','9999-12-30');
         foreach([$start,$end]as $date){$p=DateTimeImmutable::createFromFormat('!Y-m-d',$date);if(!$p||$p->format('Y-m-d')!==$date)clevo_api_invalid('query.date');}if($start>$end)clevo_api_invalid('query.date');
-        $report=clevo_stmt($db,"SELECT COUNT(*) completed_bookings,COALESCE(SUM(Total_Price),0) nominal_gmv,COALESCE(SUM(Admin_Commission),0) nominal_commission FROM booking WHERE Status='Completed' AND Booking_Date>=? AND Booking_Date<=?",'ss',[$start,$end])->get_result()->fetch_assoc();
-        $report['receipts']=clevo_stmt($db,'SELECT Method,Status,COALESCE(SUM(Amount),0) amount,COUNT(*) count FROM payments WHERE CreatedAt>=? AND CreatedAt<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY Method,Status ORDER BY Method,Status','ss',[$start,$end])->get_result()->fetch_all(MYSQLI_ASSOC);
-        $report['currency']='JOD';$report['from']=$start;$report['to']=$end;$report['reconciled_accounting']=false;clevo_api_result(['report'=>$report]);
+        $book=clevo_api_enum('book',['cash','sandbox'],'cash');
+        $report=clevo_admin_financial_report($db,$start,$end,$book);
+        clevo_api_result(['report'=>$report]);
     }
     if($action==='plans')clevo_api_result(['plans'=>clevo_api_list($db,'id,name_ar,name_en,price,duration,duration_type,wash_count,is_active,description_ar,description_en,included_services_ar,included_services_en','FROM plans','1=1','',[],['id'=>'id','price'=>'price'],'id','id')]);
     if($action==='subscriptions')clevo_api_result(['subscriptions'=>clevo_api_list($db,'id,user_id,plan_id,start_date,end_date,status,remaining_washes,PurchasePrice,PurchasedWashes,PlanNameSnapshot','FROM user_plans','1=1','',[],['id'=>'id','end_date'=>'end_date'],'id','id')]);
@@ -92,30 +56,6 @@ function clevo_api_admin(mysqli $db,string $action,array $ctx,array $args,array 
         $r=clevo_api_require_row(clevo_stmt($db,'SELECT id,owner_id,amount,status,bank_snapshot,requested_at,processed_at FROM owner_withdrawal_requests WHERE id=?','i',[$id])->get_result()->fetch_assoc());clevo_db_audit($db,$user,'withdrawal.bank_viewed','owner_withdrawal_requests',$id);$r['bank_snapshot']=json_decode($r['bank_snapshot']??'null',true);clevo_api_result(['withdrawal'=>$r]);
     }
     $result=clevo_api_mutate($db,$ctx,'admin.'.$action,['id'=>$id]+$input,function()use($db,$user,$id,$action,$input):array{
-        switch($action){
-            case 'booking_cancel':clevo_booking_transition($db,$user,$id,'Cancelled',$input['reason']);return ['booking_id'=>$id];
-            case 'user_status':clevo_market_account_status($db,$user,$id,$input['status']);return ['user_id'=>$id];
-            case 'station_status':
-                $s=clevo_api_require_row(clevo_stmt($db,'SELECT UserID,ArchivedAt FROM stations WHERE StationID=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc());
-                if($s['ArchivedAt'])throw new ClevoSecurityException('station_archived',409);
-                if($input['admin_status']==='approved'){
-                    $owner=clevo_api_require_row(clevo_account($db,(int)$s['UserID'],true));
-                    if(clevo_role($owner['Role'])!=='owner'||!$owner['EmailVerifiedAt'])throw new ClevoSecurityException('owner_verification_required',409);
-                    if($owner['AccountStatus']==='rejected')throw new ClevoSecurityException('owner_restricted',409);
-                    clevo_stmt($db,"UPDATE user SET AccountStatus='active' WHERE UserID=?",'i',[(int)$s['UserID']]);
-                }
-                clevo_stmt($db,'UPDATE stations SET admin_status=?,Status=IF(?=\'approved\',Status,\'Closed\') WHERE StationID=?','ssi',[$input['admin_status'],$input['admin_status'],$id]);
-                clevo_db_audit($db,$user,'station.moderated','stations',$id);return ['station_id'=>$id];
-            case 'station_archive':clevo_archive_catalog($db,$user,'station',$id);return ['station_id'=>$id,'archived'=>true];
-            case 'plan_create':return ['plan_id'=>clevo_market_plan($db,$user,0,$input)];
-            case 'plan_update':return ['plan_id'=>clevo_market_plan($db,$user,$id,$input)];
-            case 'plan_delete':clevo_api_require_row(clevo_stmt($db,'SELECT id FROM plans WHERE id=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc());clevo_archive_catalog($db,$user,'plan',$id);return ['plan_id'=>$id,'active'=>false];
-            case 'subscription_status':clevo_api_require_row(clevo_stmt($db,'SELECT id FROM user_plans WHERE id=? FOR UPDATE','i',[$id])->get_result()->fetch_assoc());clevo_stmt($db,"UPDATE user_plans SET status='cancelled' WHERE id=?",'i',[$id]);clevo_db_audit($db,$user,'subscription.cancelled','user_plans',$id);return ['subscription_id'=>$id];
-            case 'support_reply':clevo_market_support_reply($db,$user,$id,$input['message'],true);return ['ticket_id'=>$id];
-            case 'support_status':clevo_api_ticket($db,$user,$id,true,true);clevo_stmt($db,'UPDATE support_tickets SET status=? WHERE id=?','si',[$input['status'],$id]);clevo_db_audit($db,$user,'support.status','support_tickets',$id);return ['ticket_id'=>$id];
-            case 'refund_decision':clevo_market_refund_decision($db,$user,$id,$input);return ['refund_id'=>$id];
-            case 'withdrawal_status':clevo_market_withdrawal_status($db,$user,$id,$input['status']);return ['withdrawal_id'=>$id];
-            default:throw new LogicException('Unimplemented admin route.');
-        }
-    });clevo_api_result($result,in_array($action,['plan_create','support_reply'],true)?201:200);
+        return clevo_admin_command($db,$user,$action,$id,$input);
+    });clevo_api_result($result,in_array($action,['plan_create','support_reply','service_create','driver_create'],true)?201:200);
 }

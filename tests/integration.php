@@ -36,7 +36,7 @@ if (!preg_match('/^clevo_rt_[a-f0-9]{12}$/D', $runtimeUser) || !preg_match('/^[a
 $setup->query("CREATE USER '$runtimeUser'@'127.0.0.1' IDENTIFIED BY '$runtimePassword'");
 foreach ($conn->query('SHOW TABLES')->fetch_all(MYSQLI_NUM) as [$table]) {
     if (in_array($table,['security_migration_steps','database_migration_steps'],true)) continue;
-    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'INSERT':(in_array($table,['wallet_transactions','booking_status_history','financial_journals','financial_entries','financial_receipts','payment_evidence','financial_settlements','delivery_events','tracking_records'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
+    $permissions=$table==='security_schema_migrations'?'SELECT':($table==='audit_logs'?'SELECT, INSERT':(in_array($table,['wallet_transactions','booking_status_history','financial_journals','financial_entries','financial_receipts','payment_evidence','financial_settlements','delivery_events','tracking_records'],true)?'SELECT, INSERT':'SELECT, INSERT, UPDATE'));
     $setup->query("GRANT $permissions ON `$database`.`$table` TO '$runtimeUser'@'127.0.0.1'");
 }
 $setup->query("GRANT DELETE ON `$database`.blacklist TO '$runtimeUser'@'127.0.0.1'");

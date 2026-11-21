@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $conn->query("UPDATE `user` SET ProfilePic = '$newName' WHERE UserID = $admin_id");
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
         header("Location: all-support-chats.php?upload=success");
         exit();
     }

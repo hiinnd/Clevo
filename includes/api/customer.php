@@ -21,18 +21,6 @@ function clevo_market_support_create(mysqli $db,array $ctx,array $input):int
     if(!clevoAddSupportMessage($db,$id,'user',$user,$input['message']))throw new RuntimeException('Message unavailable.');
     clevoCreateRoleNotification($db,'Admin','طلب دعم جديد','وصل طلب دعم جديد.','info','all-support-chats.php','Support request','A support request was received.');return $id;
 }
-function clevo_market_support_reply(mysqli $db,int $user,int $id,string $message,bool $admin=false):void
-{
-    $ticket=clevo_api_ticket($db,$user,$id,$admin,true);
-    if($ticket['status']==='Closed')throw new ClevoSecurityException('ticket_closed',409);
-    if(!clevoAddSupportMessage($db,$id,$admin?'admin':'user',$user,$message))throw new RuntimeException('Message unavailable.');
-    // Full content remains in support_messages; do not overflow the legacy TEXT preview/cache.
-    $legacy=mb_strcut($ticket['message'].($admin?"\n\n--- Admin Reply ---\n":"\n\n--- User Reply ---\n").$message,0,60000,'UTF-8');
-    clevo_stmt($db,'UPDATE support_tickets SET status=?,message=? WHERE id=?','ssi',[$admin?'Replied':'New',$legacy,$id]);
-    if($admin&&(int)$ticket['user_id']>0)clevoCreateNotification($db,(int)$ticket['user_id'],'رد على طلب الدعم','وصل رد جديد على طلب الدعم.','info','support.php?ticket_id='.$id,'Support reply','A reply to your support request is available.');
-    if($admin&&(int)$ticket['is_guest']===1&&$ticket['guest_email'])clevoSendGuestSupportReplyEmail($ticket['guest_email'],$ticket['user_name'],$ticket['subject'],$message);
-    clevo_db_audit($db,$user,'support.replied','support_tickets',$id);
-}
 function clevo_api_customer(mysqli $db,string $action,array $ctx,array $args,array $input):never
 {
     if($action==='device_register')clevo_api_result(clevo_notification_device($db,$ctx,$input));

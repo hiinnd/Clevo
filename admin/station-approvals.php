@@ -4,7 +4,7 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require_once '../vendor/autoload.php';
+require_once __DIR__.'/../vendor/autoload.php';
 include_once __DIR__ . '/../includes/config.php';
 include_once __DIR__ . '/../includes/app-helpers.php';
 
@@ -24,9 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
-        $stmt->bind_param("si", $newName, $admin_id);
-        if ($stmt->execute()) {
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
+        if (true) {
             header("Location: station-approvals.php?upload=success");
             exit();
         }
@@ -53,78 +52,10 @@ $res_pending = $conn->query("
 ");
 
 
-if (isset($_POST['action']) && isset($_POST['station_id'])) {
-    clevo_require_csrf_token();
-    $station_id = intval($_POST['station_id']);
-    $action = $_POST['action'];
-    if (!in_array($action, ['Approve', 'Reject'], true)) {
-        header("Location: station-approvals.php?error=invalid_action");
-        exit;
-    }
-
-    $pending_stmt = $conn->prepare("SELECT s.StationID, s.UserID, s.Name FROM stations s JOIN user u ON u.UserID = s.UserID WHERE s.StationID = ? AND s.admin_status = 'pending' AND u.EmailVerifiedAt IS NOT NULL LIMIT 1");
-    $pending_stmt->bind_param("i", $station_id);
-    $pending_stmt->execute();
-    $pending_station = $pending_stmt->get_result()->fetch_assoc();
-    if (!$pending_station) {
-        header("Location: station-approvals.php?error=request_not_found");
-        exit;
-    }
-
-    $u_id = (int) $pending_station['UserID'];
-    $station_name = (string) ($pending_station['Name'] ?? '');
-    $account_status = $action === 'Approve' ? 'active' : 'rejected';
-    $admin_status = $action === 'Approve' ? 'approved' : 'rejected';
-    $station_status = $action === 'Approve' ? 'Active' : 'Closed';
-
-    $conn->begin_transaction();
-    try {
-        $user_update = $conn->prepare("UPDATE `user` SET AccountStatus = ?, StationID = ? WHERE UserID = ?");
-        $user_update->bind_param("sii", $account_status, $station_id, $u_id);
-        $user_update->execute();
-
-        $station_update = $conn->prepare("UPDATE stations SET admin_status = ?, Status = ? WHERE StationID = ?");
-        $station_update->bind_param("ssi", $admin_status, $station_status, $station_id);
-        $station_update->execute();
-
-        if ($action === 'Approve') {
-            clevoCreateNotification(
-                $conn,
-                $u_id,
-                'تمت الموافقة على المحطة',
-                'تمت الموافقة على محطة ' . $station_name . ' ويمكنك الآن إدارتها.',
-                'success',
-                '../owner/owner-dashboard.php',
-                'Station approved',
-                'Your station ' . $station_name . ' was approved and is ready to manage.'
-            );
-        } else {
-            clevoCreateNotification(
-                $conn,
-                $u_id,
-                'تم رفض طلب المحطة',
-                'تم رفض طلب محطة ' . $station_name . '.',
-                'danger',
-                '../general/contact.php',
-                'Station request rejected',
-                'Your station request for ' . $station_name . ' was rejected.'
-            );
-        }
-        $conn->commit();
-    } catch (Throwable $e) {
-        $conn->rollback();
-        error_log('CLEVO operation failed.');
-        header("Location: station-approvals.php?error=database");
-        exit;
-    }
-
-    if ($action === 'Approve') {
-        $recipient = clevo_account($conn, $u_id);
-        clevo_send_mail($recipient['Email'], $recipient['UserName'], 'Station approved',
-            '<p>' . e($recipient['UserName']) . '</p><a href="' . e(clevo_public_url('general/login.php')) . '">Login to CLEVO</a>');
-    }
-    header("Location: station-approvals.php?success=1");
-    exit;
+if (isset($_POST['action'],$_POST['station_id'])) {
+    if(!in_array($_POST['action'],['Approve','Reject'],true))throw new ClevoSecurityException('invalid_action',422);
+    $ok=clevo_admin_web_command($conn,(int)$admin_id,'station_status',(int)$_POST['station_id'],['admin_status'=>$_POST['action']==='Approve'?'approved':'blocked']);
+    header('Location: station-approvals.php?'.($ok?'success=1':'error=review_failed'));exit;
 }
 
 ?>
@@ -364,7 +295,7 @@ if (isset($_POST['action']) && isset($_POST['station_id'])) {
                                         <div class="col-12 col-md-auto d-flex gap-2">
                                             <?php
                                                 $verification_file = (string) ($row['VerificationFile'] ?? '');
-                                                $verification_src = '../includes/media.php?user_id=' . (int) $row['UserID'];
+                                                $verification_src = '../includes/media.php?station_id=' . (int) $row['StationID'];
                                             ?>
                                             <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick='viewDoc(<?php echo e(clevo_js($verification_src)); ?>)' data-i18n="btn_view_doc">السجل</button>
                                             <button class="btn btn-success btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="ask('<?php echo (int) $row['StationID']; ?>', 'Approve')" data-i18n="btn_approve">موافقة</button>

@@ -12,16 +12,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
-        $stmt->bind_param("si", $newName, $admin_id);
-        if ($stmt->execute()) {
-            header("Location: " . $_SERVER['PHP_SELF'] . "?upload=success");
-            exit();
-        }
+        clevo_admin_profile_save($conn, (int) $admin_id, $newName);
+        header("Location: " . $_SERVER['PHP_SELF'] . "?upload=success");
+        exit();
     }
 }
 
-$res_pic = $conn->query("SELECT ProfilePic FROM `user` WHERE UserID = $admin_id");
+$res_pic = clevo_stmt($conn, 'SELECT ProfilePic FROM `user` WHERE UserID = ?', 'i', [(int) $admin_id])->get_result();
 $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
@@ -151,13 +148,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
         width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: visible !important;
+        overflow-x: auto !important;
     }
     
     .sidebar-nav-container .nav {
         flex-direction: row !important;
         display: grid !important;
-        grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(9, minmax(65px, 1fr)) !important;
         gap: 2px !important;
         width: 100% !important;
     }
@@ -219,6 +216,26 @@ $current_page = basename($_SERVER['PHP_SELF']);
 }
 </style>
 
+<script src="../assets/js/admin-common.js" defer></script>
+<?php if(isset($_SESSION['admin_error'])):
+    $errorMessages=[
+        'self_status_change_forbidden'=>['لا يمكنك تقييد حسابك الإداري.','You cannot restrict your own admin account.'],
+        'last_admin_required'=>['يجب الإبقاء على مسؤول نشط.','An active administrator must remain.'],
+        'email_verification_required'=>['يجب توثيق البريد الإلكتروني أولاً.','Email verification is required first.'],
+        'owner_verification_required'=>['يجب توثيق حساب المالك أولاً.','The owner account must be verified first.'],
+        'owner_restricted'=>['حساب المالك مقيّد. راجع حالته أولاً.','The owner is restricted. Review the account status first.'],
+        'verification_document_required'=>['مستند التحقق مفقود أو غير صالح للقراءة.','The verification document is missing or unreadable.'],
+        'driver_has_active_jobs'=>['يجب إنهاء مهام السائق الحالية قبل تقييده.','Resolve the driver’s active jobs before restricting the account.'],
+        'ticket_closed'=>['التذكرة مغلقة. أعد فتحها قبل الرد.','The ticket is closed. Reopen it before replying.'],
+        'manual_refund_required'=>['يتطلب هذا الاسترجاع مراجعة يدوية.','This refund requires manual review.'],
+        'refund_already_processed'=>['تمت مراجعة طلب الاسترجاع مسبقاً.','This refund request was already reviewed.'],
+        'payment_gateway_not_configured'=>['مزود الدفع غير مهيأ بعد.','The payment provider is not configured yet.'],
+        'provider_settlements_not_approved'=>['التسويات البنكية غير مفعّلة بعد.','Bank settlements are not enabled yet.'],
+        'settlement_request_exists'=>['يوجد طلب تسوية قيد المراجعة لهذا المالك.','This owner already has a settlement request under review.'],
+        'validation_failed'=>['راجع الحقول المطلوبة والقيم المدخلة.','Review the required fields and entered values.'],
+    ];
+    $errorText=$errorMessages[$_SESSION['admin_error']]??['تعذر تطبيق التغيير. راجع الحالة الحالية وحاول مجدداً.','Unable to apply this change. Review the current state and retry.'];
+?><div role="alert" class="alert alert-danger m-3" data-admin-ar="<?= e($errorText[0]) ?>" data-admin-en="<?= e($errorText[1]) ?>"><?= e($errorText[0]) ?></div><?php unset($_SESSION['admin_error']); endif; ?>
 <nav class="admin-sidebar shadow">
     <div class="text-center mb-4">
         <form id="adminPicForm" method="POST" enctype="multipart/form-data" action="<?php echo e(clevoPublicAssetUrl('admin/upload-profile-picture.php')); ?>">
@@ -235,6 +252,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="sidebar-nav-container">
         <div class="nav flex-column">
             <a href="admin-dashboard.php" class="nav-link <?php echo ($current_page == 'admin-dashboard.php') ? 'active' : ''; ?>"><i class="fas fa-th-large"></i> <span data-i18n="nav_main">الرئيسية</span></a>
+            <a href="management.php" class="nav-link <?= $current_page==='management.php'?'active':'' ?>"><i class="fas fa-tasks"></i><span data-admin-ar="الإدارة" data-admin-en="Management">الإدارة</span></a>
             <a href="station-approvals.php" class="nav-link <?php echo ($current_page == 'station-approvals.php') ? 'active' : ''; ?>"><i class="fas fa-check-double"></i> <span data-i18n="nav_approvals">الموافقات</span></a>
             <a href="security-center.php" class="nav-link <?php echo ($current_page == 'security-center.php') ? 'active' : ''; ?>"><i class="fas fa-shield-alt"></i> <span data-i18n="nav_security">الأمان</span></a>
             <a href="financial-reports.php" class="nav-link <?php echo ($current_page == 'financial-reports.php') ? 'active' : ''; ?>"><i class="fas fa-chart-pie"></i> <span data-i18n="nav_reports">التقارير</span></a>

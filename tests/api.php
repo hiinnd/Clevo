@@ -283,6 +283,9 @@ api_expect(409,api_call('PATCH',"admin/users/$admin/status",['status'=>'rejected
 api_expect(200,api_call('PATCH',"admin/users/$other/status",['status'=>'rejected'],$ad,api_key()),'Admin restriction revokes account sessions');
 api_expect(401,api_call('GET','me',null,$tokens['other']),'Restricted account token immediately denied');
 api_expect(200,api_call('PATCH',"admin/users/$other/status",['status'=>'active'],$ad,api_key()),'Admin restores verified account');
+$verificationDir=rtrim(clevo_env('PRIVATE_STORAGE_PATH'),'/\\').'/verification';if(!is_dir($verificationDir))mkdir($verificationDir,0700,true);
+$verificationName=bin2hex(random_bytes(24)).'.pdf';file_put_contents($verificationDir.'/'.$verificationName,"%PDF-1.4\n%%EOF\n");
+clevo_stmt($conn,'UPDATE stations SET CommercialRecordPath=? WHERE StationID=?','si',['private:verification:'.$verificationName,$station]);
 api_expect(200,api_call('PATCH',"admin/stations/$station/status",['admin_status'=>'approved'],$ad,api_key()),'Admin station approval respects verified owner');
 api_expect(200,api_call('DELETE',"owner/services/$newService",[],$o,api_key()),'Service archive through API');
 api_expect(200,api_call('DELETE',"admin/stations/$station2",[],$ad,api_key()),'Admin station archive through API');

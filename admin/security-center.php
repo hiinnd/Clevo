@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $conn->query("UPDATE `user` SET ProfilePic = '$newName' WHERE UserID = $admin_id");
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
         header("Location: security-center.php?upload=success");
         exit();
     }
@@ -34,26 +34,8 @@ $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['blacklist_id'])) {
     clevo_require_csrf_token();
     $blacklist_id = (int) $_POST['blacklist_id'];
-    $conn->begin_transaction();
-    try {
-        $lookup = $conn->prepare("SELECT user_id FROM blacklist WHERE id = ? FOR UPDATE");
-        $lookup->bind_param("i", $blacklist_id);
-        $lookup->execute();
-        $entry = $lookup->get_result()->fetch_assoc();
-        if ($entry && (int) ($entry['user_id'] ?? 0) > 0) {
-            $u_id = (int) $entry['user_id'];
-            $activate = $conn->prepare("UPDATE user SET AccountStatus = 'active' WHERE UserID = ?");
-            $activate->bind_param("i", $u_id);
-            $activate->execute();
-        }
-        $remove = $conn->prepare("DELETE FROM blacklist WHERE id = ?");
-        $remove->bind_param("i", $blacklist_id);
-        $remove->execute();
-        $conn->commit();
-    } catch (Throwable $e) {
-        $conn->rollback();
-        error_log('CLEVO operation failed.');
-    }
+    $entry=clevo_admin_row(clevo_stmt($conn,'SELECT user_id FROM blacklist WHERE id=?','i',[$blacklist_id])->get_result()->fetch_assoc());
+    clevo_admin_web_command($conn,(int)$admin_id,'user_status',(int)$entry['user_id'],['status'=>'active']);
     header("Location: security-center.php?unbanned=success");
     exit;
 }
@@ -188,7 +170,7 @@ $blacklist_res = $conn->query("
                                             <td><span class="badge-id"><?php echo htmlspecialchars($user_b['DeviceID'] ?? 'N/A'); ?></span></td>
                                             <td class="fw-bold"><?php echo htmlspecialchars($user_b['UserName'] ?? 'غير معروف'); ?></td>
                                             <td><span class="badge bg-danger rounded-pill px-3" data-i18n="status_banned">محظور</span></td>
-                                            <td><button class="btn btn-sm btn-success rounded-pill px-4 fw-bold shadow-sm" onclick='askUnban(<?php echo (int) $user_b['blacklist_id']; ?>, <?php echo json_encode((string) ($user_b['UserName'] ?? ''), JSON_UNESCAPED_UNICODE); ?>)' data-i18n="btn_unban">فك الحظر</button></td>
+                                            <td><button class="btn btn-sm btn-success rounded-pill px-4 fw-bold shadow-sm" onclick='askUnban(<?= (int)$user_b['blacklist_id'] ?>, <?= e(clevo_js((string)($user_b['UserName']??''))) ?>)' data-i18n="btn_unban">فك الحظر</button></td>
                                         </tr>
                                     <?php endwhile; else: ?>
                                         <tr><td colspan="4" class="text-center py-5 opacity-50 fw-bold" data-i18n="no_banned">لا يوجد محظورين حالياً</td></tr>

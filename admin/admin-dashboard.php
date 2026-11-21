@@ -18,9 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['admin_pic_upload']))
     $file = $_FILES['admin_pic_upload'];
     $newName = clevoSaveUploadedProfileImage($file, 'admin', (int) $admin_id);
     if ($newName) {
-        $stmt = $conn->prepare("UPDATE `user` SET ProfilePic = ? WHERE UserID = ?");
-        $stmt->bind_param("si", $newName, $admin_id);
-        if ($stmt->execute()) {
+        clevo_admin_profile_save($conn,(int)$admin_id,$newName);
+        if (true) {
             header("Location: admin-dashboard.php?upload=success");
             exit();
         }
@@ -32,20 +31,10 @@ $user_data = $res_pic->fetch_assoc();
 $admin_pic = ($user_data && !empty($user_data['ProfilePic'])) ? $user_data['ProfilePic'] : 'default_user.png';
 $admin_pic_url = clevoProfileImageUrl($admin_pic, $admin_name);
 
-$res_stations = $conn->query("SELECT COUNT(*) as total FROM stations WHERE admin_status = 'approved'");
-$total_stations = $res_stations->fetch_assoc()['total'] ?? 0;
-
-$res_users = $conn->query("SELECT COUNT(*) as total FROM `user` WHERE LOWER(Role) IN ('customer', 'user')");
-$total_users = $res_users->fetch_assoc()['total'] ?? 0;
-
-$res_pending_stations = $conn->query("SELECT COUNT(*) as total FROM stations WHERE admin_status = 'pending'");
-$pending_stations_count = $res_pending_stations->fetch_assoc()['total'] ?? 0;
-
-$total_pending = $pending_stations_count;
-
-$res_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed' AND DATE(created_at) = CURDATE()");
-$total_profit = $res_profit->fetch_assoc()['total'] ?? 0;
-
+$stats=clevo_admin_dashboard_stats($conn);
+$total_stations=$stats['approved_stations'];$total_users=$stats['customers'];
+$pending_stations_count=$stats['pending_station_approvals'];$total_pending=$pending_stations_count;
+$total_profit=$stats['cash_commission_today_minor']/1000;
 $res_tickets = $conn->query("SELECT st.*, u.UserName as user_display_name 
                              FROM support_tickets st 
                              LEFT JOIN `user` u ON st.user_id = u.UserID 
@@ -87,7 +76,8 @@ $res_most_service = $conn->query("
         COALESCE(NULLIF(MAX(s.Name_en), ''), MAX(s.Name), 'Not specified') AS ServiceNameEn,
         COUNT(*) AS count
     FROM booking b
-    JOIN services s ON b.ServiceID = s.ServiceID
+    JOIN booking_services bs ON bs.BookingID=b.BookingID
+    JOIN services s ON bs.ServiceID=s.ServiceID
     GROUP BY COALESCE(NULLIF(s.Name_en, ''), s.Name)
     ORDER BY count DESC, ServiceNameEn ASC
     LIMIT 1
@@ -97,14 +87,8 @@ $most_service_ar = $most_service['ServiceNameAr'] ?? 'غير محدد';
 $most_service_en = $most_service['ServiceNameEn'] ?? 'Not specified';
 $most_service_ar = clevoAdminServiceNameAr($most_service_ar);
 
-$res_monthly_profit = $conn->query("SELECT SUM(Admin_Commission) as total FROM booking WHERE Status = 'Completed' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-$monthly_profit = $res_monthly_profit->fetch_assoc()['total'] ?? 0;
-
-$res_avg_rating = $conn->query("SELECT AVG(Rating) as avg_rating FROM reviews");
-$avg_rating = $res_avg_rating->fetch_assoc()['avg_rating'] ?? 0;
-
-$res_daily_bookings = $conn->query("SELECT COUNT(*) as total FROM booking WHERE DATE(created_at) = CURDATE()");
-$daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
+$monthly_profit=$stats['cash_commission_month_minor']/1000;
+$avg_rating=$stats['average_rating'];$daily_bookings=$stats['bookings_created_today'];
 ?>
 
 <!DOCTYPE html>
@@ -229,14 +213,14 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                     </div>
                     <div class="col-6 col-md-3">
                         <a href="station-approvals.php" class="stat-card bg-purple">
-                            <small class="fw-bold" data-i18n="pending_orders">طلبات قيد المعالجة</small>
+                            <small class="fw-bold" data-i18n="pending_orders">محطات بانتظار الاعتماد</small>
                             <h2 class="mt-2 fw-bold"><?php echo $total_pending; ?></h2>
                         </a>
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="stat-card bg-orange" style="cursor: default;">
-                            <small class="fw-bold" data-i18n="today_profit">أرباح اليوم</small>
-                            <h2 class="mt-2 fw-bold"><?php echo number_format($total_profit, 2); ?> JOD</h2>
+                            <small class="fw-bold" data-i18n="today_profit">عمولة النقد اليوم</small>
+                            <h2 class="mt-2 fw-bold"><?php echo number_format($total_profit, 3); ?> JOD</h2>
                         </div>
                     </div>
                 </div>
@@ -251,8 +235,8 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="stat-card bg-green" style="cursor: default;">
-                            <small class="fw-bold" data-i18n="monthly_profit">أرباح الشهر</small>
-                            <h2 class="mt-2 fw-bold"><?php echo number_format($monthly_profit, 2); ?> JOD</h2>
+                            <small class="fw-bold" data-i18n="monthly_profit">عمولة النقد هذا الشهر</small>
+                            <h2 class="mt-2 fw-bold"><?php echo number_format($monthly_profit, 3); ?> JOD</h2>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
@@ -315,8 +299,8 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                 admin_title: "لوحة تحكم الأدمن | Clevo", nav_main: "الرئيسية", nav_approvals: "الموافقات", nav_security: "الأمان", 
                 nav_reports: "التقارير", nav_plans: "الخطط", nav_notif: "الإشعارات", nav_support_chat: "دردشة الدعم", nav_logout: "خروج",
                 welcome_admin: "لوحة الإدارة الشاملة", hello: "أهلاً", total_stations: "إجمالي المحطات",
-                active_users_count: "إجمالي الزبائن", pending_orders: "طلبات قيد المعالجة", today_profit: "أرباح اليوم",
-                extra_analytics: "تحليلات إضافية", most_requested_service: "الخدمة الأكثر طلباً", monthly_profit: "أرباح الشهر",
+                active_users_count: "إجمالي الزبائن", pending_orders: "محطات بانتظار الاعتماد", today_profit: "عمولة النقد اليوم",
+                extra_analytics: "تحليلات إضافية", most_requested_service: "الخدمة الأكثر طلباً", monthly_profit: "عمولة النقد هذا الشهر",
                 avg_station_rating: "متوسط تقييم المحطات", today_bookings: "حجوزات اليوم",
                 support_tickets: "تذاكر الدعم الواردة", th_user: "المستخدم", th_subject: "الموضوع", th_status: "الحالة", 
                 th_action: "الإجراء", btn_reply: "رد", no_tickets: "لا توجد تذاكر حالياً",
@@ -329,8 +313,8 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                 admin_title: "Admin Dashboard | Clevo", nav_main: "Dashboard", nav_approvals: "Approvals", nav_security: "Security", 
                 nav_reports: "Reports", nav_plans: "Plans", nav_notif: "Notifications", nav_support_chat: "Support Chat", nav_logout: "Logout",
                 welcome_admin: "Global Admin Panel", hello: "Welcome", total_stations: "Total Stations",
-                active_users_count: "Total Customers", pending_orders: "Pending Orders", today_profit: "Today Profit",
-                extra_analytics: "Additional Analytics", most_requested_service: "Most Requested Service", monthly_profit: "Monthly Profit",
+                active_users_count: "Total Customers", pending_orders: "Pending station approvals", today_profit: "Cash commission today",
+                extra_analytics: "Additional Analytics", most_requested_service: "Most Requested Service", monthly_profit: "Cash commission this month",
                 avg_station_rating: "Avg Station Rating", today_bookings: "Today Bookings",
                 support_tickets: "Support Tickets", th_user: "User", th_subject: "Subject", th_status: "Status", 
                 th_action: "Action", btn_reply: "Reply", no_tickets: "No tickets found",
@@ -389,7 +373,7 @@ $daily_bookings = $res_daily_bookings->fetch_assoc()['total'] ?? 0;
                 || (document.getElementById('adminLangText')?.innerText || '') === 'EN';
 
             if (pageLooksArabic) {
-                serviceEl.innerText = serviceEl.getAttribute('data-service-ar') || 'غسيل شامل';
+                serviceEl.innerText = serviceEl.getAttribute('data-service-ar') || 'غير محدد';
             }
         }
 

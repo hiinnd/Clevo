@@ -21,6 +21,8 @@
         "test:booking": "php tests/booking.php",
         "test:payments": "php tests/payments.php",
         "docs:api": "php scripts/generate-api-docs.php",
-        "test:notifications": "php tests/notifications.php"
+        "test:notifications": "php tests/notifications.php",
+        "test:admin": "php tests/admin.php",
+        "test:admin-financial": "php tests/admin-financial.php"
     }
 }
