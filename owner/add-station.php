@@ -17,13 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_save'])) {
     clevo_require_csrf_token(true);
     $name = clevo_clean_string($_POST['stName'] ?? '', 100);
     $location = clevo_clean_string($_POST['stLocation'] ?? '', 255);
-    $lat = trim($_POST['stLat']) !== '' ? clevo_clean_string($_POST['stLat'] ?? '', 30) : ($existingStation['Lat'] ?? '');
-    $lon = trim($_POST['stLon']) !== '' ? clevo_clean_string($_POST['stLon'] ?? '', 30) : ($existingStation['Lon'] ?? '');
+    $lat = trim($_POST['stLat'] ?? '') !== '' ? clevo_clean_string($_POST['stLat'], 30) : ($existingStation['Lat'] ?? '');
+    $lon = trim($_POST['stLon'] ?? '') !== '' ? clevo_clean_string($_POST['stLon'], 30) : ($existingStation['Lon'] ?? '');
     $location_url = trim($_POST['stLocationUrl'] ?? '') !== '' ? clevo_clean_string($_POST['stLocationUrl'] ?? '', 255) : ($existingStation['Location_URL'] ?? '');
-    $open_time = $_POST['openTime'];
-    $close_time = $_POST['closeTime'];
+    $open_time = $_POST['openTime'] ?? '';
+    $close_time = $_POST['closeTime'] ?? '';
 
-    if ($name === '' || !preg_match('/^\d{2}:\d{2}(?::\d{2})?$/D', $open_time) || !preg_match('/^\d{2}:\d{2}(?::\d{2})?$/D', $close_time)) throw new ClevoSecurityException('invalid_station', 422);
+    if ($name === '' || !preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$/D', $open_time) || !preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$/D', $close_time)) throw new ClevoSecurityException('invalid_station', 422);
     if ($lat !== '' && (filter_var($lat, FILTER_VALIDATE_FLOAT) === false || abs((float) $lat) > 90)) throw new ClevoSecurityException('invalid_location', 422);
     if ($lon !== '' && (filter_var($lon, FILTER_VALIDATE_FLOAT) === false || abs((float) $lon) > 180)) throw new ClevoSecurityException('invalid_location', 422);
     if ($location_url !== '' && (!filter_var($location_url, FILTER_VALIDATE_URL) || !in_array(parse_url($location_url, PHP_URL_SCHEME), ['http','https'], true))) throw new ClevoSecurityException('invalid_url', 422);

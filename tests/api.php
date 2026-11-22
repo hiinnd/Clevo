@@ -110,7 +110,8 @@ clevo_stmt($conn,'UPDATE user SET VerificationFile=? WHERE UserID=?','si',['priv
 [$status,,$binary]=api_call('GET','me/verification-document',null,$o);check($status===200&&$binary===file_get_contents($png),'Owner may download own verification document');
 api_expect(404,api_call('GET','me/verification-document',null,$c),'Customer cannot select another document owner');
 
-api_expect(200,api_call('GET','owner/stations',null,$o),'Owner stations');
+$ownerStations=api_expect(200,api_call('GET','owner/stations',null,$o),'Owner stations');
+check(count($ownerStations['stations']??[])>0 && array_key_exists('PhoneNumber',$ownerStations['stations'][0]),'Owner station editor receives the persisted phone field');
 api_expect(200,api_call('GET',"owner/stations/$station/services",null,$o),'Owner service list');
 api_expect(404,api_call('GET',"owner/stations/$station2/services",null,$o),'Other station service list denied');
 $s=api_expect(201,api_call('POST',"owner/stations/$station/services",['name_ar'=>'API exterior','name_en'=>'API exterior','price'=>'5.00','is_station'=>true],$o,api_key()),'Owner service create');$newService=(int)($s['service_id']??0);

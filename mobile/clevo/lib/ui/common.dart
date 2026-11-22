@@ -517,7 +517,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                           (field.number || field.integer) &&
                           (field.integer
                               ? int.tryParse(value!) == null
-                              : double.tryParse(value!) == null)) {
+                              : double.tryParse(value!)?.isFinite != true)) {
                         return tr(context, 'رقم غير صحيح', 'Invalid number');
                       }
                       return null;

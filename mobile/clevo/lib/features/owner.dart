@@ -61,7 +61,7 @@ class OwnerStationsScreen extends ConsumerWidget {
                         'phone',
                         'الهاتف',
                         'Phone',
-                        initial: text(row['Phone'], ''),
+                        initial: text(row['PhoneNumber'], ''),
                         required: false,
                       ),
                       FieldSpec(
@@ -283,7 +283,16 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                       : 'Closed',
                   items: [
                     for (final s in ['Active', 'Busy', 'Closed'])
-                      DropdownMenuItem(value: s, child: Text(s)),
+                      DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          tr(context, switch (s) {
+                            'Active' => 'متاحة',
+                            'Busy' => 'مشغولة',
+                            _ => 'مغلقة',
+                          }, s),
+                        ),
+                      ),
                   ],
                   onChanged: (value) async {
                     if (await command(

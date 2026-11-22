@@ -238,7 +238,7 @@ foreach (['Admin', 'admin', 'driver', 'unknown'] as $badRole) {
     [$code] = http('POST', '/api/v1/auth/register', ['role' => $badRole, 'full_name' => 'Test', 'phone' => '0799999900', 'email' => 'public@example.test', 'password' => $password]);
     check($code === 422, 'Public API role injection denied: ' . $badRole);
 }
-[$code] = http('POST', '/api/v1/auth/register', ['role' => 'customer', 'full_name' => 'New customer', 'phone' => '0799999901', 'email' => 'new@example.test', 'password' => $password]); check($code === 201, 'Public customer registration preserved');
+[$code] = http('POST', '/api/v1/auth/register', ['role' => 'customer', 'full_name' => 'New customer', 'phone' => '0799999901', 'email' => 'new@example.test', 'password' => $password]); check($code === 201, 'Public customer registration preserved (HTTP '.$code.')');
 $mail = clevo_decrypt_mail($conn->query('SELECT PayloadCipher FROM security_mail_queue ORDER BY ID DESC LIMIT 1')->fetch_assoc()['PayloadCipher']);
 preg_match('/#token=([a-f0-9.]+)/', $mail['html'], $m); $verify = $m[1] ?? '';
 check($verify !== '' && !str_contains($mail['html'], '?token='), 'Verification secret uses fragment rather than logged URL query');
@@ -267,6 +267,10 @@ $ownerJar = __DIR__ . '/../.security-test/owner.cookies'; $ownerCsrf = csrf($own
 [$status, , $body] = http('GET', '/owner/add-station.php', null, null, $ownerJar); check($status === 200, 'Owner station page loads');
 check(inline_js_valid($body), 'Rendered owner station JavaScript compiles');
 preg_match('/name="csrf_token" value="([a-f0-9]+)"/', $body, $m); $ownerCsrf = $m[1] ?? '';
+foreach (['25:00', '12:60', '12:00:60', ''] as $invalidClock) {
+    [$status] = http('POST', '/owner/add-station.php', ['ajax_save'=>1, 'csrf_token'=>$ownerCsrf, 'stName'=>'Invalid hours', 'stLocation'=>'Test', 'openTime'=>$invalidClock, 'closeTime'=>'22:00'], null, $ownerJar, [], true);
+    check($status === 422, 'Web station onboarding rejects invalid clock: '.$invalidClock);
+}
 $png = __DIR__ . '/../.security-test/upload.png'; file_put_contents($png, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9a0AAAAASUVORK5CYII='));
 $curl = curl_init($base . '/owner/add-station.php'); curl_setopt_array($curl, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEFILE => $ownerJar, CURLOPT_POSTFIELDS => [
     'ajax_save' => 1, 'csrf_token' => $ownerCsrf, 'stName' => 'Test station', 'stLocation' => 'Test', 'stLat' => '31', 'stLon' => '35', 'stLocationUrl' => '', 'openTime' => '08:00', 'closeTime' => '22:00', 'stImage' => new CURLFile($png, 'image/png', 'photo.png')]]);
