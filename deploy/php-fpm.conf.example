@@ -1,0 +1,25 @@
+; UNACTIVATED pool reference; dedicated non-login service identity.
+[clevo-production]
+user=clevo
+group=clevo
+listen=/run/php/clevo-production.sock
+listen.owner=www-data
+listen.group=www-data
+listen.mode=0660
+clear_env=yes
+env[CLEVO_ENV_FILE]=/etc/clevo/production.env
+pm=dynamic
+pm.max_children=8
+pm.start_servers=2
+pm.min_spare_servers=1
+pm.max_spare_servers=3
+pm.max_requests=500
+request_terminate_timeout=30s
+catch_workers_output=yes
+php_admin_flag[display_errors]=off
+php_admin_flag[display_startup_errors]=off
+php_admin_flag[log_errors]=on
+php_admin_flag[zend.exception_ignore_args]=on
+php_admin_value[error_log]=/var/log/clevo/php-error.log
+php_admin_value[session.save_path]=/srv/clevo-production/private/sessions
+php_admin_value[upload_tmp_dir]=/srv/clevo-production/private/tmp

@@ -1,8 +1,60 @@
 # CLEVO schema inventory
 
-Generated from actual migrated disposable metadata on 2026-11-16. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 50; columns: 503; index columns: 254; foreign-key columns: 85. This is not a live production inventory.
+Generated from actual migrated disposable metadata on 2026-11-22. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 52; columns: 520; index columns: 266; foreign-key columns: 89. This is not a live production inventory.
 
-Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking 005, payments 006, driver tracking 007 and notifications 008 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking 005, payments 006, driver tracking 007 notifications 008, privacy 009 and cleanup 010 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+
+## `account_deletion_requests`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `RequestID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `UserID` | `int(11)` | NO | `NULL` |  |
+| `State` | `enum('requested','cancelled','processing','completed')` | NO | `'requested'` |  |
+| `RequestedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `UpdatedAt` | `datetime(6)` | NO | `current_timestamp(6)` | on update current_timestamp(6) |
+| `CompletedAt` | `datetime(6)` | YES | `NULL` |  |
+| `ReviewedBy` | `int(11)` | YES | `NULL` |  |
+| `ReviewReference` | `varchar(100)` | YES | `NULL` |  |
+| `PolicyVersion` | `varchar(40)` | YES | `NULL` |  |
+| `LocationErasedAt` | `datetime(6)` | YES | `NULL` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `fk_deletion_reviewer` | INDEX | `ReviewedBy` |
+| `idx_deletion_queue` | INDEX | `State`, `RequestedAt` |
+| `PRIMARY` | PRIMARY | `RequestID` |
+| `uq_deletion_user` | UNIQUE | `UserID` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_deletion_reviewer` | `ReviewedBy` | `user.UserID` | RESTRICT / RESTRICT |
+| `fk_deletion_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
+
+## `account_erasure_files`
+
+Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
+
+| Column | SQL type | Null | Default | Extra |
+|---|---|---|---|---|
+| `FileID` | `bigint(20) unsigned` | NO | `NULL` | auto_increment |
+| `RequestID` | `bigint(20) unsigned` | NO | `NULL` |  |
+| `StorageReference` | `varchar(255)` | NO | `NULL` |  |
+| `State` | `enum('queued','deleted')` | NO | `'queued'` |  |
+| `Attempts` | `int(10) unsigned` | NO | `0` |  |
+| `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+
+| Index | Kind | Ordered columns / prefix |
+|---|---|---|
+| `idx_erasure_file_state` | INDEX | `State`, `FileID` |
+| `PRIMARY` | PRIMARY | `FileID` |
+| `uq_erasure_file` | UNIQUE | `RequestID`, `StorageReference` |
+
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_erasure_file_request` | `RequestID` | `account_deletion_requests.RequestID` | RESTRICT / RESTRICT |
 
 ## `audit_logs`
 
@@ -1034,13 +1086,17 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `LeaseUntil` | `datetime(6)` | YES | `NULL` |  |
 | `Claim` | `char(32)` | YES | `NULL` |  |
 | `LastError` | `varchar(40)` | YES | `NULL` |  |
+| `UserID` | `int(11)` | YES | `NULL` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
 | `idx_mail_ready` | INDEX | `SentAt`, `AvailableAt` |
+| `idx_security_mail_user` | INDEX | `UserID`, `SentAt` |
 | `PRIMARY` | PRIMARY | `ID` |
 
-No declared outbound foreign key.
+| FK | Child column | Parent | Delete / update |
+|---|---|---|---|
+| `fk_security_mail_user` | `UserID` | `user.UserID` | RESTRICT / RESTRICT |
 
 ## `security_migration_steps`
 

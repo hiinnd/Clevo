@@ -1,0 +1,9 @@
+[Unit]
+Description=CLEVO allowlisted job schedule %i
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Persistent=yes
+[Install]
+WantedBy=timers.target

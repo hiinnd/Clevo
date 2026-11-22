@@ -6,6 +6,12 @@ Generated from the runtime route registry and preserved authentication controlle
 |---|---|---|---|---|---|---|
 | GET | `/stations` | added | public | none | not required | `catalog.stations` |
 | GET | `/stations/search` | added | public | none | not required | `catalog.stations` |
+| GET | `/legal` | added | public | none | not required | `customer.legal` |
+| GET | `/me/account-deletion-request` | added | any | none | not required | `customer.deletion_status` |
+| POST | `/me/account-deletion-request` | added | any | AccountDeletion | required | `customer.deletion_request` |
+| POST | `/me/account-deletion-request/cancel` | added | any | AccountDeletion | required | `customer.deletion_cancel` |
+| GET | `/admin/account-deletion-requests` | added | admin | none | not required | `admin.deletion_requests` |
+| POST | `/admin/account-deletion-requests/{id}/fulfill` | added | admin | AccountErasureReview | required | `admin.deletion_fulfill` |
 | GET | `/stations/{id}` | added | public | none | not required | `catalog.station` |
 | GET | `/stations/{id}/services` | added | public | none | not required | `catalog.services` |
 | GET | `/stations/{id}/availability` | added | public | none | not required | `catalog.availability` |

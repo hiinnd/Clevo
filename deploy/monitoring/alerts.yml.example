@@ -1,0 +1,18 @@
+groups:
+  - name: clevo
+    rules:
+      - alert: ClevoUnavailable
+        expr: up{job="clevo"} == 0 or clevo_ready == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: 'CLEVO readiness or monitoring unavailable'}
+      - alert: ClevoDeliveryBacklog
+        expr: clevo_delivery_oldest_due_seconds > 300
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'CLEVO notification queue overdue'}
+      - alert: ClevoBackupOverdue
+        expr: clevo_backup_age_seconds > 90000
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'CLEVO verified encrypted backup overdue'}

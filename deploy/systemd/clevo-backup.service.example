@@ -1,0 +1,23 @@
+[Unit]
+Description=CLEVO encrypted offsite backup
+After=network-online.target
+[Service]
+Type=oneshot
+# Existing private uploads and heartbeats are mode 0600 and owned by clevo.
+# Separate DB credentials do not imply a separate OS security boundary.
+User=clevo
+Group=clevo
+Environment=CLEVO_ENV_FILE=/etc/clevo/backup.env
+EnvironmentFile=/etc/clevo/restic.env
+ExecStart=/usr/bin/bash /srv/clevo-production/current/deploy/bin/backup.sh
+TimeoutStartSec=3600
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+CacheDirectory=clevo-backup
+CacheDirectoryMode=0700
+# ProtectSystem makes private uploads read-only within this unit; only these paths are writable.
+ReadWritePaths=/srv/clevo-production/private/backups /srv/clevo-production/private/ops /var/cache/clevo-backup
+Environment=RESTIC_CACHE_DIR=/var/cache/clevo-backup

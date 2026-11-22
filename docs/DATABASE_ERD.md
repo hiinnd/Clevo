@@ -4,6 +4,12 @@ Generated from the same actual metadata as [DATABASE_SCHEMA.md](DATABASE_SCHEMA.
 
 ```mermaid
 erDiagram
+    account_deletion_requests {
+        bigint RequestID PK
+    }
+    account_erasure_files {
+        bigint FileID PK
+    }
     audit_logs {
         bigint AuditID PK
     }
@@ -161,6 +167,9 @@ erDiagram
     wallet_transactions {
         int TransactionID PK
     }
+    user |o--o{ account_deletion_requests : "ReviewedBy"
+    user ||--o| account_deletion_requests : "UserID"
+    account_deletion_requests ||--o{ account_erasure_files : "RequestID"
     user |o--o{ audit_logs : "ActorID"
     user ||--o{ auth_challenges : "UserID"
     auth_sessions ||--o{ auth_refresh_tokens : "SessionID"
@@ -228,6 +237,7 @@ erDiagram
     user ||--o{ request_idempotency : "UserID"
     booking |o--o| reviews : "BookingID"
     user ||--o{ saved_addresses : "UserID"
+    user |o--o{ security_mail_queue : "UserID"
     stations |o--o{ services : "StationID"
     user |o--o{ stations : "UserID"
     booking ||--o| subscription_redemptions : "BookingID"

@@ -1,0 +1,5 @@
+{
+  "CLEVO_API_URL": "https://staging.clevo.invalid/api/v1/",
+  "CLEVO_FIREBASE": false,
+  "CLEVO_MAPS": false
+}

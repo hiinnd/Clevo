@@ -36,7 +36,7 @@ async function main() {
         await page.addScriptTag({ path: path.join(root, '.security-test/browser-tools/node_modules/axe-core/axe.min.js') });
         const result = await page.evaluate(async () => {
           const r = await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } });
-          return { engine: r.testEngine, violations: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, helpUrl: v.helpUrl, targets: v.nodes.map(n => n.target) })), manual_review_rules: r.incomplete.map(v => v.id) };
+          return { engine: r.testEngine, violations: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, helpUrl: v.helpUrl, targets: v.nodes.map(n => n.target), contrast_details: v.nodes.map(n => ({target:n.target,checks:n.any.filter(c=>c.id==='color-contrast').map(c=>({foreground:c.data?.fgColor,background:c.data?.bgColor,ratio:c.data?.contrastRatio,fontSize:c.data?.fontSize,fontWeight:c.data?.fontWeight}))})) })), manual_review_rules: r.incomplete.map(v => v.id) };
         });
         checks.push({ route, language, theme, ...result });
       }

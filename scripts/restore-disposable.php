@@ -20,6 +20,7 @@ try {
     $escape=static fn(string $v):string=>'"'.str_replace(["\\","\"","\r","\n"],["\\\\","\\\"","\\r","\\n"],$v).'"';
     $text="[client]\n";
     foreach(['host'=>'DB_HOST','port'=>'DB_PORT','user'=>'DB_USERNAME','password'=>'DB_PASSWORD'] as $key=>$env)$text.=$key.'='.$escape(clevo_env($env,'')??'')."\n";
+    $text.=clevo_database_client_tls_options();
     $config=fopen($optionFile,'x'); chmod($optionFile,0600); fwrite($config,$text); fclose($config); unset($text);
     $process=proc_open([clevo_env('MYSQL_BINARY','mysql'),'--defaults-extra-file='.$optionFile,'--binary-mode=1','--default-character-set=utf8mb4',clevo_env('DB_DATABASE')],[0=>$input,1=>['pipe','w'],2=>['pipe','w']],$pipes);
     if(!is_resource($process))throw new RuntimeException('Restore client unavailable.');

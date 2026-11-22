@@ -1,0 +1,8 @@
+[Unit]
+Description=CLEVO daily backup timer (proposed RPO 24h)
+[Timer]
+OnCalendar=*-*-* 00:30:00 UTC
+RandomizedDelaySec=300
+Persistent=yes
+[Install]
+WantedBy=timers.target

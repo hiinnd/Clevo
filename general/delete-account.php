@@ -9,11 +9,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         clevo_rate_limit($conn,'privacy:web:ip',$_SERVER['REMOTE_ADDR']??'',10,900);
         $password=$_POST['password']??'';
         if(!$user){
+            $dummyHash=password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT);
             $login=$_POST['login']??'';
             if(strlen($login)>100||strlen($password)>72)throw new ClevoSecurityException('reauthentication_failed',401);
             clevo_rate_limit($conn,'privacy:web:identity',strtolower(trim($login)),5,900);
             $a=clevo_stmt($conn,'SELECT UserID FROM user WHERE Email=? OR PhoneNumber=? LIMIT 1','ss',[$login,$login])->get_result()->fetch_assoc();
-            if(!$a)throw new ClevoSecurityException('reauthentication_failed',401);$user=(int)$a['UserID'];
+            if(!$a){password_verify($password,$dummyHash);throw new ClevoSecurityException('reauthentication_failed',401);}$user=(int)$a['UserID'];
         }
         if(($_POST['confirm']??'')!=='yes')throw new ClevoSecurityException('confirmation_required',422);
         $cancel=($_POST['action']??'')==='cancel';

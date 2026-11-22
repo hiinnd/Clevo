@@ -1,5 +1,7 @@
 # CLEVO REST API integration
 
+Production preparation update (2026-11-22): the current generated specification contains **174 operations across 150 paths** (163 registry operations plus 11 preserved auth operations). Privacy/self-deletion and Admin erasure routes are documented in [PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md). Migration 010, protected operational health endpoints and staging/production release gates are covered by [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md). Counts in earlier dated phases below are historical.
+
 Subsequent integration phases (2026-11-16): [NOTIFICATIONS.md](NOTIFICATIONS.md), [TRACKING_ARCHITECTURE.md](TRACKING_ARCHITECTURE.md), and [NOTIFICATION_TEST_RESULTS.md](NOTIFICATION_TEST_RESULTS.md) describe migrations 007/008, current delivery/tracking policy and test evidence. The API now has 159 operations across 138 paths. Earlier phase counts and worker/null-transport behavior below are historical where superseded.
 
 Subsequent payment phase (2026-11-16): [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) and [PAYMENT_TEST_RESULTS.md](PAYMENT_TEST_RESULTS.md) are authoritative for migration 006, the approved new-booking 5% commission in integer JOD fils, sandbox hosted checkout, verified funding, refunds, ledger and commercial blockers. The API now has 145 operations across 125 paths. Earlier phase counts and retained financial rules below are historical where superseded.

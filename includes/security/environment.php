@@ -104,9 +104,22 @@ function clevo_validate_environment(): void
 
 function clevo_path_within(string $path, string $root): bool
 {
-    $path = strtolower(str_replace('\\', '/', $path));
-    $root = rtrim(strtolower(str_replace('\\', '/', $root)), '/');
+    $path = str_replace('\\', '/', $path);
+    $root = rtrim(str_replace('\\', '/', $root), '/');
+    if (PHP_OS_FAMILY === 'Windows') {$path = strtolower($path);$root = strtolower($root);}
     return $path === $root || str_starts_with($path, $root . '/');
+}
+
+/** Matching native client families have different certificate-verification switches. */
+function clevo_database_client_tls_options():string
+{
+    $ca=clevo_env('DB_TLS_CA_FILE','')??'';
+    if($ca==='')return '';
+    if(!is_file($ca)||!is_readable($ca))throw new RuntimeException('Database CA unavailable.');
+    $flavor=clevo_env('DB_CLIENT_FLAVOR','mysql');
+    if(!in_array($flavor,['mysql','mariadb'],true))throw new RuntimeException('Unknown database client family.');
+    $quoted='"'.str_replace(["\\","\"","\r","\n"],["\\\\","\\\"","\\r","\\n"],$ca).'"';
+    return 'ssl-ca='.$quoted."\n".($flavor==='mysql'?"ssl-mode=VERIFY_IDENTITY\n":"ssl-verify-server-cert\n");
 }
 
 function clevo_https(): bool

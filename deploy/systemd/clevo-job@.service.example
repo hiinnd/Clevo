@@ -1,0 +1,23 @@
+# TEMPLATE ONLY. Install without .example only after infrastructure approval.
+[Unit]
+Description=CLEVO allowlisted job %i
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=clevo
+Group=clevo
+Environment=CLEVO_ENV_FILE=/etc/clevo/workers/%i.env
+WorkingDirectory=/srv/clevo-production/current
+ExecStart=/usr/bin/php -d display_errors=0 -d zend.exception_ignore_args=1 scripts/run-job.php %i
+TimeoutStartSec=120
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/clevo-production/private
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+StandardOutput=journal
+StandardError=journal

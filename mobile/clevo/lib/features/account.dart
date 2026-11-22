@@ -110,6 +110,10 @@ class ProfileScreen extends ConsumerWidget {
             title: tr(context, 'أمان الحساب', 'Account security'),
             onTap: () => context.push('/recovery'),
           ),
+          DataCard(
+            title: tr(context, 'الخصوصية وحذف الحساب', 'Privacy and account deletion'),
+            onTap: () => context.push('/privacy'),
+          ),
           if (user?.role == 'customer')
             DataCard(
               title: tr(context, 'تقييماتي', 'My reviews'),

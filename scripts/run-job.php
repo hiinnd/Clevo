@@ -4,8 +4,9 @@ if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 require_once __DIR__.'/../includes/operations.php';
 $lock=null;$job=$argv[1]??'';$exitCode=1;
 try{
-    clevo_load_environment();clevo_validate_environment();$jobs=clevo_operations_jobs();
+    clevo_load_environment();$jobs=clevo_operations_jobs();
     if(count($argv)!==2||!isset($jobs[$job]))throw new RuntimeException('Allowlisted job required.');
+    if($job==='privacy-files')clevo_validate_database_environment();else clevo_validate_environment();
     if(clevo_env('MAINTENANCE_MODE','0')==='1')throw new RuntimeException('Jobs are stopped during maintenance.');
     if(clevo_env('ERASURE_WORKER_FENCE','0')==='1'&&in_array($job,['notification-outbox','notification-delivery','security-mail'],true))throw new RuntimeException('Outbound worker fence is active.');
     $directory=rtrim(clevo_env('PRIVATE_STORAGE_PATH'),'/\\').'/ops';if(!is_dir($directory)&&!mkdir($directory,0700,true))throw new RuntimeException('Worker storage unavailable.');

@@ -5,6 +5,8 @@ build/
 .flutter-plugins-dependencies
 .packages
 android/local.properties
+android/.kotlin/
+android/.gradle/
 android/key.properties
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist

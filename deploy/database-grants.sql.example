@@ -42,7 +42,7 @@ GRANT SELECT, INSERT, UPDATE ON `clevo`.`services` TO 'clevo_runtime'@'applicati
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`stations` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`support_messages` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`support_tickets` TO 'clevo_runtime'@'application-host';
-GRANT SELECT, INSERT, UPDATE ON `clevo`.`tracking_records` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT ON `clevo`.`tracking_records` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`user` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`user_plans` TO 'clevo_runtime'@'application-host';
 GRANT SELECT, INSERT, UPDATE ON `clevo`.`wallet` TO 'clevo_runtime'@'application-host';
@@ -50,6 +50,8 @@ GRANT SELECT, INSERT ON `clevo`.`wallet_transactions` TO 'clevo_runtime'@'applic
 GRANT DELETE ON `clevo`.`blacklist` TO 'clevo_runtime'@'application-host';
 -- Separate mail worker; no catalog, booking or financial DELETE privileges.
 GRANT SELECT, UPDATE ON `clevo`.`security_mail_queue` TO 'clevo_mail_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_mail_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`request_idempotency` TO 'clevo_mail_worker'@'worker-host';
 GRANT DELETE ON `clevo`.`security_rate_limits` TO 'clevo_mail_worker'@'worker-host';
 GRANT DELETE ON `clevo`.`auth_challenges` TO 'clevo_mail_worker'@'worker-host';
 GRANT DELETE ON `clevo`.`auth_sessions` TO 'clevo_mail_worker'@'worker-host';
@@ -89,3 +91,19 @@ GRANT SELECT ON `clevo`.`booking` TO 'clevo_tracking_worker'@'worker-host';
 GRANT SELECT ON `clevo`.`driver_assignments` TO 'clevo_tracking_worker'@'worker-host';
 GRANT SELECT, DELETE ON `clevo`.`tracking_records` TO 'clevo_tracking_worker'@'worker-host';
 GRANT SELECT, UPDATE ON `clevo`.`delivery_confirmations` TO 'clevo_tracking_worker'@'worker-host';
+
+-- Reviewed erasure is separate from web runtime and finance. No DDL or ledger DELETE.
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`account_deletion_requests` TO 'clevo_runtime'@'application-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`account_erasure_files` TO 'clevo_runtime'@'application-host';
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_privacy_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`account_deletion_requests` TO 'clevo_privacy_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`account_erasure_files` TO 'clevo_privacy_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`booking` TO 'clevo_privacy_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`user` TO 'clevo_privacy_worker'@'worker-host';
+GRANT SELECT, DELETE ON `clevo`.`tracking_records` TO 'clevo_privacy_worker'@'worker-host';
+
+-- Consistent InnoDB backup with --no-tablespaces; matching server/client version required.
+GRANT SELECT, SHOW VIEW, TRIGGER, EVENT ON `clevo`.* TO 'clevo_backup'@'backup-host';
+-- MySQL 8.4 routines may additionally require global SHOW_ROUTINE. Review stored routines
+-- and test a restricted backup identity on the approved server before granting it.
+-- Migrator: separate temporary schema-scoped DDL/DML identity; never used by PHP web/FPM.

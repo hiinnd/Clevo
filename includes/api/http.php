@@ -11,6 +11,7 @@ function clevo_api_validate(mixed $value,array $schema,string $path='body'):void
     if(is_array($type)){$previous=$GLOBALS['clevo_api_errors']??[];foreach($type as $candidate){try{clevo_api_validate($value,array_replace($schema,['type'=>$candidate]),$path);$GLOBALS['clevo_api_errors']=$previous;return;}catch(ClevoSecurityException $e){}}$GLOBALS['clevo_api_errors']=$previous;clevo_api_invalid($path);}
     $valid=match($type){'object'=>is_array($value)&&($value===[]||!array_is_list($value)),'array'=>is_array($value)&&array_is_list($value),'string'=>is_string($value),'integer'=>is_int($value),'number'=>(is_int($value)||is_float($value))&&is_finite((float)$value),'boolean'=>is_bool($value),'null'=>$value===null,default=>true};
     if(!$valid)clevo_api_invalid($path);
+    if(array_key_exists('const',$schema)&&$value!==$schema['const'])clevo_api_invalid($path);
     if(isset($schema['enum'])&&!in_array($value,$schema['enum'],true))clevo_api_invalid($path);
     if(is_string($value)){
         if(mb_strlen(trim($value))<($schema['minLength']??0)||mb_strlen($value)>($schema['maxLength']??PHP_INT_MAX)||preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u',$value))clevo_api_invalid($path);

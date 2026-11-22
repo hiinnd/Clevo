@@ -33,7 +33,7 @@ function clevo_operations_health():array
     try{
         $db=clevo_connect_database();$checks['database']=(int)$db->query('SELECT 1 ok')->fetch_assoc()['ok']===1;
         $deployed=$db->query('SELECT Version FROM security_schema_migrations')->fetch_all(MYSQLI_ASSOC);
-        $expected=['001_auth_security','002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications','009_privacy_requests'];
+        $expected=['001_auth_security','002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications','009_privacy_requests','010_erasure_cleanup'];
         $checks['schema']=!array_diff($expected,array_column($deployed,'Version'));
         $queue=$db->query("SELECT COUNT(*) queued,COALESCE(MAX(TIMESTAMPDIFF(SECOND,AvailableAt,UTC_TIMESTAMP(6))),0) oldest FROM notification_deliveries WHERE State='queued' AND AvailableAt<=UTC_TIMESTAMP(6)")->fetch_assoc();
         $metrics['delivery_queue_due']=(int)$queue['queued'];$metrics['delivery_oldest_due_seconds']=max(0,(int)$queue['oldest']);
@@ -47,7 +47,8 @@ function clevo_operations_health():array
         $file=$root.'/ops/'.$job.'.json';$data=is_file($file)&&filesize($file)<8192?json_decode((string)file_get_contents($file),true):[];
         $success=(int)($data['last_success_unix']??0);$age=$success?max(0,time()-$success):PHP_INT_MAX;
         $metrics['worker_'.$job.'_age_seconds']=$age;$metrics['worker_'.$job.'_exit_code']=(int)($data['exit_code']??-1);
-        if($age>$definition[2]||($data['exit_code']??-1)!==0)$checks['workers']=false;
+        $running=($data['exit_code']??-1)===-1&&isset($data['started_unix'])&&time()-(int)$data['started_unix']<120;
+        if($age>$definition[2]||(!(($data['exit_code']??-1)===0)&&!$running))$checks['workers']=false;
     }
     if(clevo_env('OPS_REQUIRE_BACKUP','0')==='1'){
         $file=$root.'/ops/backup.json';$status=is_file($file)&&filesize($file)<8192?json_decode((string)file_get_contents($file),true):[];

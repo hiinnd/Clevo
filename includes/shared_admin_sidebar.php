@@ -274,6 +274,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <div class="nav flex-column">
             <a href="admin-dashboard.php" class="nav-link <?php echo ($current_page == 'admin-dashboard.php') ? 'active' : ''; ?>"><i class="fas fa-th-large"></i> <span data-i18n="nav_main">الرئيسية</span></a>
             <a href="management.php" class="nav-link <?= $current_page==='management.php'?'active':'' ?>"><i class="fas fa-tasks"></i><span data-admin-ar="الإدارة" data-admin-en="Management">الإدارة</span></a>
+            <a href="privacy-requests.php" class="nav-link <?= $current_page==='privacy-requests.php'?'active':'' ?>"><i class="fas fa-user-shield"></i><span data-admin-ar="طلبات الخصوصية" data-admin-en="Privacy requests">طلبات الخصوصية</span></a>
             <a href="station-approvals.php" class="nav-link <?php echo ($current_page == 'station-approvals.php') ? 'active' : ''; ?>"><i class="fas fa-check-double"></i> <span data-i18n="nav_approvals">الموافقات</span></a>
             <a href="security-center.php" class="nav-link <?php echo ($current_page == 'security-center.php') ? 'active' : ''; ?>"><i class="fas fa-shield-alt"></i> <span data-i18n="nav_security">الأمان</span></a>
             <a href="financial-reports.php" class="nav-link <?php echo ($current_page == 'financial-reports.php') ? 'active' : ''; ?>"><i class="fas fa-chart-pie"></i> <span data-i18n="nav_reports">التقارير</span></a>

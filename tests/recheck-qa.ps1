@@ -1,4 +1,4 @@
-param([ValidateSet('admin','load')][string]$Target = 'admin')
+param([ValidateSet('admin','load','production')][string]$Target = 'admin')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $projectRoot '.security-test'
@@ -62,6 +62,9 @@ try {
             $benchFailed = $bench.ExitCode -ne 0 -or $benchText -notmatch 'Complete requests:\s+50' -or $benchText -notmatch 'Failed requests:\s+0(?:\r?\n)' -or $benchText -match 'Non-2xx responses:\s+[1-9]'
             Write-Output ('Independent ApacheBench 50 requests / concurrency 10, exit=' + $bench.ExitCode + ', failed=' + $benchFailed)
             if ($benchFailed) { $result = 1 }
+        } elseif ($Target -eq 'production') {
+            & php tests/production.php
+            $result = $LASTEXITCODE
         } else {
             & php tests/admin-browser-fixtures.php
             $result = $LASTEXITCODE

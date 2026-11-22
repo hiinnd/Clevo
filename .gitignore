@@ -10,3 +10,10 @@
 /var/
 /tests/openapi/node_modules/
 /.mobile-tools/
+
+# Private mobile signing material must never enter source control.
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision

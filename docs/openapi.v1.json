@@ -16,6 +16,241 @@
         }
     ],
     "paths": {
+        "/admin/account-deletion-requests": {
+            "get": {
+                "operationId": "get_admin_account_deletion_requests",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "admin: deletion requests",
+                "description": "Allowed roles: admin. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "requests": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/AccountDeletionDTO"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "requests"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            }
+        },
+        "/admin/account-deletion-requests/{id}/fulfill": {
+            "post": {
+                "operationId": "post_admin_account_deletion_requests_id_fulfill",
+                "tags": [
+                    "admin"
+                ],
+                "summary": "admin: deletion fulfill",
+                "description": "Allowed roles: admin. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "admin",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "request_id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "state": {
+                                                            "type": "string",
+                                                            "const": "processing"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "request_id",
+                                                        "state"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 2147483647
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AccountErasureReview"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/audit-logs": {
             "get": {
                 "operationId": "get_admin_audit_logs",
@@ -11558,6 +11793,99 @@
                 ]
             }
         },
+        "/legal": {
+            "get": {
+                "operationId": "get_legal",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: legal",
+                "description": "Allowed roles: public. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "public",
+                "x-task-session-allowed": true,
+                "x-change": "added",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "legal": {
+                                                            "$ref": "#/components/schemas/LegalDTO"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "legal"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            }
+        },
         "/me": {
             "get": {
                 "operationId": "get_me",
@@ -11771,6 +12099,341 @@
                             "example": {
                                 "full_name": "مثال العميل",
                                 "car_name": "Example car"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/account-deletion-request": {
+            "get": {
+                "operationId": "get_me_account_deletion_request",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: deletion status",
+                "description": "Allowed roles: any. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "request": {
+                                                            "$ref": "#/components/schemas/NullableAccountDeletionDTO"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "request"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "post_me_account_deletion_request",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: deletion request",
+                "description": "Allowed roles: any. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "request": {
+                                                            "$ref": "#/components/schemas/AccountDeletionDTO"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "request"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AccountDeletion"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/me/account-deletion-request/cancel": {
+            "post": {
+                "operationId": "post_me_account_deletion_request_cancel",
+                "tags": [
+                    "customer"
+                ],
+                "summary": "customer: deletion cancel",
+                "description": "Allowed roles: any. Requires a stable idempotency key; same normalized input replays the committed response, different input conflicts. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "any",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "request": {
+                                                            "$ref": "#/components/schemas/AccountDeletionDTO"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "request"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 16,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9_-]+$"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AccountDeletion"
                             }
                         }
                     }
@@ -21612,6 +22275,58 @@
             }
         },
         "schemas": {
+            "AccountDeletion": {
+                "type": "object",
+                "properties": {
+                    "password": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 72,
+                        "writeOnly": true
+                    },
+                    "confirm": {
+                        "const": true,
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "password",
+                    "confirm"
+                ],
+                "additionalProperties": false
+            },
+            "AccountErasureReview": {
+                "type": "object",
+                "properties": {
+                    "password": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 72,
+                        "writeOnly": true
+                    },
+                    "review_reference": {
+                        "type": "string",
+                        "minLength": 4,
+                        "maxLength": 100,
+                        "pattern": "^[A-Za-z0-9._/-]+$"
+                    },
+                    "retention_reviewed": {
+                        "type": "boolean",
+                        "const": true
+                    },
+                    "external_cleanup_reviewed": {
+                        "type": "boolean",
+                        "const": true
+                    }
+                },
+                "required": [
+                    "password",
+                    "review_reference",
+                    "retention_reviewed",
+                    "external_cleanup_reviewed"
+                ],
+                "additionalProperties": false
+            },
             "NotificationDevice": {
                 "type": "object",
                 "properties": {
@@ -25536,6 +26251,160 @@
                     "bookings_created_today",
                     "cash_commission_today_minor",
                     "cash_commission_month_minor"
+                ],
+                "additionalProperties": true
+            },
+            "AccountDeletionDTO": {
+                "type": "object",
+                "properties": {
+                    "RequestID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "State": {
+                        "type": "string",
+                        "enum": [
+                            "requested",
+                            "cancelled",
+                            "processing",
+                            "completed"
+                        ]
+                    },
+                    "RequestedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "UpdatedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "CompletedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "PolicyVersion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "RequestID",
+                    "State"
+                ],
+                "additionalProperties": true
+            },
+            "NullableAccountDeletionDTO": {
+                "type": [
+                    "object",
+                    "null"
+                ],
+                "properties": {
+                    "RequestID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "State": {
+                        "type": "string",
+                        "enum": [
+                            "requested",
+                            "cancelled",
+                            "processing",
+                            "completed"
+                        ]
+                    },
+                    "RequestedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "UpdatedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "CompletedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "PolicyVersion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "RequestID",
+                    "State"
+                ],
+                "additionalProperties": true
+            },
+            "LegalDTO": {
+                "type": "object",
+                "properties": {
+                    "approved": {
+                        "type": "boolean"
+                    },
+                    "operator": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "support_email": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "privacy_email": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "version": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "processing_days": {
+                        "type": "integer"
+                    },
+                    "retention_description_ar": {
+                        "type": "string",
+                        "maxLength": 4000
+                    },
+                    "retention_description_en": {
+                        "type": "string",
+                        "maxLength": 4000
+                    },
+                    "deletion_enabled": {
+                        "type": "boolean"
+                    },
+                    "privacy_url": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "terms_url": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "deletion_url": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "support_url": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "approved",
+                    "deletion_enabled"
                 ],
                 "additionalProperties": true
             }

@@ -1,0 +1,5 @@
+# Linux deployment references must retain Unix line endings when prepared from Windows.
+deploy/bin/*.sh text eol=lf
+deploy/systemd/*.example text eol=lf
+deploy/monitoring/*.example text eol=lf
+deploy/env/*.example text eol=lf

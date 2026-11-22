@@ -70,6 +70,7 @@ $withdrawal_res = $conn->query("
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="fin_reports_title">التقارير المالية | Clevo</title>
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem('global_theme') === 'light' ? 'light' : 'dark'; } catch (_) {}</script>
 
     <link class="bootstrap-link" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" id="bootstrap-css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -107,7 +108,7 @@ $withdrawal_res = $conn->query("
         .orders-header { background: var(--bg-header); padding: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--border-card); margin-bottom: 25px; }
         .circle-btn-back { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-blue); color: white !important; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 4px 10px rgba(0,123,255,0.3); border: none; }
 
-        .stat-card { background: var(--bg-card); border-radius: 24px; padding: 25px; border: 1px solid var(--border-color); height: 100%; transition: 0.3s; color: var(--text-main); }
+        .stat-card { background: var(--bg-card); border-radius: 24px; padding: 25px; border: 1px solid var(--border-color); height: 100%; transition: transform 0.3s, box-shadow 0.3s; color: var(--text-main); }
 
         .chart-box, .table-container { background-color: var(--box-bg) !important; border-radius: 24px; padding: 25px; margin-top: 20px; border: 1px solid var(--border-color); }
 

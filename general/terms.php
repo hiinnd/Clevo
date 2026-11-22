@@ -1,6 +1,11 @@
 <?php
 
-include_once __DIR__ . '/../includes/config.php';
+require_once __DIR__.'/../includes/security/environment.php';
+require_once __DIR__.'/../includes/security/http.php';
+require_once __DIR__.'/../includes/privacy.php';
+clevo_load_environment();$legal=clevo_legal_metadata();
+header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');
+if(!$legal['approved']){http_response_code(503);header('X-Robots-Tag: noindex, nofollow');}
 
 
 ?>
@@ -8,7 +13,7 @@ include_once __DIR__ . '/../includes/config.php';
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="f_terms">الشروط والأحكام | Clevo</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -78,6 +83,12 @@ include_once __DIR__ . '/../includes/config.php';
 </head>
 
 <body>
+    <aside class="container p-3" aria-label="Policy status">
+        <?php if(!$legal['approved']): ?><p role="status">مسودة بانتظار الاعتماد القانوني · Draft awaiting legal approval.</p><?php endif; ?>
+        <p>CLEVO · <?= e($legal['operator']) ?> · <?= e($legal['version']) ?></p>
+        <a href="privacy.php">الخصوصية / Privacy</a> · <a href="delete-account.php">حذف الحساب / Account deletion</a> · <a href="contact.php">الدعم / Support</a>
+        <?php if(filter_var($legal['support_email'],FILTER_VALIDATE_EMAIL)): ?><a href="mailto:<?= e($legal['support_email']) ?>"><?= e($legal['support_email']) ?></a><?php endif; ?>
+    </aside>
     <div class="page-header shadow">
         <div class="spacer-div"></div>
         <h4 class="header-title-light" data-i18n="f_terms">الشروط والأحكام</h4>
@@ -105,7 +116,7 @@ include_once __DIR__ . '/../includes/config.php';
 
             <div class="term-section border-0">
                 <h6><i class="fas fa-file-invoice-dollar"></i> <span data-i18n="terms_sec5_t">الدفع الإلكتروني</span></h6>
-                <p class="small opacity-85" data-i18n="terms_sec5_d">يتم الخصم من المحفظة فور قبول المحطة للطلب مع ضمان تشفير البيانات.</p>
+                <p class="small opacity-85" data-i18n="terms_sec5_d">تظهر وسائل الدفع المتاحة من الخادم. لا يُعتمد الدفع الإلكتروني إلا بعد تأكيد موثّق، ويخضع الإلغاء والاسترداد لسياسة الحجز المعروضة.</p>
             </div>
         </div>
     </main>
@@ -126,7 +137,7 @@ include_once __DIR__ . '/../includes/config.php';
                 terms_sec3_t: "نظام الأمان",
                 terms_sec3_d: "يحق للتطبيق حظر أي حساب يتلاعب بالأسعار أو يقدم بلاغات كاذبة.",
                 terms_sec5_t: "الدفع الإلكتروني",
-                terms_sec5_d: "يتم الخصم من المحفظة فور قبول المحطة للطلب مع ضمان تشفير البيانات.",
+                terms_sec5_d: "تظهر وسائل الدفع المتاحة من الخادم. لا يُعتمد الدفع الإلكتروني إلا بعد تأكيد موثّق، ويخضع الإلغاء والاسترداد لسياسة الحجز المعروضة.",
                 f_copy: "صمم بكل حب لخدمتكم"
             },
             en: {
@@ -138,13 +149,14 @@ include_once __DIR__ . '/../includes/config.php';
                 terms_sec3_t: "Security System",
                 terms_sec3_d: "The app may ban accounts for price manipulation.",
                 terms_sec5_t: "Electronic Payment",
-                terms_sec5_d: "Payment is deducted upon order acceptance.",
+                terms_sec5_d: "Available payment methods come from the server. Online payment requires verified confirmation. Cancellation and refund eligibility follow the displayed booking policy.",
                 f_copy: "Designed with love"
             }
         };
 
         window.onload = () => {
-            const lang = localStorage.getItem('app_lang') || 'ar';
+            const requestedLang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('app_lang');
+            const lang = requestedLang === 'en' ? 'en' : 'ar';
             const theme = localStorage.getItem('global_theme') || 'light';
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
             document.documentElement.setAttribute('data-theme', theme);

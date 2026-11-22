@@ -50,7 +50,8 @@ try {
         'APP_ENV=testing', "APP_URL=http://127.0.0.1:$HttpPort", ('APP_KEY=' + (New-TestKey)), ('JWT_SECRET=' + (New-TestKey)),
         'JWT_ISSUER=clevo', 'JWT_AUDIENCE=clevo-mobile', 'DB_HOST=127.0.0.1', "DB_PORT=$DatabasePort", "DB_DATABASE=$databaseName", 'DB_USERNAME=root', 'DB_PASSWORD=', 'CLEVO_SYNTHETIC_FINANCE=1',
         ('PRIVATE_STORAGE_PATH=' + $privateRoot.Replace('\','/')), 'MAIL_TRANSPORT=null', 'CORS_ALLOWED_ORIGINS=https://app.example.test',
-        "TEST_RUNTIME_USERNAME=$runtimeUser", "TEST_RUNTIME_PASSWORD=$runtimePassword"
+        "TEST_RUNTIME_USERNAME=$runtimeUser", "TEST_RUNTIME_PASSWORD=$runtimePassword",
+        'ACCOUNT_DELETION_ENABLED=1', ('OPS_HEALTH_TOKEN=' + [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N'))
     )
     [IO.File]::WriteAllLines($environmentPath, $settings, [Text.UTF8Encoding]::new($false))
     $runtimeSettings = $settings | ForEach-Object { if ($_ -eq 'DB_USERNAME=root') { "DB_USERNAME=$runtimeUser" } elseif ($_ -eq 'DB_PASSWORD=') { "DB_PASSWORD=$runtimePassword" } else { $_ } }
@@ -89,6 +90,8 @@ try {
         $qaExit = 0; $qaLoadExit = 0
         if ($QA -and $integrationExit -eq 0) { & php tests/qa-journeys.php; $qaExit = $LASTEXITCODE; & php tests/qa-performance.php; $qaLoadExit = $LASTEXITCODE }
         $databaseExit = 0
+        $productionExit = 0
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/production.php; $productionExit = $LASTEXITCODE }
         if (!$MobileOnly -and !$AdminOnly) { & php tests/database.php; $databaseExit = $LASTEXITCODE }
         $adminBrowserExit = 0
         if ($AdminBrowser -and !$MobileOnly -and $integrationExit -eq 0 -and $adminExit -eq 0 -and $adminFinancialExit -eq 0) {
@@ -123,7 +126,7 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($qaExit -ne 0 -or $qaLoadExit -ne 0 -or $adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile/QA tests failed. See assertion labels above.' }
+        if ($productionExit -ne 0 -or $qaExit -ne 0 -or $qaLoadExit -ne 0 -or $adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile/QA/production tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

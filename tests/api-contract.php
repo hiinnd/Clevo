@@ -20,6 +20,8 @@ foreach($registry as $route){$op=$spec['paths']['/'.$route['path']][strtolower($
     check(isset($op['responses'][(string)$route['status']]),'Documented success status '.$route['path']);
 }
 $contracts=clevo_api_contracts();
+rejects(fn()=>clevo_api_validate(['password'=>'test','confirm'=>false],$contracts['AccountDeletion']),'Deletion confirmation must be true','validation_failed');
+rejects(fn()=>clevo_api_validate(false,['type'=>'boolean','const'=>true]),'Runtime enforces boolean schema constants','validation_failed');
 rejects(fn()=>clevo_api_validate(['role'=>'admin'],$contracts['Profile']),'Profile rejects role injection','validation_failed');
 rejects(fn()=>clevo_api_validate(['price'=>1.001],$contracts['ServicePatch']),'Monetary input rejects fractions below schema precision','validation_failed');
 rejects(fn()=>clevo_api_validate(['latitude'=>INF,'longitude'=>0],$contracts['Location']),'GPS rejects non-finite values','validation_failed');

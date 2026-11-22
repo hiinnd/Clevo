@@ -1,0 +1,43 @@
+# UNACTIVATED reference for Debian/Ubuntu Apache 2.4 + PHP 8.4 FPM.
+# Replace reserved domain, approved paths and certificate files; apachectl -t before activation.
+ServerTokens Prod
+ServerSignature Off
+TraceEnable Off
+LogFormat "%a %t \"%m %U %H\" %>s %b %D" clevo_redacted
+<VirtualHost *:80>
+    ServerName clevo.invalid
+    Redirect permanent / https://clevo.invalid/
+</VirtualHost>
+<VirtualHost *:443>
+    ServerName clevo.invalid
+    DocumentRoot /srv/clevo-production/current
+    SSLEngine on
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+    SSLCertificateFile /etc/clevo/tls/fullchain.pem
+    SSLCertificateKeyFile /etc/clevo/tls/privkey.pem
+    Header always set Strict-Transport-Security "max-age=31536000"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
+    <Directory /srv/clevo-production>
+        Options -Indexes -ExecCGI +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    <FilesMatch "\.php$">
+        SetHandler "proxy:unix:/run/php/clevo-production.sock|fcgi://localhost/"
+    </FilesMatch>
+    <LocationMatch "^/health/(ready|metrics)\.php$">
+        Require local
+        # Add ONLY the approved private monitoring address; bearer authentication also applies.
+    </LocationMatch>
+    CustomLog /var/log/clevo/access.log clevo_redacted
+    ErrorLog /var/log/clevo/apache-error.log
+    LimitRequestBody 6291456
+    Timeout 30
+</VirtualHost>
+# No Alias may expose /etc/clevo or private storage. Do not use raw query strings in logs.
+<Directory /srv/clevo-production/private>
+    Require all denied
+</Directory>

@@ -96,18 +96,28 @@ function clevo_privacy_fulfill(mysqli $db,int $admin,int $request,array $input):
         clevo_stmt($db,'UPDATE reviews r JOIN booking b ON b.BookingID=r.BookingID SET r.Comment=NULL WHERE b.UserID=?','i',[$id]);
         clevo_stmt($db,'UPDATE reviews r JOIN booking b ON b.BookingID=r.BookingID JOIN stations s ON s.StationID=b.StationID SET r.Owner_Reply=NULL WHERE s.UserID=?','i',[$id]);
         clevo_stmt($db,'UPDATE booking SET Latitude=NULL,Longitude=NULL,Address_Details=NULL WHERE UserID=?','i',[$id]);
-        clevo_stmt($db,'DELETE tr FROM tracking_records tr JOIN booking b ON b.BookingID=tr.BookingID WHERE tr.DriverID=? OR b.UserID=?','ii',[$id,$id]);
+        clevo_stmt($db,'UPDATE booking SET Driver_Lat=NULL,Driver_Lon=NULL WHERE UserID=? OR DriverID=?','ii',[$id,$id]);
         clevo_stmt($db,"UPDATE user SET UserName='Erased account',Email=NULL,PhoneNumber=?,Password=?,AccountStatus='rejected',EmailVerifiedAt=NULL,PendingEmail=NULL,CarName=NULL,ProfilePic=NULL,DeviceID=NULL,CurrentAccessCode=NULL,reset_otp=NULL,reset_otp_expiry=NULL,VerificationToken=NULL,LastLatitude=NULL,LastLongitude=NULL,LastAddress=NULL,LastLocationUrl=NULL,LastLocationUpdatedAt=NULL,Last_Login=NULL WHERE UserID=?",'ssi',['erased-'.$id,password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT),$id]);
-        clevo_stmt($db,"UPDATE account_deletion_requests SET State=?,ReviewedBy=?,ReviewReference=?,PolicyVersion=?,CompletedAt=IF(?='completed',UTC_TIMESTAMP(6),NULL) WHERE RequestID=?",'sisssi',[$profile&&$profile!=='default_user.png'?'processing':'completed',$admin,$input['review_reference'],$policy['version'],$profile&&$profile!=='default_user.png'?'processing':'completed',$request]);
+        clevo_stmt($db,"UPDATE account_deletion_requests SET State='processing',ReviewedBy=?,ReviewReference=?,PolicyVersion=?,CompletedAt=NULL,LocationErasedAt=NULL WHERE RequestID=?",'issi',[$admin,$input['review_reference'],$policy['version'],$request]);
         clevo_db_audit($db,$admin,'privacy.personal_data_erased','account_deletion_requests',$request);
-        return ['request_id'=>$request,'state'=>$profile&&$profile!=='default_user.png'?'processing':'completed'];
+        return ['request_id'=>$request,'state'=>'processing'];
     });
 }
 function clevo_privacy_cleanup_files(mysqli $db,int $limit=50):array
 {
     clevo_privacy_schema($db);
-    if(clevo_env('ERASURE_RETENTION_REVIEW_APPROVED','0')!=='1')throw new ClevoSecurityException('privacy_policy_not_approved',503);
+    if(!clevo_legal_metadata()['approved']||clevo_env('ERASURE_RETENTION_REVIEW_APPROVED','0')!=='1')throw new ClevoSecurityException('privacy_policy_not_approved',503);
     $count=0;
+    $locations=0;
+    foreach(clevo_stmt($db,"SELECT RequestID,UserID FROM account_deletion_requests WHERE State='processing' AND LocationErasedAt IS NULL ORDER BY RequestID LIMIT ?",'i',[max(1,min(100,$limit))])->get_result()->fetch_all(MYSQLI_ASSOC) as $request){
+        clevo_db_atomic($db,function()use($db,$request):void{
+            $r=clevo_stmt($db,"SELECT UserID FROM account_deletion_requests WHERE RequestID=? AND State='processing' AND LocationErasedAt IS NULL FOR UPDATE",'i',[(int)$request['RequestID']])->get_result()->fetch_assoc();
+            if(!$r)return;
+            $id=(int)$r['UserID'];
+            clevo_stmt($db,'DELETE tr FROM tracking_records tr JOIN booking b ON b.BookingID=tr.BookingID WHERE tr.DriverID=? OR b.UserID=?','ii',[$id,$id]);
+            clevo_stmt($db,'UPDATE account_deletion_requests SET LocationErasedAt=UTC_TIMESTAMP(6) WHERE RequestID=?','i',[(int)$request['RequestID']]);
+        });$locations++;
+    }
     foreach(clevo_stmt($db,"SELECT f.* FROM account_erasure_files f JOIN account_deletion_requests r ON r.RequestID=f.RequestID WHERE f.State='queued' AND r.State='processing' ORDER BY f.FileID LIMIT ?",'i',[max(1,min(100,$limit))])->get_result()->fetch_all(MYSQLI_ASSOC) as $row){
         if(!preg_match('/^private:profiles:([a-f0-9]{48}\.(?:jpg|png|gif|webp))$/D',$row['StorageReference'],$m))throw new RuntimeException('Unsafe erasure reference.');
         if(clevo_stmt($db,'SELECT UserID FROM user WHERE ProfilePic=? LIMIT 1','s',[$row['StorageReference']])->get_result()->fetch_assoc())throw new RuntimeException('Referenced profile file requires review.');
@@ -118,6 +128,6 @@ function clevo_privacy_cleanup_files(mysqli $db,int $limit=50):array
         if(file_exists($path)&&(!is_file($path)||!clevo_path_within(realpath($path)?:'',$root)||!unlink($path)))throw new RuntimeException('Profile erasure pending.');
         clevo_stmt($db,"UPDATE account_erasure_files SET State='deleted',Attempts=Attempts+1 WHERE FileID=?",'i',[(int)$row['FileID']]);$count++;
     }
-    clevo_stmt($db,"UPDATE account_deletion_requests r SET State='completed',CompletedAt=UTC_TIMESTAMP(6) WHERE State='processing' AND NOT EXISTS(SELECT 1 FROM account_erasure_files f WHERE f.RequestID=r.RequestID AND f.State<>'deleted')");
-    return ['files_erased'=>$count];
+    clevo_stmt($db,"UPDATE account_deletion_requests r SET State='completed',CompletedAt=UTC_TIMESTAMP(6) WHERE State='processing' AND LocationErasedAt IS NOT NULL AND NOT EXISTS(SELECT 1 FROM account_erasure_files f WHERE f.RequestID=r.RequestID AND f.State<>'deleted')");
+    return ['files_erased'=>$count,'location_requests_processed'=>$locations];
 }

@@ -1,0 +1,15 @@
+# Private network only. Token file contains raw OPS_HEALTH_TOKEN, mode 0600.
+scrape_configs:
+  - job_name: clevo
+    scrape_interval: 30s
+    scheme: https
+    metrics_path: /health/metrics.php
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/clevo-health-token
+    static_configs:
+      - targets: ['clevo.invalid:443']
+    tls_config:
+      insecure_skip_verify: false
+rule_files:
+  - /etc/prometheus/rules/clevo-alerts.yml

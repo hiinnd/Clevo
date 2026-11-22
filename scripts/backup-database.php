@@ -18,11 +18,10 @@ try {
     $output=fopen($dump,'x'); if(!$output) throw new RuntimeException('Backup output unavailable.'); chmod($dump,0600);
     $binary=clevo_env('MYSQLDUMP_BINARY','mysqldump');
     $args=[$binary,'--defaults-extra-file='.$optionFile,'--single-transaction','--quick','--skip-lock-tables','--no-tablespaces','--hex-blob','--default-character-set=utf8mb4','--tz-utc','--routines','--events','--triggers','--skip-add-drop-table','--skip-add-locks','--no-create-db','--skip-comments',clevo_env('DB_DATABASE')];
-    $ca=clevo_env('DB_TLS_CA_FILE','')??'';
-    if($ca!==''){
-        // Client options use the protected file; use matching vendor/version binaries.
-        file_put_contents($optionFile,'ssl-ca='.$escape($ca)."\nssl-verify-server-cert\n",FILE_APPEND);
-    }
+    $flavor=clevo_env('DB_CLIENT_FLAVOR',stripos($conn->server_info,'MariaDB')!==false?'mariadb':'mysql');
+    if(!in_array($flavor,['mysql','mariadb'],true))throw new RuntimeException('Matching native client family required.');
+    if($flavor==='mysql')array_splice($args,count($args)-1,0,['--set-gtid-purged=OFF']);
+    file_put_contents($optionFile,clevo_database_client_tls_options(),FILE_APPEND);
     $process=proc_open($args,[0=>['pipe','r'],1=>$output,2=>['pipe','w']],$pipes);
     if(!is_resource($process)) throw new RuntimeException('Dump client unavailable.');
     fclose($pipes[0]); $error=stream_get_contents($pipes[2]); fclose($pipes[2]); $code=proc_close($process); fclose($output); $output=null;

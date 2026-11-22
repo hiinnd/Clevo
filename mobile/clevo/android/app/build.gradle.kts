@@ -7,6 +7,10 @@ plugins {
 }
 
 val releaseProperties = Properties()
+val clevoApplicationId = System.getenv("CLEVO_ANDROID_APPLICATION_ID") ?: "com.clevo.clevo"
+val clevoAppLabel = System.getenv("CLEVO_APP_LABEL") ?: "CLEVO"
+require(clevoApplicationId.matches(Regex("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*){2,}"))) { "Invalid Android application identifier" }
+require(clevoAppLabel in listOf("CLEVO", "CLEVO Internal")) { "Invalid application label" }
 val releasePropertiesFile = rootProject.file("key.properties")
 if (releasePropertiesFile.exists()) {
     releasePropertiesFile.inputStream().use { releaseProperties.load(it) }
@@ -17,6 +21,10 @@ gradle.taskGraph.whenReady {
         for (key in listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) {
             require(!releaseProperties.getProperty(key).isNullOrBlank()) { "Missing release signing configuration: $key" }
         }
+        val keystore = file(releaseProperties.getProperty("storeFile")).canonicalFile
+        val workspace = rootProject.projectDir.parentFile.parentFile.parentFile.canonicalFile
+        require(keystore.isFile && !keystore.toPath().startsWith(workspace.toPath())) { "Release keystore must exist outside the repository" }
+        require(releaseProperties.getProperty("keyAlias") != "androiddebugkey" && keystore.name != "debug.keystore") { "Debug signing is forbidden for release" }
     }
 }
 
@@ -26,6 +34,9 @@ if (file("google-services.json").exists()) {
 }
 
 android {
+    buildFeatures {
+        resValues = true
+    }
     namespace = "com.clevo.clevo"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -37,7 +48,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.clevo.clevo"
+        applicationId = clevoApplicationId
+        resValue("string", "app_name", clevoAppLabel)
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24

@@ -8,6 +8,7 @@ import 'core/notifications.dart';
 import 'core/router_events.dart';
 import 'features/auth.dart';
 import 'features/account.dart';
+import 'features/privacy.dart';
 import 'features/bookings.dart';
 import 'features/customer.dart';
 import 'features/dashboards.dart';
@@ -208,6 +209,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             TrackingScreen(id: state.pathParameters['id']!, driver: true),
       ),
       GoRoute(path: '/profile', builder: (_, state) => const ProfileScreen()),
+      GoRoute(path: '/privacy', builder: (_, state) => const PrivacyScreen()),
       GoRoute(
         path: '/addresses',
         builder: (_, state) => const AddressesScreen(),
