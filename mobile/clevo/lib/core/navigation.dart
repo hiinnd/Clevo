@@ -2,6 +2,7 @@ bool publicRoute(String path) =>
     [
       '/login',
       '/register',
+      '/register-owner',
       '/recovery',
       '/browse',
       '/startup',

@@ -1,5 +1,7 @@
 # CLEVO production readiness
 
+Current reconciliation **2026-11-23**: [final fixes](FINAL_REMAINING_FIXES.md),[executed integration evidence](FINAL_INTEGRATION_RESULTS.md),[launch blockers](LAUNCH_BLOCKERS.md) supersede the dated implementation gaps/counts below. Native initial-owner application,owner-scoped subscription usage,expiry processing,upload cleanup,catalog counts and display labels were improved; additive migration011 plus a protected HMAC backfill is now required. The old local runtime has a CRITICAL version blocker; production is still **NO-GO**. No approved host/domain exists and no infrastructure was changed.
+
 Prepared **2026-11-22 (Asia/Amman)**. Decision: **NOT APPROVED FOR COMMERCIAL LAUNCH**. The operator confirmed there is no approved production environment. This phase prepares code, private-configuration templates, tests and runbooks; it does not deploy, publish, change DNS/infrastructure or rotate live credentials. PHP/MySQL, existing PHP dashboards and ONE Flutter application with customer/owner/driver navigation are retained.
 
 ## Deliverables and evidence
@@ -67,7 +69,7 @@ No confirmed CRITICAL production exploit was demonstrated in this phase. That st
 
 1. [ ] Approve operator/legal contacts, launch feature scope, provider strategy, hosting and final application/domain identities.
 2. [ ] Provision approved staging with supported patched runtime and separate secrets/data/providers; validate effective HTTPS, CORS, secure cookies, least DB grants, deny rules and uploads.
-3. [ ] Rehearse immutable deployment, forward migrations 001–010, code rollback and encrypted offsite recovery; measure counts, balances, file integrity, erasure replay and RPO/RTO. Approve retention before any automated prune/delete.
+3. [ ] Rehearse immutable deployment, forward migrations 001–011 including the PHP digest backfill, code rollback and encrypted offsite recovery; measure counts, balances, file integrity, erasure replay and RPO/RTO. Approve retention before any automated prune/delete. An old writer cannot safely share the upgraded idempotency schema/semantics; drain writers and review rollback compatibility.
 4. [ ] Install reviewed workers/monitoring/backups in staging, test failure/timeout alerts, queue retries, mail DNS authentication and TLS renewal using synthetic accounts and approved recipients only.
 5. [ ] Complete actual provider sandbox and Firebase/APNs/Maps/device journeys; retain production payment/real-wallet/settlement gates until separate commercial and technical approval.
 6. [ ] Approve bilingual privacy/terms/processing times and retained fields, provider cleanup and recovery erasure register; exercise completed account erasure via web and app.

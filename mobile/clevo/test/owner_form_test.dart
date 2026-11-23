@@ -20,6 +20,7 @@ void main() {
               'Name': 'Station',
               'Location': 'Amman',
               'PhoneNumber': '0791234567',
+              'admin_status': 'approved',
             },
           ],
         });

@@ -107,3 +107,10 @@ GRANT SELECT, SHOW VIEW, TRIGGER, EVENT ON `clevo`.* TO 'clevo_backup'@'backup-h
 -- MySQL 8.4 routines may additionally require global SHOW_ROUTINE. Review stored routines
 -- and test a restricted backup identity on the approved server before granting it.
 -- Migrator: separate temporary schema-scoped DDL/DML identity; never used by PHP web/FPM.
+-- Subscription expiry worker queues durable events; outbound worker delivers after commit.
+GRANT SELECT ON `clevo`.`security_schema_migrations` TO 'clevo_subscription_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`user` TO 'clevo_subscription_worker'@'worker-host';
+GRANT SELECT ON `clevo`.`plans` TO 'clevo_subscription_worker'@'worker-host';
+GRANT SELECT, UPDATE ON `clevo`.`user_plans` TO 'clevo_subscription_worker'@'worker-host';
+GRANT SELECT, INSERT, UPDATE ON `clevo`.`request_idempotency` TO 'clevo_subscription_worker'@'worker-host';
+GRANT INSERT ON `clevo`.`notification_outbox` TO 'clevo_subscription_worker'@'worker-host';

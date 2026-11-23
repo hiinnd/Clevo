@@ -78,6 +78,7 @@ Generated from the runtime route registry and preserved authentication controlle
 | POST | `/owner/drivers/{id}/invitation` | added | owner | DriverInvitation | required | `owner.driver_invite` |
 | DELETE | `/owner/drivers/{id}` | added | owner | Empty | required | `owner.driver_delete` |
 | GET | `/owner/earnings` | added | owner | none | not required | `owner.earnings` |
+| GET | `/owner/subscription-usage` | added | owner | none | not required | `owner.subscription_usage` |
 | GET | `/owner/bank-account` | added | owner | none | not required | `owner.bank` |
 | PUT | `/owner/bank-account` | added | owner | Bank | required | `owner.bank_update` |
 | GET | `/owner/withdrawals` | added | owner | none | not required | `owner.withdrawals` |

@@ -24,72 +24,84 @@ class OwnerStationsScreen extends ConsumerWidget {
       ),
       itemBuilder: (context, row, reload) => DataCard(
         title: text(row['Name']),
-        subtitle: '${text(row['Location'])} · ${text(row['Status'])}',
+        subtitle:
+            '${text(row['Location'])} · ${statusText(context, row['Status'])} · ${statusText(context, row['admin_status'])}',
         children: [
           Wrap(
             spacing: 8,
             children: [
               TextButton(
-                onPressed: () =>
-                    context.push('/owner/station/${row['StationID']}/services'),
+                onPressed: row['admin_status'] != 'approved'
+                    ? null
+                    : () => context.push(
+                        '/owner/station/${row['StationID']}/services',
+                      ),
                 child: Text(
                   tr(context, 'الخدمات والأسعار', 'Services & prices'),
                 ),
               ),
               TextButton(
-                onPressed: () async {
-                  final result = await editRecord(
-                    context,
-                    ref,
-                    title: tr(context, 'بيانات المحطة', 'Station details'),
-                    path: 'owner/stations/${row['StationID']}',
-                    method: 'PATCH',
-                    fields: [
-                      FieldSpec(
-                        'name',
-                        'الاسم',
-                        'Name',
-                        initial: text(row['Name'], ''),
-                      ),
-                      FieldSpec(
-                        'location',
-                        'المنطقة',
-                        'Area',
-                        initial: text(row['Location'], ''),
-                      ),
-                      FieldSpec(
-                        'phone',
-                        'الهاتف',
-                        'Phone',
-                        initial: text(row['PhoneNumber'], ''),
-                        required: false,
-                      ),
-                      FieldSpec(
-                        'latitude',
-                        'خط العرض',
-                        'Latitude',
-                        initial: text(row['Lat'], ''),
-                        required: false,
-                        number: true,
-                      ),
-                      FieldSpec(
-                        'longitude',
-                        'خط الطول',
-                        'Longitude',
-                        initial: text(row['Lon'], ''),
-                        required: false,
-                        number: true,
-                      ),
-                    ],
-                  );
-                  if (result != null) reload();
-                },
+                onPressed: row['admin_status'] != 'approved'
+                    ? null
+                    : () async {
+                        final result = await editRecord(
+                          context,
+                          ref,
+                          title: tr(
+                            context,
+                            'بيانات المحطة',
+                            'Station details',
+                          ),
+                          path: 'owner/stations/${row['StationID']}',
+                          method: 'PATCH',
+                          fields: [
+                            FieldSpec(
+                              'name',
+                              'الاسم',
+                              'Name',
+                              initial: text(row['Name'], ''),
+                            ),
+                            FieldSpec(
+                              'location',
+                              'المنطقة',
+                              'Area',
+                              initial: text(row['Location'], ''),
+                            ),
+                            FieldSpec(
+                              'phone',
+                              'الهاتف',
+                              'Phone',
+                              initial: text(row['PhoneNumber'], ''),
+                              required: false,
+                            ),
+                            FieldSpec(
+                              'latitude',
+                              'خط العرض',
+                              'Latitude',
+                              initial: text(row['Lat'], ''),
+                              required: false,
+                              number: true,
+                            ),
+                            FieldSpec(
+                              'longitude',
+                              'خط الطول',
+                              'Longitude',
+                              initial: text(row['Lon'], ''),
+                              required: false,
+                              number: true,
+                            ),
+                          ],
+                        );
+                        if (result != null) reload();
+                      },
                 child: Text(tr(context, 'تعديل', 'Edit')),
               ),
               TextButton(
-                onPressed: () => context.push(
-                  '/owner/station/${row['StationID']}/availability',
-                ),
+                onPressed: row['admin_status'] != 'approved'
+                    ? null
+                    : () => context.push(
+                        '/owner/station/${row['StationID']}/availability',
+                      ),
                 child: Text(
                   tr(context, 'السعة وأوقات العمل', 'Capacity & working hours'),
                 ),

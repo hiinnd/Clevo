@@ -18288,6 +18288,151 @@
                 }
             }
         },
+        "/owner/subscription-usage": {
+            "get": {
+                "operationId": "get_owner_subscription_usage",
+                "tags": [
+                    "owner"
+                ],
+                "summary": "owner: subscription usage",
+                "description": "Allowed roles: owner. Ownership/assignment policies are enforced server-side.",
+                "x-roles": "owner",
+                "x-task-session-allowed": false,
+                "x-change": "added",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful read/command, including safe idempotent replay.",
+                        "headers": {
+                            "X-Request-ID": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Envelope"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "const": "success"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "redemptions": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/SubscriptionUsageDTO"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "redemptions"
+                                                    ],
+                                                    "additionalProperties": true
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/Error400"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "405": {
+                        "$ref": "#/components/responses/Error405"
+                    },
+                    "409": {
+                        "$ref": "#/components/responses/Error409"
+                    },
+                    "413": {
+                        "$ref": "#/components/responses/Error413"
+                    },
+                    "415": {
+                        "$ref": "#/components/responses/Error415"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "429": {
+                        "$ref": "#/components/responses/Error429"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    },
+                    "503": {
+                        "$ref": "#/components/responses/Error503"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10000,
+                            "default": 1
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 25
+                        },
+                        "description": ""
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Per-resource allowlist; see API_INTEGRATION.md."
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ],
+                            "default": "desc"
+                        },
+                        "description": ""
+                    }
+                ]
+            }
+        },
         "/owner/withdrawals": {
             "get": {
                 "operationId": "get_owner_withdrawals",
@@ -26251,6 +26396,63 @@
                     "bookings_created_today",
                     "cash_commission_today_minor",
                     "cash_commission_month_minor"
+                ],
+                "additionalProperties": true
+            },
+            "SubscriptionUsageDTO": {
+                "type": "object",
+                "properties": {
+                    "RedemptionID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "BookingID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "StationID": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "StationName": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "State": {
+                        "type": "string",
+                        "enum": [
+                            "reserved",
+                            "completed",
+                            "released"
+                        ]
+                    },
+                    "AmountMinor": {
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "pattern": "^[0-9]+$"
+                    },
+                    "CreatedAt": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "RedemptionID",
+                    "BookingID",
+                    "StationID",
+                    "State",
+                    "AmountMinor"
                 ],
                 "additionalProperties": true
             },

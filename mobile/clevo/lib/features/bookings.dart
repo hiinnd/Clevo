@@ -158,7 +158,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ),
                 if (booking['DeliveryStage'] != null)
                   Text(
-                    '${tr(context, 'مرحلة التوصيل', 'Delivery stage')}: ${text(booking['DeliveryStage'])}',
+                    '${tr(context, 'مرحلة التوصيل', 'Delivery stage')}: ${statusText(context, booking['DeliveryStage'])}',
                   ),
               ],
             ),

@@ -1,8 +1,8 @@
 # CLEVO schema inventory
 
-Generated from actual migrated disposable metadata on 2026-11-22. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 52; columns: 520; index columns: 266; foreign-key columns: 89. This is not a live production inventory.
+Generated from actual migrated disposable metadata on 2026-11-23. Engine: `10.4.32-MariaDB`; session timezone: `+00:00`. Tables: 52; columns: 521; index columns: 267; foreign-key columns: 89. This is not a live production inventory.
 
-Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking 005, payments 006, driver tracking 007 notifications 008, privacy 009 and cleanup 010 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
+Source: `scripts/database-inventory.php` output after the applied versioned migrations (including booking005,payments006,tracking007,notifications008,privacy009,cleanup010 and idempotency security011 when present). Reproduce with `php scripts/render-schema-docs.php <protected-inventory.json>`. No customer data is included; sensitive defaults are redacted. Existing FK delete rules are preserved when present, so a deployed variant may differ from this copy. Read [DATABASE_CHANGES.md](DATABASE_CHANGES.md), [BOOKING_WORKFLOW.md](BOOKING_WORKFLOW.md) and [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md) for semantics, anomalies, compatibility and release gates; [DATABASE_ERD.md](DATABASE_ERD.md) for the graph.
 
 ## `account_deletion_requests`
 
@@ -1013,9 +1013,11 @@ Engine: `InnoDB`; collation: `utf8mb4_general_ci`.
 | `RequestHash` | `char(64)` | NO | `NULL` |  |
 | `ResponseJson` | `text` | YES | `NULL` |  |
 | `CreatedAt` | `datetime(6)` | NO | `current_timestamp(6)` |  |
+| `RequestHashVersion` | `tinyint(3) unsigned` | NO | `1` |  |
 
 | Index | Kind | Ordered columns / prefix |
 |---|---|---|
+| `idx_request_hash_upgrade` | INDEX | `RequestHashVersion` |
 | `PRIMARY` | PRIMARY | `UserID`, `Scope`, `KeyHash` |
 
 | FK | Child column | Parent | Delete / update |

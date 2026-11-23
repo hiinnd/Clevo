@@ -16,7 +16,8 @@ if (isset($_POST['register_action'])) {
         ], $document);
         $registration_success = true; $registered_role = clevo_role($account['Role']);
         clevoCreateRoleNotification($conn, 'Admin', 'تسجيل حساب جديد', 'New account submitted for verification.', 'info', '../admin/manage-users.php');
-    } catch (ClevoSecurityException $e) { $error = in_array($e->reason, ['weak_password','pass_mismatch','owner_docs_required'], true) ? $e->reason : 'system_error'; }
+    } catch (ClevoSecurityException $e) { clevo_discard_unreferenced_verification($conn,$document);$error = in_array($e->reason, ['weak_password','pass_mismatch','owner_docs_required'], true) ? $e->reason : 'system_error'; }
+    catch(Throwable $e){clevo_discard_unreferenced_verification($conn,$document);throw $e;}
 }
 ?>
 

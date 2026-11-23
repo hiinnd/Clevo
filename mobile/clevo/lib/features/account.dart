@@ -24,7 +24,7 @@ class ProfileScreen extends ConsumerWidget {
                 '${text(user?.raw['email'])}\n${text(user?.raw['phone'])}',
             children: [
               Text(
-                '${tr(context, 'الصلاحية المعتمدة', 'Authorized role')}: ${user?.role}',
+                '${tr(context, 'الصلاحية المعتمدة', 'Authorized role')}: ${statusText(context, user?.role)}',
               ),
               OutlinedButton(
                 onPressed: () async {
@@ -111,7 +111,11 @@ class ProfileScreen extends ConsumerWidget {
             onTap: () => context.push('/recovery'),
           ),
           DataCard(
-            title: tr(context, 'الخصوصية وحذف الحساب', 'Privacy and account deletion'),
+            title: tr(
+              context,
+              'الخصوصية وحذف الحساب',
+              'Privacy and account deletion',
+            ),
             onTap: () => context.push('/privacy'),
           ),
           if (user?.role == 'customer')
@@ -269,7 +273,8 @@ class SupportScreen extends ConsumerWidget {
       field: 'support_requests',
       itemBuilder: (context, row, reload) => DataCard(
         title: text(row['subject']),
-        subtitle: '${text(row['status'])} · ${text(row['created_at'])}',
+        subtitle:
+            '${statusText(context, row['status'])} · ${text(row['created_at'])}',
         onTap: () => context.push('/support/${row['id']}'),
       ),
     ),

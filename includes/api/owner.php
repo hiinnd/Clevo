@@ -10,6 +10,9 @@ function clevo_api_owner(mysqli $db,string $action,array $ctx,array $args,array 
     $user=(int)$ctx['account']['UserID'];$id=(int)($args['id']??0);
     if($action==='stations')clevo_api_result(['stations'=>clevo_api_list($db,'StationID,Name,Location,PhoneNumber,Lat,Lon,Status,admin_status,OpeningTime,ClosingTime,Has_At_Station,Has_Home_Service,Has_Delivery,BookingCapacity,HomeCapacity,DefaultServiceMinutes,DeliveryBufferMinutes,StationFee,HomeFee,DeliveryFee','FROM stations','UserID=? AND ArchivedAt IS NULL','i',[$user],['id'=>'StationID','name'=>'Name'],'id','StationID')]);
     if($action==='bookings')clevo_api_result(['bookings'=>clevo_api_booking_list($db,$ctx,'all')]);
+    if($action==='subscription_usage'){
+        clevo_api_result(['redemptions'=>clevo_api_list($db,'r.RedemptionID,r.BookingID,b.StationID,s.Name StationName,r.State,r.AmountMinor,r.CreatedAt','FROM subscription_redemptions r JOIN booking b ON b.BookingID=r.BookingID JOIN stations s ON s.StationID=b.StationID','COALESCE(b.OwnerIDSnapshot,s.UserID)=?','i',[$user],['id'=>'r.RedemptionID','created_at'=>'r.CreatedAt'],'id','r.RedemptionID')]);
+    }
     if($action==='services'){
         clevo_market_station($db,$user,$id,false);
         clevo_api_result(['services'=>clevo_api_list($db,'ServiceID,Name_ar,Name_en,Description_ar,Description_en,Price,Duration,is_station,is_home,is_pickup','FROM services','StationID=? AND ArchivedAt IS NULL','i',[$id],['id'=>'ServiceID','price'=>'Price'],'id','ServiceID')]);

@@ -61,14 +61,37 @@ function clevo_db_effect(mysqli $conn, int $booking, string $effect): bool
 function clevo_db_idempotent(mysqli $conn,int $user,string $scope,string $key,array $body,callable $work): array
 {
     if (!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$key)) throw new ClevoSecurityException('idempotency_key_required',422);
-    $keyHash=hash('sha256',$key); $requestHash=hash('sha256',json_encode($body,JSON_THROW_ON_ERROR|JSON_PRESERVE_ZERO_FRACTION));
+    $keyHash=hash('sha256',$key); $legacyHash=hash('sha256',json_encode($body,JSON_THROW_ON_ERROR|JSON_PRESERVE_ZERO_FRACTION));
+    $requestHash=clevo_db_request_hash($legacyHash);
     return clevo_db_atomic($conn,function()use($conn,$user,$scope,$keyHash,$requestHash,$work):array {
-        clevo_stmt($conn,'INSERT INTO request_idempotency (UserID,Scope,KeyHash,RequestHash) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE KeyHash=VALUES(KeyHash)','isss',[$user,$scope,$keyHash,$requestHash]);
-        $row=clevo_stmt($conn,'SELECT RequestHash,ResponseJson FROM request_idempotency WHERE UserID=? AND Scope=? AND KeyHash=? FOR UPDATE','iss',[$user,$scope,$keyHash])->get_result()->fetch_assoc();
+        clevo_stmt($conn,'INSERT INTO request_idempotency (UserID,Scope,KeyHash,RequestHash,RequestHashVersion) VALUES (?,?,?,?,2) ON DUPLICATE KEY UPDATE KeyHash=VALUES(KeyHash)','isss',[$user,$scope,$keyHash,$requestHash]);
+        $row=clevo_stmt($conn,'SELECT RequestHash,RequestHashVersion,ResponseJson FROM request_idempotency WHERE UserID=? AND Scope=? AND KeyHash=? FOR UPDATE','iss',[$user,$scope,$keyHash])->get_result()->fetch_assoc();
+        if((int)$row['RequestHashVersion']===1){
+            // Upgrade a late legacy writer without re-executing the committed operation.
+            $row['RequestHash']=clevo_db_request_hash($row['RequestHash']);
+            clevo_stmt($conn,'UPDATE request_idempotency SET RequestHash=?,RequestHashVersion=2 WHERE UserID=? AND Scope=? AND KeyHash=?','siss',[$row['RequestHash'],$user,$scope,$keyHash]);
+        }elseif((int)$row['RequestHashVersion']!==2)throw new RuntimeException('Unsupported request digest version.');
         if (!hash_equals($row['RequestHash'],$requestHash)) throw new ClevoSecurityException('idempotency_conflict',409);
         if ($row['ResponseJson']!==null) return json_decode($row['ResponseJson'],true,512,JSON_THROW_ON_ERROR);
         $result=$work();
         clevo_stmt($conn,'UPDATE request_idempotency SET ResponseJson=? WHERE UserID=? AND Scope=? AND KeyHash=?','siss',[json_encode($result,JSON_THROW_ON_ERROR),$user,$scope,$keyHash]);
         return $result;
     });
+}
+
+function clevo_db_request_hash(string $legacyDigest):string
+{
+    return hash_hmac('sha256','clevo.idempotency.v2:'.$legacyDigest,clevo_secret('APP_KEY'));
+}
+
+/** Called by the protected migration runner with all application writers drained. */
+function clevo_db_harden_idempotency(mysqli $conn):void
+{
+    do{
+        $count=clevo_db_atomic($conn,function()use($conn):int{
+            $rows=clevo_stmt($conn,'SELECT UserID,Scope,KeyHash,RequestHash FROM request_idempotency WHERE RequestHashVersion=1 LIMIT 500 FOR UPDATE')->get_result()->fetch_all(MYSQLI_ASSOC);
+            foreach($rows as $row)clevo_stmt($conn,'UPDATE request_idempotency SET RequestHash=?,RequestHashVersion=2 WHERE UserID=? AND Scope=? AND KeyHash=? AND RequestHashVersion=1','siss',[clevo_db_request_hash($row['RequestHash']),(int)$row['UserID'],$row['Scope'],$row['KeyHash']]);
+            return count($rows);
+        });
+    }while($count>0);
 }

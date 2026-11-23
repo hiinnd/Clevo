@@ -169,7 +169,8 @@ class _PaymentOrderScreenState extends ConsumerState<PaymentOrderScreen>
           children: [
             DataCard(
               title: money(order['amount']),
-              subtitle: '${text(order['State'])} · ${text(order['Purpose'])}',
+              subtitle:
+                  '${statusText(context, order['State'])} · ${statusText(context, order['Purpose'])}',
               children: [
                 if (order['sandbox'] == true)
                   Text(

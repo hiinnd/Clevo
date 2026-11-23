@@ -65,7 +65,7 @@ class _StationsScreenState extends ConsumerState<StationsScreen> {
               children: [
                 const SizedBox(height: 12),
                 Text(
-                  '${tr(context, 'من', 'From')} ${money(row['PriceMin'])} · ${text(row['Status'])}',
+                  '${tr(context, 'من', 'From')} ${money(row['PriceMin'])} · ${statusText(context, row['Status'])}',
                 ),
               ],
             ),

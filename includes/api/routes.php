@@ -79,6 +79,7 @@ function clevo_api_routes():array
     $add('POST','owner/drivers/{id}/invitation','owner.driver_invite','owner','DriverInvitation',true);
     $add('DELETE','owner/drivers/{id}','owner.driver_delete','owner','Empty',true);
     $add('GET','owner/earnings','owner.earnings','owner');
+    $add('GET','owner/subscription-usage','owner.subscription_usage','owner');
     $add('GET','owner/bank-account','owner.bank','owner');
     $add('PUT','owner/bank-account','owner.bank_update','owner','Bank',true);
     $add('GET','owner/withdrawals','owner.withdrawals','owner');

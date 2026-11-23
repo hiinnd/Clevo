@@ -58,11 +58,11 @@ function clevo_api_enum(string $key,array $values,?string $default=null):?string
 {
     $value=clevo_api_query($key,$default);if($value!==null&&!in_array($value,$values,true))clevo_api_invalid('query.'.$key);return $value;
 }
-function clevo_api_list(mysqli $db,string $select,string $from,string $where,string $types,array $params,array $sorts,string $defaultSort,string $id):array
+function clevo_api_list(mysqli $db,string $select,string $from,string $where,string $types,array $params,array $sorts,string $defaultSort,string $id,?array $countQuery=null):array
 {
     $page=clevo_api_integer('page',1,1,10000);$size=clevo_api_integer('per_page',25,1,100);
     $sort=clevo_api_enum('sort',array_keys($sorts),$defaultSort);$direction=clevo_api_enum('direction',['asc','desc'],'desc');
-    $count=clevo_stmt($db,"SELECT COUNT(*) Total $from WHERE $where",$types,$params)->get_result()->fetch_assoc();
+    $count=$countQuery===null?clevo_stmt($db,"SELECT COUNT(*) Total $from WHERE $where",$types,$params)->get_result()->fetch_assoc():clevo_stmt($db,$countQuery['sql'],$countQuery['types'],$countQuery['params'])->get_result()->fetch_assoc();
     $offset=($page-1)*$size;
     $rows=clevo_stmt($db,"SELECT $select $from WHERE $where ORDER BY ".$sorts[$sort]." $direction, $id $direction LIMIT ? OFFSET ?",$types.'ii',array_merge($params,[$size,$offset]))->get_result()->fetch_all(MYSQLI_ASSOC);
     $GLOBALS['clevo_api_meta']['pagination']=['page'=>$page,'per_page'=>$size,'total'=>(int)$count['Total'],'total_pages'=>(int)ceil((int)$count['Total']/$size)];

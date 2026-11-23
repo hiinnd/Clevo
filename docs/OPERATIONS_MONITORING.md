@@ -7,7 +7,7 @@ Prepared 2026-11-22; reference files remain unactivated. See [DEPLOYMENT.md](DEP
 | Surface | Behavior |
 | --- | --- |
 | `GET /health/live.php` | Minimal PHP process liveness; no DB/credentials or configuration details |
-| `GET /health/ready.php` | Independent OPS_HEALTH_TOKEN bearer; DB SELECT, migrations 001–010, storage, maintenance and configured worker/backup freshness; 200/503 minimal status |
+| `GET /health/ready.php` | Independent OPS_HEALTH_TOKEN bearer; DB SELECT,migrations001–011,no unkeyed request digests,storage,maintenance and configured worker/backup freshness;200/503 minimal status |
 | `GET /health/metrics.php` | Same bearer plus private-network Apache restriction; numeric readiness, queue/oldest age, mail due, worker last-success ages/exit codes and backup age |
 | `php scripts/check-health.php` | CLI readiness details with safe check names/counts; exit 0/1 |
 | `php scripts/production-preflight.php` | Redacted configuration/review gates; no infrastructure activation and no proof of live delivery |
@@ -22,11 +22,14 @@ The runner permits only fixed jobs and holds a per-job filesystem lock. Atomic h
 | notification-delivery | notification-delivery-worker.php | 60 s; outbound delivery/devices, business reads |
 | security-mail | security-mail-worker.php | 60 s; encrypted mail + bounded auth/rate cleanup |
 | booking-expiry | expire-bookings.php | 60 s; shared booking service and history/outbox |
+| subscription-expiry | plan_expiry_notifier.php | 60 s; bounded100 subscriptions,per-plan/end-date idempotency,UTC expiry and transactional outbox; separate narrow subscription worker grants |
 | tracking-retention | purge-tracking.php --apply | 60 s; dedicated GPS DELETE identity |
 | payment-report | reconcile-payments.php | Reference timer 60 s; may use separate 5-minute override; **no --query-provider** and no charge/refund issuance |
 | privacy-files | process-account-erasure-files.php --apply | Reviewed requests only; dedicated GPS DELETE and file-cleanup identity; gated policy |
 
 Use separate `/etc/clevo/workers/<job>.env` files. Existing service bootstraps may require full application config even for a narrow DB identity; mail/Firebase private files belong only to outbound workers that need them. The privacy cleanup CLI uses DB-only validation and reviewed legal metadata; it needs no JWT/SMTP/encryption key. Test actual grants rather than widening privileges until errors disappear. SQL examples are a starting point, not certification of a new MySQL host. Runtime cannot rewrite audit/history/journal records or delete GPS; a migration identity must never run FPM.
+
+The subscription job was added2026-11-23 and is required by worker readiness when `OPS_REQUIRE_WORKERS=1`. Install its reviewed timer/private environment together with this application version; the source change does not activate a scheduler. A separate notification worker processes its committed events. Reminder idempotency prevents repeated application events but does not promise exactly-once external provider delivery. Legacy user-level reminder suppression is replaced without changing purchased wash balances or activating plans.
 
 ## Logging and alerts
 

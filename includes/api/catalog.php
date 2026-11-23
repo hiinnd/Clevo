@@ -24,7 +24,10 @@ function clevo_api_catalog(mysqli $db,string $action,array $args):never
         $min=clevo_api_filter_number('min_price',0,99999999.99);$max=clevo_api_filter_number('max_price',0,99999999.99);if($min!==null&&$max!==null&&$min>$max)clevo_api_invalid('query.price');
         foreach([['x.PriceMin>=?',$min],['x.PriceMin<=?',$max],['x.Rating>=?',clevo_api_filter_number('min_rating',0,5)],['x.DistanceKm<=?',$radius]] as [$condition,$value])if($value!==null){$outer[]=$condition;$extra[]=$value;$extraTypes.='d';}
         $sorts=['id'=>'x.StationID','price'=>'x.PriceMin','rating'=>'x.Rating','name'=>'x.Name'];if($lat!==null)$sorts['distance']='x.DistanceKm';
-        $rows=clevo_api_list($db,'x.*',"FROM ($base) x",implode(' AND ',$outer),$distanceTypes.$types.$extraTypes,array_merge($distanceParams,$params,$extra),$sorts,'id','x.StationID');
+        // The LEFT joins each produce at most one row per station. Without aggregate
+        // filters, count directly instead of aggregating all services/reviews twice.
+        $countQuery=$mode===null&&!$extra?['sql'=>'SELECT COUNT(*) Total FROM stations s WHERE '.implode(' AND ',$where),'types'=>$types,'params'=>$params]:null;
+        $rows=clevo_api_list($db,'x.*',"FROM ($base) x",implode(' AND ',$outer),$distanceTypes.$types.$extraTypes,array_merge($distanceParams,$params,$extra),$sorts,'id','x.StationID',$countQuery);
         foreach($rows as &$row)$row['Image']=clevo_api_image($row['Image'],'',true);unset($row);
         clevo_api_result(['stations'=>$rows]);
     }

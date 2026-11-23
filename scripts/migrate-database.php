@@ -4,6 +4,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require_once __DIR__.'/../includes/security/environment.php';
 require_once __DIR__.'/../includes/security/http.php';
 require_once __DIR__.'/../includes/security/auth.php';
+require_once __DIR__.'/../includes/database.php';
 require_once __DIR__.'/../includes/database-preflight.php';
 try {
     clevo_load_environment(); clevo_validate_environment(); $conn=clevo_connect_database();
@@ -16,10 +17,10 @@ try {
     if ((int)$conn->query("SELECT GET_LOCK(CONCAT(DATABASE(), '.security-migration'), 10) n")->fetch_assoc()['n']!==1) throw new RuntimeException('Migration lock unavailable.');
     // All writers must be stopped externally. MySQL DDL commits implicitly.
     $conn->query("CREATE TABLE IF NOT EXISTS database_migration_steps (Version VARCHAR(100) NOT NULL, StepNumber INT NOT NULL, Checksum CHAR(64) NOT NULL, State ENUM('started','applied') NOT NULL, PRIMARY KEY(Version,StepNumber)) ENGINE=InnoDB");
-    foreach (['002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications','009_privacy_requests','010_erasure_cleanup'] as $version) {
+    foreach (['002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications','009_privacy_requests','010_erasure_cleanup','011_idempotency_hash_security'] as $version) {
         $source=file_get_contents(__DIR__.'/../migrations/'.$version.'.sql'); $hash=hash('sha256',$source);
         $done=clevo_stmt($conn,'SELECT Checksum FROM security_schema_migrations WHERE Version=?','s',[$version])->get_result()->fetch_assoc();
-        if ($done) { if (!hash_equals($done['Checksum'],$hash)) throw new RuntimeException('Applied migration changed.'); echo "$version already applied.\n"; continue; }
+        if ($done) { if (!hash_equals($done['Checksum'],$hash)) throw new RuntimeException('Applied migration changed.'); if($version==='011_idempotency_hash_security')clevo_db_harden_idempotency($conn); echo "$version already applied.\n"; continue; }
         $sql=preg_replace('/^\s*--[^\r\n]*/m','',$source); $step=0;
         foreach (array_filter(array_map('trim',explode(';',$sql))) as $statement) {
             $step++;
@@ -41,6 +42,7 @@ try {
             if (!$skip) $conn->query($statement);
             clevo_stmt($conn,"UPDATE database_migration_steps SET State='applied' WHERE Version=? AND StepNumber=?",'si',[$version,$step]);
         }
+        if($version==='011_idempotency_hash_security')clevo_db_harden_idempotency($conn);
         clevo_stmt($conn,'INSERT INTO security_schema_migrations (Version,Checksum) VALUES (?,?)','ss',[$version,$hash]);
         echo "$version applied.\n";
     }

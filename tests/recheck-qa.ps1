@@ -1,4 +1,4 @@
-param([ValidateSet('admin','load','production')][string]$Target = 'admin')
+param([ValidateSet('admin','load','production','final')][string]$Target = 'admin')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $projectRoot '.security-test'
@@ -64,6 +64,9 @@ try {
             if ($benchFailed) { $result = 1 }
         } elseif ($Target -eq 'production') {
             & php tests/production.php
+            $result = $LASTEXITCODE
+        } elseif ($Target -eq 'final') {
+            & php tests/final-fixes.php
             $result = $LASTEXITCODE
         } else {
             & php tests/admin-browser-fixtures.php

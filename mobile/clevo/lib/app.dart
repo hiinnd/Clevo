@@ -15,6 +15,7 @@ import 'features/dashboards.dart';
 import 'features/driver.dart';
 import 'features/history.dart';
 import 'features/owner.dart';
+import 'features/owner_onboarding.dart';
 import 'features/payments.dart';
 import 'features/tracking.dart';
 import 'ui/common.dart';
@@ -75,6 +76,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/startup', builder: (_, state) => const StartupScreen()),
       GoRoute(path: '/login', builder: (_, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, state) => const RegisterScreen()),
+      GoRoute(
+        path: '/register-owner',
+        builder: (_, state) => const OwnerOnboardingScreen(),
+      ),
       GoRoute(path: '/recovery', builder: (_, state) => const RecoveryScreen()),
       GoRoute(
         path: '/unsupported',
@@ -168,6 +173,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/owner/statement',
         builder: (_, state) => const HistoryScreen(kind: 'statement'),
+      ),
+      GoRoute(
+        path: '/owner/subscriptions',
+        builder: (_, state) => const HistoryScreen(kind: 'owner_subscriptions'),
       ),
       GoRoute(
         path: '/owner/stations',

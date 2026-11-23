@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api.dart';
 import '../core/state.dart';
+import 'value_labels.dart';
+
+String statusText(BuildContext context, dynamic value) =>
+    valueLabel(value, Localizations.localeOf(context).languageCode);
 
 String errorText(BuildContext context, Object error) {
   final code = error is ApiFailure ? error.code : '';
@@ -16,8 +20,8 @@ String errorText(BuildContext context, Object error) {
   if (error is ApiFailure && error.status == 503) {
     return tr(
       context,
-      'هذه الخدمة غير متاحة حالياً. لم يُؤكّد أي دفع أو تحويل.',
-      'This service is unavailable. No payment or transfer has been confirmed.',
+      'هذه الخدمة غير متاحة حالياً. حاول لاحقاً.',
+      'This service is unavailable right now. Try again later.',
     );
   }
   return switch (code) {

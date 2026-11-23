@@ -137,7 +137,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   'Account deletion request',
                 ),
                 subtitle:
-                    '${text(current['State'])} · #${text(current['RequestID'])}',
+                    '${statusText(context, current['State'])} · #${text(current['RequestID'])}',
               ),
             if (legal['deletion_enabled'] == true &&
                 (current == null || current['State'] == 'cancelled'))

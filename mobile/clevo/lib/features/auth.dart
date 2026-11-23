@@ -177,9 +177,13 @@ class RegisterScreen extends ConsumerWidget {
         Text(
           tr(
             context,
-            'تسجيل المالك يتطلب مستند التحقق واعتماد الإدارة. يمكن تقديمه عبر موقع CLEVO الحالي؛ حساب السائق ينشئه مالك المحطة.',
-            'Owner onboarding requires document verification and approval through the existing CLEVO website. Drivers are provisioned by station owners.',
+            'تسجيل المالك يتطلب مستند التحقق واعتماد الإدارة. حساب السائق ينشئه مالك المحطة.',
+            'Owner onboarding requires document verification and Admin approval. Drivers are provisioned by station owners.',
           ),
+        ),
+        TextButton(
+          onPressed: () => context.go('/register-owner'),
+          child: Text(tr(context, 'تسجيل صاحب محطة', 'Register station owner')),
         ),
         TextButton(
           onPressed: () => context.go('/login'),

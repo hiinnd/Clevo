@@ -34,7 +34,8 @@ if (in_array($route, $public, true)) {
         clevo_auth_throttle($conn, 'register', $text('email', 101));
         if (!in_array($input['role'] ?? 'customer', ['customer', 'owner'], true)) throw new ClevoSecurityException('invalid_registration', 422);
         $document = ($input['role'] ?? '') === 'owner' ? clevo_save_upload($_FILES['verification_file'] ?? [], 'verification') : null;
-        clevo_register_account($conn, $input, $document);
+        try{clevo_register_account($conn, $input, $document);}
+        catch(Throwable $error){clevo_discard_unreferenced_verification($conn,$document);throw $error;}
         clevo_json_response('success', [], 'verification_required', 201);
     }
     if ($route === 'auth/password/forgot') {

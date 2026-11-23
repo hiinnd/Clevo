@@ -90,6 +90,8 @@ try {
         $qaExit = 0; $qaLoadExit = 0
         if ($QA -and $integrationExit -eq 0) { & php tests/qa-journeys.php; $qaExit = $LASTEXITCODE; & php tests/qa-performance.php; $qaLoadExit = $LASTEXITCODE }
         $databaseExit = 0
+        $finalFixExit = 0
+        if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/final-fixes.php; $finalFixExit = $LASTEXITCODE }
         $productionExit = 0
         if (!$MobileOnly -and $integrationExit -eq 0) { & php tests/production.php; $productionExit = $LASTEXITCODE }
         if (!$MobileOnly -and !$AdminOnly) { & php tests/database.php; $databaseExit = $LASTEXITCODE }
@@ -126,7 +128,7 @@ try {
             & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'apache-rules.ps1') -ApacheRoot $apacheRoot -PhpRoot $phpRoot
             $apacheExit = $LASTEXITCODE
         } else { Write-Output 'SKIP: isolated Apache checks not requested or Apache PHP module unavailable.' }
-        if ($productionExit -ne 0 -or $qaExit -ne 0 -or $qaLoadExit -ne 0 -or $adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile/QA/production tests failed. See assertion labels above.' }
+        if ($finalFixExit -ne 0 -or $productionExit -ne 0 -or $qaExit -ne 0 -or $qaLoadExit -ne 0 -or $adminBrowserExit -ne 0 -or $adminExit -ne 0 -or $adminFinancialExit -ne 0 -or $unitExit -ne 0 -or $scanExit -ne 0 -or $contractExit -ne 0 -or $integrationExit -ne 0 -or $apiExit -ne 0 -or $bookingExit -ne 0 -or $financialExit -ne 0 -or $notificationExit -ne 0 -or $logisticsExit -ne 0 -or $databaseExit -ne 0 -or $apacheExit -ne 0 -or $mobileExit -ne 0) { throw 'Security/API/booking/payment/database/admin/mobile/QA/production tests failed. See assertion labels above.' }
     } finally { Pop-Location }
 } finally {
     $env:CLEVO_ENV_FILE = $previousEnvironmentFile

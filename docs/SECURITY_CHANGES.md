@@ -1,5 +1,7 @@
 # CLEVO authentication/security changes
 
+Current2026-11-23: ordinary password-bearing request-body digests were a confirmed HIGH offline-guessing risk. `includes/database.php` now uses domain-separated HMAC-SHA256 with private APP_KEY; additive migration011 and protected PHP backfill harden existing records without plaintext bodies or changing cached responses. Upload cleanup removes only the current unreferenced failed-registration document. See [FINAL_REMAINING_FIXES.md](FINAL_REMAINING_FIXES.md) for deployment/key/old-backup handling and [FINAL_INTEGRATION_RESULTS.md](FINAL_INTEGRATION_RESULTS.md) for 32 affected passing assertions. No live secret rotation occurred. The old local PHP runtime independently remains a CRITICAL version blocker in [LAUNCH_BLOCKERS.md](LAUNCH_BLOCKERS.md).
+
 Subsequent integration phases (2026-11-16): [NOTIFICATIONS.md](NOTIFICATIONS.md), [TRACKING_ARCHITECTURE.md](TRACKING_ARCHITECTURE.md), and [NOTIFICATION_TEST_RESULTS.md](NOTIFICATION_TEST_RESULTS.md) describe migrations 007/008, current delivery/tracking policy and test evidence. The API now has 159 operations across 138 paths. Earlier phase counts and worker/null-transport behavior below are historical where superseded.
 
 Phase date: 2026-11-15. This phase implements authentication and authorization hardening on the existing PHP/MySQL application. No backend framework replacement, mobile app, production deployment, provider-account rotation or real payment integration was performed. The [audit](AUDIT_REPORT.md) remains a historical record of the pre-change baseline.

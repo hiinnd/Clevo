@@ -9,6 +9,7 @@ function clevo_operations_jobs():array
         'notification-delivery'=>['notification-delivery-worker.php',[],180],
         'security-mail'=>['security-mail-worker.php',[],180],
         'booking-expiry'=>['expire-bookings.php',[],180],
+        'subscription-expiry'=>['plan_expiry_notifier.php',[],180],
         'tracking-retention'=>['purge-tracking.php',['--apply'],180],
         'payment-report'=>['reconcile-payments.php',[],900],
         'privacy-files'=>['process-account-erasure-files.php',['--apply'],900]];
@@ -33,8 +34,10 @@ function clevo_operations_health():array
     try{
         $db=clevo_connect_database();$checks['database']=(int)$db->query('SELECT 1 ok')->fetch_assoc()['ok']===1;
         $deployed=$db->query('SELECT Version FROM security_schema_migrations')->fetch_all(MYSQLI_ASSOC);
-        $expected=['001_auth_security','002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications','009_privacy_requests','010_erasure_cleanup'];
+        $expected=['001_auth_security','002_database_integrity','003_required_relationships','004_mobile_api','005_booking_workflow','006_commercial_payments','007_driver_tracking','008_notifications','009_privacy_requests','010_erasure_cleanup','011_idempotency_hash_security'];
         $checks['schema']=!array_diff($expected,array_column($deployed,'Version'));
+        $metrics['unkeyed_request_hashes']=(int)$db->query('SELECT COUNT(*) n FROM request_idempotency WHERE RequestHashVersion<>2')->fetch_assoc()['n'];
+        $checks['idempotency_hashes']=$metrics['unkeyed_request_hashes']===0;
         $queue=$db->query("SELECT COUNT(*) queued,COALESCE(MAX(TIMESTAMPDIFF(SECOND,AvailableAt,UTC_TIMESTAMP(6))),0) oldest FROM notification_deliveries WHERE State='queued' AND AvailableAt<=UTC_TIMESTAMP(6)")->fetch_assoc();
         $metrics['delivery_queue_due']=(int)$queue['queued'];$metrics['delivery_oldest_due_seconds']=max(0,(int)$queue['oldest']);
         $metrics['security_mail_due']=(int)$db->query('SELECT COUNT(*) n FROM security_mail_queue WHERE SentAt IS NULL AND Attempts<5 AND AvailableAt<=UTC_TIMESTAMP(6)')->fetch_assoc()['n'];

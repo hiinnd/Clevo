@@ -39,3 +39,16 @@ function clevo_media_url(string $reference): string
 {
     return clevo_public_url('includes/media.php?ref=' . rawurlencode($reference));
 }
+
+/** Failed registration may leave an upload, but a committed account's document must survive. */
+function clevo_discard_unreferenced_verification(mysqli $db,?string $reference):bool
+{
+    if(!$reference||!preg_match('/^private:verification:([a-f0-9]{48}\.(?:jpg|png|gif|webp|pdf))$/D',$reference,$match))return false;
+    try{
+        if(clevo_stmt($db,'SELECT UserID FROM user WHERE VerificationFile=? LIMIT 1','s',[$reference])->get_result()->fetch_assoc()||clevo_stmt($db,'SELECT StationID FROM stations WHERE CommercialRecordPath=? LIMIT 1','s',[$reference])->get_result()->fetch_assoc())return false;
+        $root=realpath(rtrim(clevo_env('PRIVATE_STORAGE_PATH'),'/\\').'/verification');if(!$root)return false;
+        $file=$root.DIRECTORY_SEPARATOR.$match[1];
+        if(is_link($file)||!is_file($file)||!clevo_path_within(realpath($file)?:'',$root))return false;
+        return unlink($file);
+    }catch(Throwable){error_log('CLEVO unreferenced registration upload requires cleanup.');return false;}
+}

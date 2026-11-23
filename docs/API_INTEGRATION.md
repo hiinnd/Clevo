@@ -1,5 +1,7 @@
 # CLEVO REST API integration
 
+Current2026-11-23: **175 operations/151 paths** (164 registry+11 auth). Read-only owner-scoped `GET owner/subscription-usage` is added; initial native owner registration reuses the existing multipart `POST auth/register` and pending approval contract. Deploy migration011 plus protected PHP backfill before this code; no new financial/role privilege is introduced. [Final fixes](FINAL_REMAINING_FIXES.md),[fresh test results](FINAL_INTEGRATION_RESULTS.md),and generated [OpenAPI](openapi.v1.json) supersede older counts below.
+
 Production preparation update (2026-11-22): the current generated specification contains **174 operations across 150 paths** (163 registry operations plus 11 preserved auth operations). Privacy/self-deletion and Admin erasure routes are documented in [PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md). Migration 010, protected operational health endpoints and staging/production release gates are covered by [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md). Counts in earlier dated phases below are historical.
 
 Subsequent integration phases (2026-11-16): [NOTIFICATIONS.md](NOTIFICATIONS.md), [TRACKING_ARCHITECTURE.md](TRACKING_ARCHITECTURE.md), and [NOTIFICATION_TEST_RESULTS.md](NOTIFICATION_TEST_RESULTS.md) describe migrations 007/008, current delivery/tracking policy and test evidence. The API now has 159 operations across 138 paths. Earlier phase counts and worker/null-transport behavior below are historical where superseded.

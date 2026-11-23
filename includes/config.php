@@ -51,6 +51,7 @@ if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Vers
 if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='006_commercial_payments'")->get_result()->fetch_assoc()) throw new RuntimeException('Commercial finance migration required.');
 if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='007_driver_tracking'")->get_result()->fetch_assoc()) throw new RuntimeException('Driver tracking migration required.');
 if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='008_notifications'")->get_result()->fetch_assoc()) throw new RuntimeException('Notification migration required.');
+if (!clevo_stmt($conn,"SELECT Version FROM security_schema_migrations WHERE Version='011_idempotency_hash_security'")->get_result()->fetch_assoc()) throw new RuntimeException('Idempotency security migration required.');
 clevo_require_schema($conn, 'request_idempotency', []);
 if (!(defined('CLEVO_API') && CLEVO_API) && PHP_SAPI !== 'cli') {
     clevo_web_identity($conn);

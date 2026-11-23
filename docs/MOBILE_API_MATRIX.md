@@ -1,12 +1,13 @@
 # Mobile API integration inventory
 
-All paths below are relative to `/api/v1/`. The authoritative server contracts remain `openapi.yaml` and `docs/API_ENDPOINT_INVENTORY.md`. Admin routes are intentionally consumed by the PHP web dashboard, not exposed as mobile administrator screens. The app uses the current scalar server role and does not elevate a customer/driver to owner locally.
+Updated 2026-11-23. All paths below are relative to `/api/v1/`. The authoritative server contracts are `docs/openapi.v1.json` and `docs/API_ENDPOINT_INVENTORY.md`. Admin routes are intentionally consumed by the PHP web dashboard, not exposed as mobile administrator screens. The app uses the current scalar server role and does not elevate a customer/driver to owner locally.
 
 | Experience / feature | Flutter file | Actual PHP API |
 |---|---|---|
 | Shared login / task-scoped driver login | `features/auth.dart`, `core/state.dart` | `POST auth/login`, `POST auth/driver-exchanges`, `GET me` |
 | Refresh / logout | `core/api.dart` | `POST auth/refresh`, `POST auth/logout` |
 | Customer registration / email verification | `features/auth.dart` | `POST auth/register`, `POST auth/email/resend`, `POST auth/email/verify` |
+| Initial owner document application | `features/owner_onboarding.dart` | `POST auth/register` multipart `role=owner`, document and station name; email/Admin approval remains mandatory |
 | Password recovery | `features/auth.dart` | `POST auth/password/forgot`, `POST auth/password/verify`, `POST auth/password/reset` |
 | Customer, owner, driver dashboards | `features/dashboards.dart` | Server-verified `GET me` role; dashboards link to real scoped resources without synthetic metrics |
 | Station search / price, rating, mode, location filters | `features/customer.dart` | `GET stations` with validated query parameters, pagination and sorting |
@@ -29,6 +30,7 @@ All paths below are relative to `/api/v1/`. The authoritative server contracts r
 | Assignment | `features/bookings.dart` | `POST owner/bookings/{id}/driver`; backend prevents conflicting assignments |
 | Earnings / commission / bank account | `features/owner.dart`, `features/history.dart` | `GET owner/financial-statement`, `PUT owner/bank-account`; settlements are commercially gated |
 | Owner reviews / replies | `features/history.dart` | `GET owner/reviews`, `PATCH owner/reviews/{id}/reply` |
+| Owner subscription usage, read-only | `features/history.dart` | `GET owner/subscription-usage`; only own booking redemptions, no customer-wide subscription or financial mutation |
 | Driver assigned jobs / history / detail | `features/driver.dart` | `GET driver/jobs` and `/history` return the **tasks** array; `GET driver/jobs/{id}` returns **booking** |
 | Driver acceptance / stage / customer-code handoff | `features/driver.dart` | `POST driver/jobs/{id}/accept`, `PATCH driver/jobs/{id}/delivery-stage`, `POST driver/jobs/{id}/confirm-handoff` |
 | Driver authorized foreground GPS | `features/tracking.dart`, `core/tracking_policy.dart` | `GET driver/jobs/{id}/tracking`, `POST driver/jobs/{id}/locations`; assignment, sequence, original UTC time, accuracy, `capture_mode=foreground` |
@@ -41,4 +43,4 @@ All paths below are relative to `/api/v1/`. The authoritative server contracts r
 
 New mobile client code does not alter endpoint semantics or add a second booking/payment implementation. A shared Dio layer applies HTTPS configuration, access-token refresh and error handling; each mutation carries its own operation key where supported. Unknown mutation outcomes keep forms locked to the original request for safe retry or direct the user to history. All paginated resource lists support refresh and load-more.
 
-Known backend gaps: multi-role memberships/context switch, mobile owner station creation/onboarding, owner-specific subscription administration. Operational gates: real API hostname/deployment, Firebase/APNs projects and credentials, restricted Maps keys, commercial gateway approval, production mail/queue operations, release signing and actual device qualification. These are not represented by fake successful actions.
+Remaining product gaps: multi-role memberships/context switch, additional-station/resubmission rules and commercially distinct owner memberships/owner-controlled package pricing. Initial owner applications and read-only usage reporting now exist. Operational gates: real API hostname/deployment, Firebase/APNs projects and credentials, restricted Maps keys, commercial gateway approval, production mail/queue operations, release signing and actual device qualification. These are not represented by fake successful actions.

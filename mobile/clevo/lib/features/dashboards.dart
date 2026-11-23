@@ -37,6 +37,12 @@ class Dashboard extends ConsumerWidget {
           '/owner/earnings',
         ),
         (Icons.star_outline, 'التقييمات', 'Reviews', '/owner/reviews'),
+        (
+          Icons.workspace_premium_outlined,
+          'استخدام الباقات',
+          'Subscription usage',
+          '/owner/subscriptions',
+        ),
         (Icons.support_agent, 'الدعم', 'Support', '/support'),
       ],
       'driver' => <(IconData, String, String, String)>[

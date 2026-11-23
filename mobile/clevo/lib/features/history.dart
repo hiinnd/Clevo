@@ -49,6 +49,12 @@ class HistoryScreen extends ConsumerWidget {
         'تقييمات محطاتي',
         'Station reviews',
       ),
+      'owner_subscriptions' => (
+        'owner/subscription-usage',
+        'redemptions',
+        'استخدام الباقات في حجوزاتي',
+        'Plan usage in my bookings',
+      ),
       'station_reviews' => (
         'stations/$id/reviews',
         'reviews',
@@ -63,10 +69,18 @@ class HistoryScreen extends ConsumerWidget {
         path: config.$1,
         field: config.$2,
         itemBuilder: (context, row, reload) {
+          if (kind == 'owner_subscriptions') {
+            return DataCard(
+              title: '${text(row['StationName'])} · #${text(row['BookingID'])}',
+              subtitle:
+                  '${statusText(context, row['State'])}\n${tr(context, 'قيمة الخدمات المغطاة بالفلس', 'Covered service value in fils')}: ${text(row['AmountMinor'])}\n${text(row['CreatedAt'])}',
+            );
+          }
           if (kind == 'orders') {
             return DataCard(
               title: money(row['amount']),
-              subtitle: '${text(row['State'])} · ${text(row['Purpose'])}',
+              subtitle:
+                  '${statusText(context, row['State'])} · ${statusText(context, row['Purpose'])}',
               onTap: () => context.push('/payment-order/${row['OrderID']}'),
             );
           }
@@ -98,23 +112,24 @@ class HistoryScreen extends ConsumerWidget {
           }
           if (kind == 'events') {
             return DataCard(
-              title: '${text(row['FromStatus'])} → ${text(row['ToStatus'])}',
+              title:
+                  '${statusText(context, row['FromStatus'])} → ${statusText(context, row['ToStatus'])}',
               subtitle:
-                  '${text(row['ActorRole'])} · ${text(row['ChangedAt'])}\n${text(row['Reason'])}',
+                  '${statusText(context, row['ActorRole'])} · ${text(row['ChangedAt'])}\n${text(row['Reason'])}',
             );
           }
           if (kind == 'wallet') {
             return DataCard(
               title: money(row['Amount']),
               subtitle:
-                  '${text(row['TransactionType'])}\n${text(row[Localizations.localeOf(context).languageCode == 'ar' ? 'Description_ar' : 'Description_en'])}\n${text(row['CreatedAt'])}',
+                  '${statusText(context, row['TransactionType'])}\n${text(row[Localizations.localeOf(context).languageCode == 'ar' ? 'Description_ar' : 'Description_en'])}\n${text(row['CreatedAt'])}',
             );
           }
           if (kind == 'subscriptions') {
             return DataCard(
               title: '${tr(context, 'باقة', 'Plan')} #${text(row['plan_id'])}',
               subtitle:
-                  '${text(row['status'])} · ${text(row['remaining_washes'])} ${tr(context, 'غسلات متبقية', 'washes remaining')}\n${text(row['start_date'])} → ${text(row['end_date'])}',
+                  '${statusText(context, row['status'])} · ${text(row['remaining_washes'])} ${tr(context, 'غسلات متبقية', 'washes remaining')}\n${text(row['start_date'])} → ${text(row['end_date'])}',
             );
           }
           if (kind == 'statement') {

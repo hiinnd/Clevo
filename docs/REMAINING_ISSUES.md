@@ -1,5 +1,7 @@
 # CLEVO remaining QA issues
 
+**2026-11-23 reconciliation:** [FINAL_REMAINING_FIXES.md](FINAL_REMAINING_FIXES.md),[FINAL_INTEGRATION_RESULTS.md](FINAL_INTEGRATION_RESULTS.md),and [LAUNCH_BLOCKERS.md](LAUNCH_BLOCKERS.md) describe the current source and new execution. The dated table below is retained as the baseline: native initial-owner registration and read-only owner redemption reporting now exist; commercial owner subscription policy/multi-role approval still do not. The local PHP runtime version is now a CRITICAL release blocker. Earlier results are not fresh test evidence.
+
 Date: **2026-11-21**. Severity is **CRITICAL / HIGH / MEDIUM / LOW**. Evidence distinguishes confirmed defects/version matches, known functionality gaps and tests that could not execute. No confirmed CRITICAL application exploit was demonstrated in the tests executed; this is not proof that none exists.
 
 ## Open release gates
